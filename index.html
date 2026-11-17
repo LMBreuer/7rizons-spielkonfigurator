@@ -1,2 +1,16 @@
 <!doctype html>
-<html lang="de"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#2A6FB4"/><meta name="description" content="Gestalte deinen 7’rizons Seminar-Hack: Lerntätigkeiten, Spielmechaniken und ein Arbeitsblatt für deinen Workshop."/><title>7’rizons · Spielkonfigurator</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
+<html lang="de"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#2A6FB4"/><meta name="description" content="Gestalte deinen 7’rizons Seminar-Hack: Lerntätigkeiten, Spielmechaniken und ein Arbeitsblatt für deinen Workshop."/><title>7’rizons · Spielkonfigurator</title></head><body>
+<div id="root">
+  <section style="max-width:38rem;margin:12vh auto;padding:2rem;font:1rem/1.6 system-ui,sans-serif">
+    <h1>7’rizons · Spielkonfigurator</h1>
+    <p id="startup-message">Der Spielkonfigurator wird geladen. Falls die Seite nicht startet, lade sie neu oder öffne die Onlineversion.</p>
+    <p><a href="https://lmbreuer.github.io/7rizons-spielkonfigurator/">Online-Konfigurator öffnen →</a></p>
+    <noscript>Bitte aktiviere JavaScript, um den Konfigurator zu verwenden.</noscript>
+  </section>
+</div>
+<script>
+  if (window.location.protocol === 'file:') {
+    document.getElementById('startup-message').textContent = 'Diese lokale Datei lässt sich nicht direkt als App starten. Öffne den Online-Konfigurator über den folgenden Link.';
+  }
+</script>
+<script type="module" src="/src/main.jsx"></script></body></html>
