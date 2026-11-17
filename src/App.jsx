@@ -20,7 +20,8 @@ import Worksheet from "./Worksheet.jsx";
 import ContextField from "./ContextField.jsx";
 import { jsonFilename } from "./downloads.js";
 import { reordered } from "../supabase/functions/_shared/fields.js";
-import logo from "./assets/7rizons-logo.png";
+import Logo from "./Logo.jsx";
+import { APPEARANCE_KEY, initialAppearance } from "./appearance.js";
 const STORAGE = "7rizons:draft:v1";
 const steps = [
   "Kontext",
@@ -58,9 +59,13 @@ const fileText = async (file) => {
   if (file.size > 200000) throw new Error("Datei zu groß (max. 200 KB).");
   return file.text();
 };
-function Button({ children, secondary = false, ...props }) {
+function Button({ children, secondary = false, type = "button", ...props }) {
   return (
-    <button className={secondary ? "button secondary" : "button"} {...props}>
+    <button
+      type={type}
+      className={secondary ? "button secondary" : "button"}
+      {...props}
+    >
       {children}
     </button>
   );
@@ -88,16 +93,13 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [theme, setTheme] = useState(() => {
-    try {
-      return (
-        localStorage.getItem("7rizons:theme") ||
-        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-      );
-    } catch {
-      return "light";
-    }
-  });
+  const [theme, setTheme] = useState(() =>
+    initialAppearance({ getItem: (key) => localStorage.getItem(key) }),
+  );
+  const mainRef = useRef(null);
+  const lastView = useRef({ page, step, result: null, preview: null });
+  const sortFocus = useRef(null);
+  const [sortMessage, setSortMessage] = useState("");
   const [mode, setMode] = useState("template");
   const [provider, setProvider] = useState("openai");
   const [apiKey, setApiKey] = useState("");
@@ -142,11 +144,55 @@ export default function App() {
   }
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.documentElement.style.colorScheme = theme;
+    document.documentElement.style.colorScheme =
+      theme === "dark" ? "dark" : "light";
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute(
+        "content",
+        theme === "dark"
+          ? "#101820"
+          : theme === "contrast"
+            ? "#ffffff"
+            : "#f4f6f9",
+      );
     try {
-      localStorage.setItem("7rizons:theme", theme);
+      localStorage.setItem(APPEARANCE_KEY, theme);
     } catch {}
   }, [theme]);
+  useEffect(() => {
+    const old = lastView.current;
+    const changed = old.page !== page || old.step !== step;
+    lastView.current = { page, step, result, preview };
+    let heading;
+    if (changed)
+      heading = mainRef.current?.querySelector(
+        page === "app" ? ".workspace h2" : "h1",
+      );
+    else if (
+      (result && result !== old.result) ||
+      (preview && preview !== old.preview)
+    )
+      heading = mainRef.current?.querySelector(".worksheet h1");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus();
+    }
+    document.title =
+      page === "app"
+        ? `${steps[step - 1]} · 7’rizons Spielkonfigurator`
+        : `${{ about: "Über das Tool", legal: "Impressum & Hinweise", account: "Dein Zugang", archive: "Meine Entwürfe", admin: "Administration" }[page] || "7’rizons"} · Spielkonfigurator`;
+  }, [page, step, result, preview]);
+  useEffect(() => {
+    if (!sortFocus.current) return;
+    const target = mainRef.current?.querySelector(
+      `[data-mechanism-id="${sortFocus.current}"] .drag-handle`,
+    );
+    if (target) {
+      target.focus({ preventScroll: true });
+      sortFocus.current = null;
+    }
+  }, [draft.mechanisms]);
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -254,6 +300,10 @@ export default function App() {
       currentIndex + delta >= draft.mechanisms.length
     )
       return;
+    sortFocus.current = id;
+    setSortMessage(
+      `${MK.find((m) => m.id === id).label}: Position ${currentIndex + delta + 1} von ${draft.mechanisms.length}.`,
+    );
     change((d) => {
       const a = [...d.mechanisms];
       const i = a.indexOf(id),
@@ -262,6 +312,15 @@ export default function App() {
       [a[i], a[j]] = [a[j], a[i]];
       return { ...d, mechanisms: a };
     });
+  }
+  function removeMechanism(id) {
+    const index = draft.mechanisms.indexOf(id);
+    sortFocus.current =
+      draft.mechanisms[index + 1] || draft.mechanisms[index - 1];
+    setSortMessage(
+      `${MK.find((m) => m.id === id).label} wurde entfernt. ${draft.mechanisms.length - 1} Mechaniken ausgewählt.`,
+    );
+    toggleMechanism(id);
   }
   async function refreshWorkshops() {
     const data = unwrap(await cloud.rpc("my_workshops"));
@@ -416,6 +475,17 @@ export default function App() {
   );
   return (
     <>
+      <a
+        className="skip-link no-print"
+        href="#main-content"
+        onClick={(e) => {
+          e.preventDefault();
+          mainRef.current?.focus();
+          mainRef.current?.scrollIntoView({ block: "start" });
+        }}
+      >
+        Zum Inhalt springen
+      </a>
       <header className="topbar no-print">
         <a
           className="brand"
@@ -425,15 +495,7 @@ export default function App() {
             setPage("app");
           }}
         >
-          <span className="brand-logo-frame">
-            <img
-              src={logo}
-              className="brand-logo"
-              alt="7’rizons"
-              width="4096"
-              height="1186"
-            />
-          </span>
+          <Logo />
           <small>Spielkonfigurator · Prototyp</small>
         </a>
         <nav aria-label="Werkzeuge">
@@ -445,17 +507,14 @@ export default function App() {
           >
             Über das Tool
           </button>
-          <button
-            className="icon-button"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label={
-              theme === "dark"
-                ? "Lightmode einschalten"
-                : "Darkmode einschalten"
-            }
-          >
-            {theme === "dark" ? "☀ Hell" : "☾ Dunkel"}
-          </button>
+          <label className="theme-control">
+            Darstellung
+            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+              <option value="light">Hell</option>
+              <option value="dark">Dunkel</option>
+              <option value="contrast">Hoher Kontrast</option>
+            </select>
+          </label>
           {session && (
             <button onClick={() => act(loadArchive)}>Meine Entwürfe</button>
           )}
@@ -467,7 +526,15 @@ export default function App() {
           </button>
         </nav>
       </header>
-      <main>
+      <main id="main-content" ref={mainRef} tabIndex={-1}>
+        <div
+          className="sr-only"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {sortMessage}
+        </div>
         <div className="no-print">{notices}</div>
         {page === "app" && (
           <>
@@ -493,7 +560,7 @@ export default function App() {
               ))}
             </nav>
             <div className="workspace no-print" aria-busy={busy}>
-              <fieldset disabled={busy}>
+              <fieldset disabled={busy} aria-label="Spielkonfiguration">
                 {step === 1 && (
                   <Card>
                     <div className="section-title">
@@ -559,8 +626,9 @@ export default function App() {
                       <section
                         className={"learning-group " + group}
                         key={group}
+                        aria-labelledby={`learning-${group}-title`}
                       >
-                        <h3>
+                        <h3 id={`learning-${group}-title`}>
                           {group === "inhalt"
                             ? "Inhaltlich"
                             : "Wissenschaftlich"}{" "}
@@ -594,6 +662,8 @@ export default function App() {
                                   : "")
                               }
                               key={l.id}
+                              aria-labelledby={`learning-${l.id}-label`}
+                              aria-describedby={`learning-${l.id}-description learning-${l.id}-bloom`}
                               aria-pressed={draft.learning.includes(l.id)}
                               onClick={() => toggleLearning(l.id)}
                               disabled={
@@ -607,10 +677,26 @@ export default function App() {
                                     : settings.maxWiss)
                               }
                             >
-                              <span className="option-icon">{l.icon}</span>
-                              <strong>{l.label}</strong>
-                              <span>{l.desc}</span>
-                              <small>{l.bloom}</small>
+                              <span className="option-icon" aria-hidden="true">
+                                {l.icon}
+                              </span>
+                              {draft.learning.includes(l.id) && (
+                                <span
+                                  className="selection-indicator"
+                                  aria-hidden="true"
+                                >
+                                  ✓
+                                </span>
+                              )}
+                              <strong id={`learning-${l.id}-label`}>
+                                {l.label}
+                              </strong>
+                              <span id={`learning-${l.id}-description`}>
+                                {l.desc}
+                              </span>
+                              <small id={`learning-${l.id}-bloom`}>
+                                {l.bloom}
+                              </small>
                               {l.hinweis && <small>{l.hinweis}</small>}
                             </button>
                           ))}
@@ -673,7 +759,7 @@ export default function App() {
                     <div className="section-title">
                       <span className="eyebrow">04 · Übersicht</span>
                       <h2>Schritt 4: Übersicht</h2>
-                      <p>
+                      <p id="sort-instructions">
                         Sortiere die Mechaniken nach Priorität und entferne, was
                         nicht in den Hack soll. Ziehe am Griff oder verwende die
                         Pfeiltasten. Der Safety-Rahmen bleibt immer enthalten.
@@ -684,12 +770,17 @@ export default function App() {
                         {c}
                       </div>
                     ))}
-                    <ol className="priority-list">
+                    <ol
+                      className="priority-list"
+                      aria-label="Mechaniken nach Priorität"
+                      aria-describedby="sort-instructions"
+                    >
                       {draft.mechanisms.map((id, i) => {
                         const m = MK.find((x) => x.id === id);
                         return (
                           <li
                             key={id}
+                            data-mechanism-id={id}
                             className={`${dragId === id ? "dragging" : ""} ${dropTarget?.id === id ? (dropTarget.after ? "drop-after" : "drop-before") : ""}`}
                             onDragOver={(e) => {
                               if (!dragId || dragId === id || busy) return;
@@ -716,8 +807,12 @@ export default function App() {
                                 id,
                                 after,
                               );
-                              if (next !== draft.mechanisms)
+                              if (next !== draft.mechanisms) {
+                                setSortMessage(
+                                  `${MK.find((m) => m.id === dragId).label}: Position ${next.indexOf(dragId) + 1} von ${next.length}.`,
+                                );
                                 change((d) => ({ ...d, mechanisms: next }));
+                              }
                               setDragId(null);
                               setDropTarget(null);
                             }}
@@ -727,6 +822,7 @@ export default function App() {
                               draggable={!busy}
                               type="button"
                               aria-label={`${m.label} zum Sortieren ziehen`}
+                              aria-describedby="sort-instructions"
                               title="Ziehen zum Sortieren; alternativ Pfeiltasten verwenden"
                               onKeyDown={(e) => {
                                 if (
@@ -749,7 +845,7 @@ export default function App() {
                             >
                               ⠿
                             </button>
-                            <span className="number">
+                            <span className="number" aria-hidden="true">
                               {String(i + 1).padStart(2, "0")}
                             </span>
                             <div className="priority-description">
@@ -777,7 +873,7 @@ export default function App() {
                                 <button
                                   aria-label={`${m.label} entfernen`}
                                   title="Aus der Auswahl entfernen"
-                                  onClick={() => toggleMechanism(id)}
+                                  onClick={() => removeMechanism(id)}
                                 >
                                   ×
                                 </button>
@@ -800,7 +896,11 @@ export default function App() {
                         mitarbeitet.
                       </p>
                     </div>
-                    <div className="mode-grid">
+                    <div
+                      className="mode-grid"
+                      role="group"
+                      aria-label="Weg zum Arbeitsblatt"
+                    >
                       {[
                         [
                           "template",
@@ -830,15 +930,25 @@ export default function App() {
                         <button
                           className={"mode " + (mode === id ? "selected" : "")}
                           key={id}
+                          aria-labelledby={`mode-${id}-label`}
+                          aria-describedby={`mode-${id}-description`}
                           aria-pressed={mode === id}
                           onClick={() => {
                             setMode(id);
                             setApiKey("");
                           }}
                         >
-                          <small>{n}</small>
-                          <strong>{title}</strong>
-                          <span>{text}</span>
+                          <small aria-hidden="true">{n}</small>
+                          {mode === id && (
+                            <span
+                              className="selection-indicator"
+                              aria-hidden="true"
+                            >
+                              ✓
+                            </span>
+                          )}
+                          <strong id={`mode-${id}-label`}>{title}</strong>
+                          <span id={`mode-${id}-description`}>{text}</span>
                         </button>
                       ))}
                     </div>
@@ -1394,7 +1504,7 @@ export default function App() {
                       />
                     </label>
                   )}
-                  <Button disabled={busy || !cloud}>
+                  <Button type="submit" disabled={busy || !cloud}>
                     {adminLogin ? "Anmelden" : "Magic Link senden"}
                   </Button>
                 </form>
@@ -1666,7 +1776,9 @@ export default function App() {
                     maxLength={200}
                   />
                 </label>
-                <Button disabled={busy}>Workshop anlegen</Button>
+                <Button type="submit" disabled={busy}>
+                  Workshop anlegen
+                </Button>
               </form>
               {adminWorkshops.map((w) => (
                 <div className="workshop-admin" key={w.id}>
@@ -2008,15 +2120,18 @@ function MechanismChoices({
                 (draft.mechanisms.includes(m.id) ? "selected" : "")
               }
               key={m.id}
+              aria-labelledby={`mechanism-${m.id}-label`}
+              aria-describedby={`mechanism-${m.id}-description mechanism-${m.id}-relevance`}
               onClick={() => onToggle(m.id)}
               aria-pressed={draft.mechanisms.includes(m.id)}
+              aria-disabled={m.pflicht || undefined}
             >
-              <span className="check">
+              <span className="check" aria-hidden="true">
                 {draft.mechanisms.includes(m.id) ? "✓" : "+"}
               </span>
               <span>
-                <strong>{m.label}</strong>
-                <span className="badges">
+                <strong id={`mechanism-${m.id}-label`}>{m.label}</strong>
+                <span className="badges" id={`mechanism-${m.id}-relevance`}>
                   {m.pflicht && <small>IMMER</small>}
                   {m.kern && <small>KERN</small>}
                   {m.basis && !m.pflicht && <small>BASIS</small>}
@@ -2032,7 +2147,12 @@ function MechanismChoices({
                     ))}
                 </span>
                 <span className="description">{m.kurz}</span>
-                <span className="description">{m.desc}</span>
+                <span
+                  className="description"
+                  id={`mechanism-${m.id}-description`}
+                >
+                  {m.desc}
+                </span>
               </span>
             </button>
           ))}

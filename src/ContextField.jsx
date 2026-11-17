@@ -70,11 +70,12 @@ export default function ContextField({
             id={id}
             type="date"
             value={iso}
+            aria-describedby={value && !iso ? `${id}-legacy` : undefined}
             onChange={(e) => onChange(e.target.value)}
           />
         </label>
         {value && !iso && (
-          <p className="muted">
+          <p className="muted" id={`${id}-legacy`}>
             Gespeicherte Angabe: {value}. Wähle ein Datum, um sie zu ersetzen.
           </p>
         )}

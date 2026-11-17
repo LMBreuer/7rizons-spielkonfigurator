@@ -11,7 +11,7 @@ export default function Worksheet({ draft, result, settings, source }) {
   return (
     <article className="worksheet" id="worksheet">
       <div className="eyebrow">7’rizons · Dein Seminar-Hack</div>
-      <h1>{result.title}</h1>
+      <h1 tabIndex={-1}>{result.title}</h1>
       <p className="intro">{result.introduction}</p>
       <dl className="metadata">
         {Object.entries(draft.context)

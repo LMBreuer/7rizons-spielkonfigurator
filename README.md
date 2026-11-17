@@ -46,7 +46,15 @@ Die KI liefert ausschließlich Inhalte, keine ausführbaren Layouts. Ausgabe und
 
 Private Speicherung und Workshop-Abgabe sind getrennt. Eine Abgabe erzeugt eine Kopie des ausdrücklich freigegebenen Stands. Spätere Entwurfsänderungen verändern diese Kopie nicht. Die Moderation sieht keine privaten Entwürfe. Teilnehmende können Abgaben zurückziehen; bereits exportierte Kopien werden dadurch nicht zurückgerufen.
 
-## Stand und Grenzen
+## Darstellung und Zugänglichkeit
+
+Hell ist die Standardeinstellung. Über „Darstellung“ sind Dunkel und Hoher Kontrast wählbar; eine bewusste Auswahl wird im Browser gespeichert. Hochkontrast verwendet größere Grundschrift, stärkere Konturen und zusätzliche sichtbare Auswahlmarkierungen. Die Original-Logodatei bleibt unverändert: Ein SVG-Ausschnitt entfernt leeren Rand, passt die Wortmarke für Dunkel an und verwendet das Symbol allein als transparentes Favicon. `node scripts/prepare-brand.mjs` erzeugt das Favicon aus der Originaldatei.
+
+Ein Sprunglink, beschriftete Formulare, erkennbare Auswahlzustände, Fokusführung zwischen Schritten/Seiten und Statusansagen unterstützen Tastatur und Screenreader. Mechaniken lassen sich am Griff mit Hoch/Runter oder über beschriftete Buttons sortieren; nach Entfernen bleibt der Fokus in der Liste. Reduzierte Bewegung und Windows-Systemkontraste werden berücksichtigt.
+
+Automatisierte Prüfungen decken die zentralen Schritte, Arbeitsblatt, Anmeldung und About mit axe-core und simulierten Tastaturaktionen ab. Kontrastwerte der vorgesehenen Text-/Hintergrundpaare werden separat berechnet (mindestens 4,5:1, im Hochkontrastmodus mindestens 7:1). Diese Prüfungen ersetzen keine visuelle Abnahme und keinen Test mit VoiceOver oder NVDA; eine vollständige WCAG-Konformität wird damit nicht behauptet.
+
+## Weitere Grenzen
 
 Die erste Version verwendet einen festen, versionierten Mechanikkatalog. Auswahlgrenzen, Kartenzahl, Anbieter-/Modellfreigaben und Workshoplimits sind administrierbar. Ein Katalogeditor und gemeinsame Livebearbeitung sind nicht enthalten.
 
