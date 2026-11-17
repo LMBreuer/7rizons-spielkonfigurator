@@ -444,6 +444,14 @@ export default function App() {
         </a>
         <nav aria-label="Werkzeuge">
           <button
+            onClick={() => {
+              setPage("about");
+              window.scrollTo(0, 0);
+            }}
+          >
+            Über das Tool
+          </button>
+          <button
             className="icon-button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             aria-label={
@@ -1745,6 +1753,44 @@ export default function App() {
             </Card>
           </div>
         )}
+        {page === "about" && (
+          <Card>
+            <div className="eyebrow">Spielerisch Lehre gestalten</div>
+            <h1>Über den Spielkonfigurator</h1>
+            <h2>Vom Lernziel zum Spiel</h2>
+            <p>
+              Der Spielkonfigurator hilft dir, 7’rizons für dein eigenes
+              Hochschulseminar anzupassen. Aus deinem Thema, den gewünschten
+              Lerntätigkeiten und passenden Spielmechaniken entsteht ein
+              Arbeitsblatt mit Anleitungen und Platz für eigene Kartentexte.
+              Du kannst mit festen Vorlagen arbeiten oder dir von einer KI
+              thematische Vorschläge ausarbeiten lassen.
+            </p>
+            <h2>7’rizons: Create a playful university!</h2>
+            <p>
+              7’rizons ist ein fächerübergreifendes Simulations- und
+              Rollenspielprojekt an der Universität Bonn. Studierende und
+              Lehrende entwerfen gemeinsam eine fiktive Welt und entwickeln
+              deren natürliche und gesellschaftliche Grundlagen weiter. Dabei
+              bringen sie Wissen aus unterschiedlichen Disziplinen ein,
+              übernehmen Rollen und erproben Entscheidungen in imaginativen
+              Szenarien. Das Projekt verbindet digitale und analoge Spielformen
+              mit forschendem Lernen und stärkt Zusammenarbeit,
+              Perspektivwechsel und kreatives Problemlösen. Es ist am IMPULSE
+              – House for Intellectual Innovation and Creativity verortet;
+              das Bonn Lab for Analog Games and Imaginative Play begleitet
+              den gemeinsamen Spielrahmen.
+            </p>
+            <p>
+              <a href="https://www.fiw.uni-bonn.de/gamelab/de/projekte/7rizons">
+                Mehr über 7’rizons auf der Projektseite der Universität Bonn →
+              </a>
+            </p>
+            <Button secondary onClick={() => setPage("app")}>
+              Zum Spielkonfigurator →
+            </Button>
+          </Card>
+        )}
         {page === "legal" && (
           <Card>
             <h1>Impressum & Hinweise</h1>
@@ -1819,6 +1865,14 @@ export default function App() {
           <small>Created by Harald Eckmüller · Unterstützt von LMB</small>
         </div>
         <div className="footer-links">
+          <button
+            onClick={() => {
+              setPage("about");
+              window.scrollTo(0, 0);
+            }}
+          >
+            Über das Tool
+          </button>
           <button
             onClick={() => {
               setPage("legal");
