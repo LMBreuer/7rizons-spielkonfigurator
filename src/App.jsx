@@ -307,6 +307,8 @@ export default function App() {
     }
     if (mode === "external") {
       const r = requestFor(draft, settings);
+      setResult(null);
+      setSource(null);
       setRequest(r);
       setResultSettings(settings);
       setPreview(null);
@@ -1755,6 +1757,20 @@ export default function App() {
             </p>
             <h2>Datenschutz</h2>
             <p>
+              Diese Website wird über GitHub Pages bereitgestellt. GitHub
+              verarbeitet dabei technische Zugriffsdaten, etwa IP-Adressen,
+              zur Bereitstellung und Absicherung des Dienstes. Es werden keine
+              Trackingdienste oder externen Schriftarten eingebunden.
+            </p>
+            {!cloud && (
+              <p>
+                In dieser Vorschau ist noch kein Backend verbunden. Anmeldung,
+                direkte KI-Nutzung, Online-Speicherung und Abgabe sind deshalb
+                deaktiviert. Deine Konfiguration bleibt in diesem Browser,
+                sofern du sie nicht selbst exportierst oder an eine KI weitergibst.
+              </p>
+            )}
+            <p>
               Entwürfe werden automatisch in diesem Browser gespeichert. Nach
               Anmeldung kannst du sie zusätzlich privat online speichern und
               löschen. Erst eine ausdrückliche Abgabe gibt den gewählten Stand
@@ -1768,8 +1784,10 @@ export default function App() {
               gesendet. Eigene API-Keys werden nur für die Sitzung im Speicher
               gehalten; zentrale Workshop-Keys werden serverseitig verschlüsselt
               gespeichert. E-Mail und Login werden über Supabase verarbeitet.
-              Anbieter, Hostingprojekt und die konkrete Aufbewahrung sind vor
-              Veröffentlichung im Datenschutzhinweis zu vervollständigen.
+              Private Online-Entwürfe bleiben bis zu deiner Löschung gespeichert;
+              Abgaben bis zum Zurückziehen oder einer vereinbarten Bereinigung.
+              Beim Aktivieren des Backends werden dessen konkrete Betriebsangaben
+              und Aufbewahrungsregeln ergänzt.
             </p>
             <h2>KI-Hinweis</h2>
             <p>
