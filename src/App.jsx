@@ -18,6 +18,7 @@ import {
 } from "../supabase/functions/_shared/domain.js";
 import Worksheet from "./Worksheet.jsx";
 import ContextField from "./ContextField.jsx";
+import { jsonFilename } from "./downloads.js";
 import { reordered } from "../supabase/functions/_shared/fields.js";
 import logo from "./assets/7rizons-logo.png";
 const STORAGE = "7rizons:draft:v1";
@@ -1060,7 +1061,7 @@ export default function App() {
                         onClick={() =>
                           download(
                             JSON.stringify(payload(), null, 2),
-                            "7rizons-konfiguration.json",
+                            jsonFilename(draft.context.thema),
                             "application/json",
                           )
                         }
@@ -1780,7 +1781,7 @@ export default function App() {
                     onClick={() =>
                       download(
                         JSON.stringify(s.payload, null, 2),
-                        "7rizons-abgabe.json",
+                        jsonFilename(s.payload.draft.context.thema, "abgabe"),
                         "application/json",
                       )
                     }
