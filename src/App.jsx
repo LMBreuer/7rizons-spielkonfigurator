@@ -1138,7 +1138,21 @@ export default function App() {
                   >
                     ← Zurück
                   </Button>
-                  <span>{step} / 5</span>
+                  <label className="step-jump">
+                    <span className="sr-only">
+                      Direkt zu einem Schritt springen
+                    </span>
+                    <select
+                      value={step}
+                      onChange={(e) => setStep(Number(e.target.value))}
+                    >
+                      {steps.map((label, index) => (
+                        <option key={label} value={index + 1}>
+                          {index + 1} / {steps.length} · {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <Button
                     disabled={
                       step === 5 || (step === 2 && !draft.learning.length)

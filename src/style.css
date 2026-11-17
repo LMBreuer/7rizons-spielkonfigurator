@@ -395,10 +395,22 @@ textarea::placeholder {
   justify-content: space-between;
   gap: 16px;
   margin: 22px 0;
+  flex-wrap: wrap;
 }
-.step-actions > span {
+.step-jump {
+  margin: 0;
+  flex: 0 1 190px;
+  min-width: 140px;
+}
+.step-jump select {
+  margin: 0;
+  padding: 8px 10px;
+  min-height: 40px;
   color: var(--muted);
   font-size: 0.8rem;
+  background: transparent;
+  border-color: var(--line);
+  cursor: pointer;
 }
 .option-grid {
   display: grid;
@@ -1002,6 +1014,20 @@ main h2:focus {
 }
 
 @media (max-width: 640px) {
+  .step-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+  }
+  .step-jump {
+    justify-self: end;
+    max-width: 210px;
+    width: 100%;
+    min-width: 0;
+  }
+  .step-actions > .button:last-child {
+    grid-column: 1 / -1;
+  }
   .topbar {
     padding: 18px;
     align-items: flex-start;

@@ -168,6 +168,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     assert.equal(document.activeElement.id, "main-content");
     assert.equal(screen.getByLabelText("Datum").type, "date");
     assert.equal(screen.getByLabelText("Semester").tagName, "SELECT");
+    await user.type(
+      screen.getByLabelText(/Thema des Seminars/),
+      "Navigationstest",
+    );
     await audit("context");
     const step = async (name) =>
       user.click(
@@ -190,6 +194,24 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       "true",
     );
     await audit("learning");
+    await user.selectOptions(
+      screen.getByLabelText("Direkt zu einem Schritt springen"),
+      "1",
+    );
+    assert.equal(
+      screen.getByLabelText(/Thema des Seminars/).value,
+      "Navigationstest",
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Direkt zu einem Schritt springen"),
+      "2",
+    );
+    assert.equal(
+      screen
+        .getByRole("button", { name: "Perspektive einnehmen" })
+        .getAttribute("aria-pressed"),
+      "true",
+    );
     await step("Mechaniken");
     await audit("mechanisms");
     await step("Übersicht");
