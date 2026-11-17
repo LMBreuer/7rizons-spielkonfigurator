@@ -153,7 +153,15 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         label,
       );
     };
-    assert.equal(screen.getByLabelText("Darstellung").value, "light");
+    const appearances = within(
+      screen.getByRole("group", { name: "Darstellung" }),
+    );
+    assert.equal(
+      appearances
+        .getByRole("button", { name: "Hell", exact: true })
+        .getAttribute("aria-pressed"),
+      "true",
+    );
     await user.tab();
     assert.equal(document.activeElement.textContent, "Zum Inhalt springen");
     await user.keyboard("{Enter}");
@@ -211,8 +219,21 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     assert.ok(document.activeElement.classList.contains("drag-handle"));
     await audit("priorities");
     await step("Arbeitsblatt");
+    assert.equal(
+      within(
+        screen.getByRole("group", { name: "Weg zum Arbeitsblatt" }),
+      ).queryByRole("button", { name: "Mit Workshop-KI" }),
+      null,
+    );
     for (const theme of ["light", "dark", "contrast"]) {
-      await user.selectOptions(screen.getByLabelText("Darstellung"), theme);
+      await user.click(
+        appearances.getByRole("button", {
+          name: { light: "Hell", dark: "Dunkel", contrast: "Hoher Kontrast" }[
+            theme
+          ],
+          exact: true,
+        }),
+      );
       assert.equal(document.documentElement.dataset.theme, theme);
       assert.equal(localStorage.getItem(APPEARANCE_KEY), theme);
       await audit(`worksheet modes: ${theme}`);

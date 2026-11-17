@@ -21,6 +21,7 @@ import ContextField from "./ContextField.jsx";
 import { jsonFilename } from "./downloads.js";
 import { reordered } from "../supabase/functions/_shared/fields.js";
 import Logo from "./Logo.jsx";
+import AppearanceSwitch from "./AppearanceSwitch.jsx";
 import { APPEARANCE_KEY, initialAppearance } from "./appearance.js";
 const STORAGE = "7rizons:draft:v1";
 const steps = [
@@ -507,14 +508,7 @@ export default function App() {
           >
             Über das Tool
           </button>
-          <label className="theme-control">
-            Darstellung
-            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
-              <option value="light">Hell</option>
-              <option value="dark">Dunkel</option>
-              <option value="contrast">Hoher Kontrast</option>
-            </select>
-          </label>
+          <AppearanceSwitch value={theme} onChange={setTheme} />
           {session && (
             <button onClick={() => act(loadArchive)}>Meine Entwürfe</button>
           )}
@@ -926,31 +920,35 @@ export default function App() {
                           "Mit Workshop-KI",
                           "Der Workshop stellt den Zugang bereit.",
                         ],
-                      ].map(([id, n, title, text]) => (
-                        <button
-                          className={"mode " + (mode === id ? "selected" : "")}
-                          key={id}
-                          aria-labelledby={`mode-${id}-label`}
-                          aria-describedby={`mode-${id}-description`}
-                          aria-pressed={mode === id}
-                          onClick={() => {
-                            setMode(id);
-                            setApiKey("");
-                          }}
-                        >
-                          <small aria-hidden="true">{n}</small>
-                          {mode === id && (
-                            <span
-                              className="selection-indicator"
-                              aria-hidden="true"
-                            >
-                              ✓
-                            </span>
-                          )}
-                          <strong id={`mode-${id}-label`}>{title}</strong>
-                          <span id={`mode-${id}-description`}>{text}</span>
-                        </button>
-                      ))}
+                      ]
+                        .filter(([id]) => id !== "workshop")
+                        .map(([id, n, title, text]) => (
+                          <button
+                            className={
+                              "mode " + (mode === id ? "selected" : "")
+                            }
+                            key={id}
+                            aria-labelledby={`mode-${id}-label`}
+                            aria-describedby={`mode-${id}-description`}
+                            aria-pressed={mode === id}
+                            onClick={() => {
+                              setMode(id);
+                              setApiKey("");
+                            }}
+                          >
+                            <small aria-hidden="true">{n}</small>
+                            {mode === id && (
+                              <span
+                                className="selection-indicator"
+                                aria-hidden="true"
+                              >
+                                ✓
+                              </span>
+                            )}
+                            <strong id={`mode-${id}-label`}>{title}</strong>
+                            <span id={`mode-${id}-description`}>{text}</span>
+                          </button>
+                        ))}
                     </div>
                     {(mode === "personal" || mode === "workshop") && (
                       <div className="connection">

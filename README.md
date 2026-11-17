@@ -11,6 +11,8 @@ Created by Harald Eckmüller · Mit technischem Rückenwind von LMB.
 3. **Eigener API-Zugang:** OpenAI, Claude oder Gemini auswählen; persönlichen API-Key ausschließlich für die Sitzung verwenden.
 4. **Workshop-KI:** mit einem Workshop-Code beitreten und einen von der Administration freigeschalteten zentralen API-Zugang verwenden.
 
+Workshop-KI ist derzeit in der Arbeitsblatt-Auswahl ausgeblendet; die technische Funktion bleibt für eine spätere Freigabe erhalten.
+
 Die direkten Wege benötigen ein eingerichtetes Supabase-Backend. Eine funktionierende API-Integration bedeutet keinen allgemeinen Login über ein ChatGPT-/Claude-Chatabo. Die Anbietermodelle werden von Admins eingerichtet; die nutzende Person benötigt Zugriff auf das eingestellte Modell.
 
 ## Entwicklung
