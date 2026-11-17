@@ -1,0 +1,6 @@
+[functions.generate]
+verify_jwt = false
+
+[functions.credentials]
+verify_jwt = false
+# JWT verification is performed using auth.getUser inside both handlers.
