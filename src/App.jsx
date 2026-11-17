@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cloud, unwrap, callFunction } from "./cloud.js";
 import {
   LE,
@@ -17,12 +17,13 @@ import {
   readSnapshot,
 } from "../supabase/functions/_shared/domain.js";
 import Worksheet from "./Worksheet.jsx";
+import logo from "./assets/7rizons-logo.png";
 const STORAGE = "7rizons:draft:v1";
 const steps = [
   "Kontext",
   "Lerntätigkeiten",
   "Mechaniken",
-  "Prioritäten",
+  "Übersicht",
   "Arbeitsblatt",
 ];
 function stored() {
@@ -64,26 +65,6 @@ function Button({ children, secondary = false, ...props }) {
 function Card({ children, className = "" }) {
   return <section className={"panel " + className}>{children}</section>;
 }
-function Gem() {
-  return (
-    <svg className="gem" viewBox="0 0 64 64" aria-hidden="true">
-      <path
-        d="M32 3 56 16 61 40 44 60 19 60 3 40 8 16Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-      <path
-        d="M8 16 24 22 32 3 40 22 56 16 47 37 61 40 38 43 44 60 32 48 19 60 25 42 3 40 17 35Z"
-        fill="#7f598b"
-      />
-      <path d="M24 22 40 22 47 37 38 43 25 42 17 35Z" fill="#1cb291" />
-      <path d="M32 3 56 16 40 22Z" fill="#2a6fb4" />
-      <path d="M38 43 61 40 44 60Z" fill="#61bde4" />
-      <path d="M3 40 25 42 19 60Z" fill="#c84b50" />
-    </svg>
-  );
-}
 export default function App() {
   const [saved] = useState(stored);
   const [draft, setDraft] = useState(saved.draft);
@@ -116,6 +97,8 @@ export default function App() {
   const [provider, setProvider] = useState("openai");
   const [apiKey, setApiKey] = useState("");
   const [importText, setImportText] = useState("");
+  const configImportRef = useRef(null);
+  const answerImportRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -407,13 +390,6 @@ export default function App() {
   }
   const notices = (
     <>
-      {!cloud && (
-        <div className="notice">
-          Lokaler Prototyp: Konfiguration, Arbeitsblatt und KI-Export
-          funktionieren. Login, direkte KI und Online-Speichern werden nach
-          Einrichtung des Backends verfügbar.
-        </div>
-      )}
       {error && (
         <div className="notice error" role="alert">
           {error}
@@ -437,10 +413,16 @@ export default function App() {
             setPage("app");
           }}
         >
-          <Gem />
-          <span>
-            7’rizons<small>Spielkonfigurator</small>
+          <span className="brand-logo-frame">
+            <img
+              src={logo}
+              className="brand-logo"
+              alt="7’rizons"
+              width="4096"
+              height="1186"
+            />
           </span>
+          <small>Spielkonfigurator · Prototyp</small>
         </a>
         <nav aria-label="Werkzeuge">
           <button
@@ -480,14 +462,9 @@ export default function App() {
             <section className="hero no-print">
               <div className="eyebrow">Von der Spielidee zum Seminar</div>
               <h1>
-                Dein Thema.
-                <br />
-                <span>Deine Spielwelt.</span>
+                Eure Themen. <span>Eure Welten.</span>
               </h1>
-              <p>
-                Gestalte 7’rizons für deine Lehre. Wähle, was Lernen in Bewegung
-                bringt – und nimm einen spielbaren Plan mit.
-              </p>
+              <p>Gestalte 7’rizons für deine Lehre.</p>
             </section>
             <nav className="steps no-print" aria-label="Konfigurationsschritte">
               {steps.map((label, i) => (
@@ -509,33 +486,32 @@ export default function App() {
                   <Card>
                     <div className="section-title">
                       <span className="eyebrow">01 · Kontext</span>
-                      <h2>Worum soll es gehen?</h2>
+                      <h2>Schritt 1: Seminar-Kontext</h2>
                       <p>
-                        Das Thema gibt deinem Hack eine Richtung. Die übrigen
-                        Angaben sind optional und bleiben beim KI-Auftrag außen
-                        vor; nur Thema und Fach werden dafür verwendet.
+                        Optional — je mehr du angibst, desto konkreter werden
+                        die Beispiele im Arbeitsblatt.
                       </p>
                     </div>
                     <div className="field-grid">
                       {[
                         [
                           "thema",
-                          "Thema des Seminars",
-                          "z. B. Klimagerechtigkeit",
+                          "Thema des Seminars ★",
+                          "z.B. Heinrichs VII. Italienzug, Gravitationsfelder, Reliquienwerdung",
                         ],
                         [
                           "fach",
                           "Fach / Disziplin",
-                          "z. B. Politikwissenschaft",
+                          "z.B. Geschichte, Physik, Rechtswissenschaft",
                         ],
                         [
                           "name",
-                          "Lehrveranstaltung",
-                          "Name deiner Veranstaltung",
+                          "Name der Lehrveranstaltung",
+                          "z.B. Mittelalterliche Geschichte II",
                         ],
-                        ["dozent", "Dozent:in", "Optional"],
-                        ["semester", "Semester", "z. B. WS 2026/27"],
-                        ["datum", "Datum", "z. B. 20.11.2026"],
+                        ["dozent", "Dozent:in", "z.B. Prof. Dr. Müller"],
+                        ["semester", "Semester", "z.B. WS 2025/26"],
+                        ["datum", "Datum", "z.B. 14.11.2025"],
                       ].map(([key, label, placeholder]) => (
                         <label
                           key={key}
@@ -565,10 +541,10 @@ export default function App() {
                   <Card>
                     <div className="section-title">
                       <span className="eyebrow">02 · Lerntätigkeiten</span>
-                      <h2>Was sollen Spielende tun?</h2>
+                      <h2>Schritt 2: Lernerlebnisse wählen</h2>
                       <p>
-                        Wähle bis zu {settings.maxInhalt} inhaltliche und{" "}
-                        {settings.maxWiss} wissenschaftliche Lerntätigkeiten.
+                        Wähle bis zu {settings.maxInhalt} inhaltliche und bis zu{" "}
+                        {settings.maxWiss} wissenschaftliche Lernerlebnisse.
                       </p>
                     </div>
                     {["inhalt", "wiss"].map((group) => (
@@ -578,8 +554,8 @@ export default function App() {
                       >
                         <h3>
                           {group === "inhalt"
-                            ? "Inhaltlich eintauchen"
-                            : "Wissenschaftlich weiterdenken"}{" "}
+                            ? "Inhaltlich"
+                            : "Wissenschaftlich"}{" "}
                           <small>
                             {
                               draft.learning.filter(
@@ -593,6 +569,13 @@ export default function App() {
                               : settings.maxWiss}
                           </small>
                         </h3>
+                        {group === "wiss" && (
+                          <p className="muted">
+                            Diese fünf Lernerlebnisse bilden die
+                            wissenschaftliche Methode ab und sind im
+                            Hochschulkontext immer relevant.
+                          </p>
+                        )}
                         <div className="option-grid">
                           {LE.filter((l) => l.group === group).map((l) => (
                             <button
@@ -620,6 +603,7 @@ export default function App() {
                               <strong>{l.label}</strong>
                               <span>{l.desc}</span>
                               <small>{l.bloom}</small>
+                              {l.hinweis && <small>{l.hinweis}</small>}
                             </button>
                           ))}
                         </div>
@@ -631,71 +615,59 @@ export default function App() {
                   <Card>
                     <div className="section-title">
                       <span className="eyebrow">03 · Mechaniken</span>
-                      <h2>Womit wird dein Thema spielbar?</h2>
+                      <h2>Schritt 3: Mechaniken wählen</h2>
                       <p>
-                        Wähle zunächst großzügig. Im nächsten Schritt setzt du
-                        Prioritäten. P = trägt, S = unterstützt, ~ = erzeugt
-                        Reibung.
+                        Wähle alles was interessant klingt — erst im nächsten
+                        Schritt reduzierst du dann auf das Minimum. Im oberen
+                        Abschnitt findest du Mechaniken sortiert nach Relevanz
+                        für deine Lerntätigkeiten. Im unteren Abschnitt alle
+                        anderen Mechaniken, falls du noch etwas vermisst und
+                        dazunehmen willst.
+                      </p>
+                      <p>
+                        <strong>P</strong> primär trägt · <strong>S</strong>{" "}
+                        sekundär unterstützt · <strong>~</strong> erzeugt
+                        Reibung
                       </p>
                     </div>
-                    {[...new Set(MK.map((m) => m.kat))].map((cat) => (
-                      <details open key={cat}>
-                        <summary>{cat}</summary>
-                        <div className="mechanism-list">
-                          {MK.filter((m) => m.kat === cat).map((m) => (
-                            <button
-                              className={
-                                "mechanism " +
-                                (draft.mechanisms.includes(m.id)
-                                  ? "selected"
-                                  : "")
-                              }
-                              key={m.id}
-                              onClick={() => toggleMechanism(m.id)}
-                              aria-pressed={draft.mechanisms.includes(m.id)}
-                            >
-                              <span className="check">
-                                {draft.mechanisms.includes(m.id) ? "✓" : "+"}
-                              </span>
-                              <span>
-                                <strong>{m.label}</strong>
-                                <span className="badges">
-                                  {m.pflicht && <small>Immer dabei</small>}
-                                  {m.kern && <small>Kern</small>}
-                                  {m.basis && <small>Basisspiel</small>}
-                                  {draft.learning
-                                    .filter((id) => m.w[id])
-                                    .map((id) => (
-                                      <small
-                                        className={
-                                          m.w[id] === "~"
-                                            ? "friction"
-                                            : "relevance"
-                                        }
-                                        key={id}
-                                      >
-                                        {m.w[id]} ·{" "}
-                                        {LE.find((l) => l.id === id).label}
-                                      </small>
-                                    ))}
-                                </span>
-                                <span className="description">{m.desc}</span>
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </details>
-                    ))}
+                    <MechanismChoices
+                      mechanisms={MK.filter(
+                        (m) =>
+                          m.pflicht ||
+                          m.kern ||
+                          draft.learning.some((id) => m.w[id] === "P"),
+                      )}
+                      draft={draft}
+                      onToggle={toggleMechanism}
+                    />
+                    <details>
+                      <summary>Weitere Mechaniken entdecken</summary>
+                      <p className="muted">
+                        Diese Mechaniken dienen anderen Lernerlebnissen als den
+                        von dir gewählten.
+                      </p>
+                      <MechanismChoices
+                        mechanisms={MK.filter(
+                          (m) =>
+                            !m.pflicht &&
+                            !m.kern &&
+                            !draft.learning.some((id) => m.w[id] === "P"),
+                        )}
+                        draft={draft}
+                        onToggle={toggleMechanism}
+                        groupByLearning
+                      />
+                    </details>
                   </Card>
                 )}
                 {step === 4 && (
                   <Card>
                     <div className="section-title">
-                      <span className="eyebrow">04 · Prioritäten</span>
-                      <h2>So viel wie nötig.</h2>
+                      <span className="eyebrow">04 · Übersicht</span>
+                      <h2>Schritt 4: Übersicht</h2>
                       <p>
-                        Reduziere auf das Wesentliche und ordne deine
-                        Mechaniken. Die Reihenfolge bestimmt dein Arbeitsblatt.
+                        Sortiere Mechaniken nach Priorität (↑/↓) und hake ab was
+                        in den Hack soll.
                       </p>
                     </div>
                     {conflicts(draft).map((c, i) => (
@@ -734,7 +706,7 @@ export default function App() {
                               </button>
                               {!m.pflicht && (
                                 <button
-                                  aria-label={`${m.label} entfernen`}
+                                  aria-label={`${m.label} abwählen`}
                                   onClick={() => toggleMechanism(id)}
                                 >
                                   ×
@@ -943,20 +915,26 @@ export default function App() {
                               placeholder="JSON-Antwort hier einfügen"
                             />
                           </label>
-                          <label className="file-button">
+                          <Button
+                            secondary
+                            onClick={() => answerImportRef.current?.click()}
+                          >
                             Oder JSON-Datei wählen
-                            <input
-                              type="file"
-                              accept=".json,application/json,text/plain"
-                              onChange={(e) =>
+                          </Button>
+                          <input
+                            ref={answerImportRef}
+                            hidden
+                            type="file"
+                            accept=".json,application/json,text/plain"
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              e.target.value = "";
+                              if (file)
                                 act(async () =>
-                                  setImportText(
-                                    await fileText(e.target.files[0]),
-                                  ),
-                                )
-                              }
-                            />
-                          </label>
+                                  setImportText(await fileText(file)),
+                                );
+                            }}
+                          />
                           <Button
                             secondary
                             onClick={() =>
@@ -989,59 +967,84 @@ export default function App() {
                     }
                     onClick={() => setStep((s) => s + 1)}
                   >
-                    Weiter →
+                    {step === 1
+                      ? "Weiter zu den Lernerlebnissen →"
+                      : step === 2
+                        ? "Weiter zu den Mechaniken →"
+                        : step === 3
+                          ? `Weiter zur Übersicht (${draft.mechanisms.length} gewählt) →`
+                          : "Weiter zum Arbeitsblatt →"}
                   </Button>
                 </div>
                 <div className="save-bar">
-                  <span className="muted">
+                  <span className="save-status">
                     Im Browser automatisch gesichert
                   </span>
-                  <Button
-                    secondary
-                    onClick={() =>
-                      download(
-                        JSON.stringify(payload(), null, 2),
-                        "7rizons-konfiguration.json",
-                        "application/json",
-                      )
-                    }
-                  >
-                    JSON sichern
-                  </Button>
-                  <label className="file-button">
-                    JSON laden
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={(e) =>
-                        act(async () => {
-                          const x = JSON.parse(
-                            await fileText(e.target.files[0]),
-                          );
-                          x.draft = { ...x.draft, id: crypto.randomUUID() };
-                          if (x.request)
-                            x.request = {
-                              ...x.request,
-                              configurationId: x.draft.id,
-                            };
-                          applySnapshot(x);
-                          setMessage("Datei als neuer Entwurf geladen.");
-                        })
-                      }
-                    />
-                  </label>
-                  {session ? (
-                    <Button onClick={() => act(saveOnline)}>
-                      Online speichern
-                    </Button>
-                  ) : (
-                    <Button secondary onClick={() => setPage("account")}>
-                      Für Online-Speichern anmelden
-                    </Button>
-                  )}
-                  <button className="text-button" onClick={newConfiguration}>
-                    Neuer Entwurf
-                  </button>
+                  <div className="save-actions">
+                    <div
+                      className="save-file-actions"
+                      role="group"
+                      aria-label="Konfiguration als Datei"
+                    >
+                      <Button
+                        secondary
+                        onClick={() =>
+                          download(
+                            JSON.stringify(payload(), null, 2),
+                            "7rizons-konfiguration.json",
+                            "application/json",
+                          )
+                        }
+                      >
+                        JSON sichern
+                      </Button>
+                      <Button
+                        secondary
+                        onClick={() => configImportRef.current?.click()}
+                      >
+                        JSON laden
+                      </Button>
+                      <input
+                        ref={configImportRef}
+                        hidden
+                        type="file"
+                        accept=".json"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          e.target.value = "";
+                          if (file)
+                            act(async () => {
+                              const x = JSON.parse(await fileText(file));
+                              x.draft = { ...x.draft, id: crypto.randomUUID() };
+                              if (x.request)
+                                x.request = {
+                                  ...x.request,
+                                  configurationId: x.draft.id,
+                                };
+                              applySnapshot(x);
+                              setMessage("Datei als neuer Entwurf geladen.");
+                            });
+                        }}
+                      />
+                    </div>
+                    <div className="save-account-actions">
+                      {session ? (
+                        <Button secondary onClick={() => act(saveOnline)}>
+                          Online speichern
+                        </Button>
+                      ) : (
+                        <Button secondary onClick={() => setPage("account")}>
+                          Für Online-Speichern anmelden
+                        </Button>
+                      )}
+                      <button
+                        className="text-button save-reset"
+                        onClick={newConfiguration}
+                      >
+                        Neuer Entwurf
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </fieldset>
             </div>
@@ -1563,12 +1566,10 @@ export default function App() {
                   e.preventDefault();
                   act(async () => {
                     unwrap(
-                      await cloud
-                        .from("workshops")
-                        .insert({
-                          title: workshopTitle,
-                          join_code: crypto.randomUUID().replaceAll("-", ""),
-                        }),
+                      await cloud.from("workshops").insert({
+                        title: workshopTitle,
+                        join_code: crypto.randomUUID().replaceAll("-", ""),
+                      }),
                     );
                     setWorkshopTitle("");
                     setAdminWorkshops(
@@ -1755,15 +1756,17 @@ export default function App() {
         )}
         {page === "about" && (
           <Card>
-            <div className="eyebrow">Spielerisch Lehre gestalten</div>
+            <div className="eyebrow about-kicker">
+              Spielerisch Lehre gestalten. Lehre spielerisch gestalten.
+            </div>
             <h1>Über den Spielkonfigurator</h1>
             <h2>Vom Lernziel zum Spiel</h2>
             <p>
               Der Spielkonfigurator hilft dir, 7’rizons für dein eigenes
               Hochschulseminar anzupassen. Aus deinem Thema, den gewünschten
               Lerntätigkeiten und passenden Spielmechaniken entsteht ein
-              Arbeitsblatt mit Anleitungen und Platz für eigene Kartentexte.
-              Du kannst mit festen Vorlagen arbeiten oder dir von einer KI
+              Arbeitsblatt mit Anleitungen und Platz für eigene Kartentexte. Du
+              kannst mit festen Vorlagen arbeiten oder dir von einer KI
               thematische Vorschläge ausarbeiten lassen.
             </p>
             <h2>7’rizons: Create a playful university!</h2>
@@ -1776,10 +1779,10 @@ export default function App() {
               übernehmen Rollen und erproben Entscheidungen in imaginativen
               Szenarien. Das Projekt verbindet digitale und analoge Spielformen
               mit forschendem Lernen und stärkt Zusammenarbeit,
-              Perspektivwechsel und kreatives Problemlösen. Es ist am IMPULSE
-              – House for Intellectual Innovation and Creativity verortet;
-              das Bonn Lab for Analog Games and Imaginative Play begleitet
-              den gemeinsamen Spielrahmen.
+              Perspektivwechsel und kreatives Problemlösen. Es ist am IMPULSE –
+              House for Intellectual Innovation and Creativity verortet; das
+              Bonn Lab for Analog Games and Imaginative Play begleitet den
+              gemeinsamen Spielrahmen.
             </p>
             <p>
               <a href="https://www.fiw.uni-bonn.de/gamelab/de/projekte/7rizons">
@@ -1795,7 +1798,11 @@ export default function App() {
           <Card>
             <h1>Impressum & Hinweise</h1>
             <h2>Menschen hinter dem Werkzeug</h2>
-            <p>Created by Harald Eckmüller · Technisch unterstützt von LMB.</p>
+            <p>
+              Spielkonfigurator by Harald Eckmüller.
+              <br />
+              Webapp-Umsetzung unterstützt durch LMB.
+            </p>
             <h2>Impressum</h2>
             <p>
               Verantwortlich: Dr. Ludwig M. Breuer · Bgm.-Rohmüller-Str. 7 ·
@@ -1804,8 +1811,8 @@ export default function App() {
             <h2>Datenschutz</h2>
             <p>
               Diese Website wird über GitHub Pages bereitgestellt. GitHub
-              verarbeitet dabei technische Zugriffsdaten, etwa IP-Adressen,
-              zur Bereitstellung und Absicherung des Dienstes. Es werden keine
+              verarbeitet dabei technische Zugriffsdaten, etwa IP-Adressen, zur
+              Bereitstellung und Absicherung des Dienstes. Es werden keine
               Trackingdienste oder externen Schriftarten eingebunden.
             </p>
             {!cloud && (
@@ -1813,7 +1820,8 @@ export default function App() {
                 In dieser Vorschau ist noch kein Backend verbunden. Anmeldung,
                 direkte KI-Nutzung, Online-Speicherung und Abgabe sind deshalb
                 deaktiviert. Deine Konfiguration bleibt in diesem Browser,
-                sofern du sie nicht selbst exportierst oder an eine KI weitergibst.
+                sofern du sie nicht selbst exportierst oder an eine KI
+                weitergibst.
               </p>
             )}
             <p>
@@ -1830,19 +1838,26 @@ export default function App() {
               gesendet. Eigene API-Keys werden nur für die Sitzung im Speicher
               gehalten; zentrale Workshop-Keys werden serverseitig verschlüsselt
               gespeichert. E-Mail und Login werden über Supabase verarbeitet.
-              Private Online-Entwürfe bleiben bis zu deiner Löschung gespeichert;
-              Abgaben bis zum Zurückziehen oder einer vereinbarten Bereinigung.
-              Beim Aktivieren des Backends werden dessen konkrete Betriebsangaben
-              und Aufbewahrungsregeln ergänzt.
+              Private Online-Entwürfe bleiben bis zu deiner Löschung
+              gespeichert; Abgaben bis zum Zurückziehen oder einer vereinbarten
+              Bereinigung. Beim Aktivieren des Backends werden dessen konkrete
+              Betriebsangaben und Aufbewahrungsregeln ergänzt.
             </p>
             <h2>KI-Hinweis</h2>
             <p>
-              Der Ausgangsprototyp entstand mit Claude. Die Weiterentwicklung
-              wird durch KI unterstützt. „Ohne KI“ verwendet feste Vorlagen und
-              erzeugt keine neuen KI-Texte. Beim externen Weg übermittelst du
-              den Auftrag selbst an deine KI. Direkte KI-Ausgaben und
-              importierte Antworten sind Vorschläge: Prüfe fachliche Richtigkeit
-              und Eignung für deine Lehrveranstaltung.
+              Für die Entwicklung des ursprünglichen Spielkonfigurators und
+              seine Umsetzung als Webapp wurde generative KI eingesetzt.
+              Konzeption, Verantwortung und Entscheidungen blieben dabei bei
+              Menschen. Der Einsatz von KI berührt gesellschaftliche, kulturelle
+              und politische Fragen und bedarf weiterhin offener, kritischer
+              Diskussionen.
+            </p>
+            <p>
+              „Ohne KI“ verwendet feste Vorlagen und erzeugt keine neuen
+              KI-Texte. Beim externen Weg übermittelst du den Auftrag selbst an
+              deine KI. Direkte KI-Ausgaben und importierte Antworten sind
+              Vorschläge: Prüfe fachliche Richtigkeit und Eignung für deine
+              Lehrveranstaltung.
             </p>
             <p>
               Die Herkunft des konkreten Arbeitsblatts wird am Dokument
@@ -1852,17 +1867,13 @@ export default function App() {
         )}
       </main>
       <footer className="footer no-print">
-        <div>
-          <span className="footer-kicker">
-            Gute Lehre beginnt mit einer Frage.
-            <br />
-            <strong>Manchmal auch mit einer Spielkarte.</strong>
-          </span>
+        <div className="footer-credit">
           <p>
-            Eine Idee von <strong>Harald Eckmüller</strong>.<br />
-            Mit technischem Rückenwind von <strong>LMB</strong>.
+            Spielkonfigurator by <strong>Harald Eckmüller</strong>
           </p>
-          <small>Created by Harald Eckmüller · Unterstützt von LMB</small>
+          <p>
+            Webapp-Umsetzung unterstützt durch <strong>LMB</strong>
+          </p>
         </div>
         <div className="footer-links">
           <button
@@ -1901,6 +1912,63 @@ export default function App() {
       </footer>
     </>
   );
+}
+function MechanismChoices({
+  mechanisms,
+  draft,
+  onToggle,
+  groupByLearning = false,
+}) {
+  const groupOf = (m) =>
+    groupByLearning
+      ? (LE.find((l) => m.w[l.id] === "P") || LE.find((l) => m.w[l.id] === "S"))
+          ?.label || "Sonstige"
+      : m.kat;
+  return [...new Set(mechanisms.map(groupOf))].map((group) => (
+    <details open key={group}>
+      <summary>{group}</summary>
+      <div className="mechanism-list">
+        {mechanisms
+          .filter((m) => groupOf(m) === group)
+          .sort((a, b) => Number(Boolean(b.kern)) - Number(Boolean(a.kern)))
+          .map((m) => (
+            <button
+              className={
+                "mechanism " +
+                (draft.mechanisms.includes(m.id) ? "selected" : "")
+              }
+              key={m.id}
+              onClick={() => onToggle(m.id)}
+              aria-pressed={draft.mechanisms.includes(m.id)}
+            >
+              <span className="check">
+                {draft.mechanisms.includes(m.id) ? "✓" : "+"}
+              </span>
+              <span>
+                <strong>{m.label}</strong>
+                <span className="badges">
+                  {m.pflicht && <small>IMMER</small>}
+                  {m.kern && <small>KERN</small>}
+                  {m.basis && !m.pflicht && <small>BASIS</small>}
+                  {draft.learning
+                    .filter((id) => m.w[id])
+                    .map((id) => (
+                      <small
+                        className={m.w[id] === "~" ? "friction" : "relevance"}
+                        key={id}
+                      >
+                        {m.w[id]}: {LE.find((l) => l.id === id).label}
+                      </small>
+                    ))}
+                </span>
+                <span className="description">{m.kurz}</span>
+                <span className="description">{m.desc}</span>
+              </span>
+            </button>
+          ))}
+      </div>
+    </details>
+  ));
 }
 function WorkshopJoin({
   workshops,

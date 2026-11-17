@@ -98,7 +98,8 @@ export default function Worksheet({ draft, result, settings, source }) {
           : "Mit KI ausgearbeitet · fachlich noch zu prüfen."}{" "}
         {source?.provider &&
           `${source.provider} · ${source.model || "manueller Import"}`}{" "}
-        · Created by Harald Eckmüller · Unterstützt von LMB
+        · Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt
+        durch LMB
       </p>
     </article>
   );

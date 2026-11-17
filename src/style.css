@@ -118,8 +118,9 @@ small {
 }
 .brand {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   text-decoration: none;
   color: var(--ink);
   font-family: Manrope, sans-serif;
@@ -137,9 +138,25 @@ small {
   color: var(--muted);
   margin-top: 6px;
 }
-.gem {
-  width: 47px;
-  height: 47px;
+.brand-logo-frame {
+  width: 220px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+}
+.brand-logo {
+  width: 300px;
+  height: auto;
+  max-width: none;
+  flex-shrink: 0;
+  transform: translateX(7px);
+}
+.brand small {
+  margin-top: 0;
 }
 .topbar nav {
   display: flex;
@@ -181,9 +198,9 @@ main {
   margin-bottom: 15px;
 }
 .hero h1 {
-  font-size: clamp(2.8rem, 6vw, 4.8rem);
-  letter-spacing: -0.06em;
-  line-height: 1.08;
+  font-size: clamp(1.65rem, 3.8vw, 2.6rem);
+  letter-spacing: -0.04em;
+  line-height: 1.2;
   margin-bottom: 20px;
   font-weight: 800;
 }
@@ -539,18 +556,46 @@ summary {
   border-radius: 12px;
 }
 .save-bar {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 20px 0;
+  display: grid;
+  gap: 12px;
+  padding: 18px 0 4px;
   border-top: 1px solid var(--line);
   font-size: 0.75rem;
 }
-.save-bar > .muted {
-  flex: 1;
-  min-width: 170px;
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
   font-size: 0.75rem;
+}
+.save-status::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--teal);
+}
+.save-actions,
+.save-file-actions,
+.save-account-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.save-actions {
+  justify-content: space-between;
+  row-gap: 12px;
+}
+.save-bar .button {
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+.save-reset {
+  margin-left: 4px;
 }
 .text-button {
   border: 0;
@@ -677,35 +722,36 @@ summary {
 .footer {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 38px 30px 55px;
+  padding: 22px 30px 30px;
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
-  gap: 35px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 28px;
   color: var(--muted);
 }
-.footer-kicker {
-  font-size: 1.2rem;
-  font-family: Manrope, sans-serif;
-  letter-spacing: -0.03em;
+.footer-credit p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.8;
+}
+.footer-credit strong {
   color: var(--ink);
-  display: block;
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-.footer p {
-  font-size: 0.8rem;
-}
-.footer small {
-  font-size: 0.65rem;
+  font-weight: 500;
 }
 .footer-links {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 18px;
 }
 .footer-links button {
   padding: 6px 0;
+  font-size: 0.75rem;
+}
+.footer-links button:hover {
+  color: var(--ink);
+  text-decoration: underline;
 }
 .workshop-join {
   display: flex;
@@ -771,7 +817,7 @@ form .button {
     padding: 25px 0;
   }
   .hero h1 {
-    font-size: 3.2rem;
+    font-size: clamp(1.65rem, 6vw, 2.25rem);
   }
   .field-grid,
   .mode-grid,
@@ -799,8 +845,14 @@ form .button {
     margin-top: 8px;
   }
   .footer {
-    padding: 30px 20px;
-    flex-direction: column;
+    padding: 20px;
+    align-items: flex-start;
+  }
+  .save-actions {
+    align-items: flex-start;
+  }
+  .save-account-actions {
+    justify-content: flex-start;
   }
   .priority-list li {
     gap: 10px;
@@ -893,4 +945,10 @@ form .button {
     size: A4;
     margin: 18mm;
   }
+}
+
+.about-kicker {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
 }
