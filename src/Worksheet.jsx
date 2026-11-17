@@ -1,4 +1,5 @@
 import React from "react";
+import { displayDate } from "../supabase/functions/_shared/fields.js";
 import {
   MK,
   LE,
@@ -29,7 +30,7 @@ export default function Worksheet({ draft, result, settings, source }) {
                   }[k]
                 }
               </dt>
-              <dd>{v}</dd>
+              <dd>{k === "datum" ? displayDate(v) : v}</dd>
             </div>
           ))}
       </dl>

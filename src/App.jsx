@@ -17,6 +17,8 @@ import {
   readSnapshot,
 } from "../supabase/functions/_shared/domain.js";
 import Worksheet from "./Worksheet.jsx";
+import ContextField from "./ContextField.jsx";
+import { reordered } from "../supabase/functions/_shared/fields.js";
 import logo from "./assets/7rizons-logo.png";
 const STORAGE = "7rizons:draft:v1";
 const steps = [
@@ -76,6 +78,8 @@ export default function App() {
   );
   const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
   const [step, setStep] = useState(1);
+  const [dragId, setDragId] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
   const [page, setPage] = useState("app");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [session, setSession] = useState(null);
@@ -242,6 +246,13 @@ export default function App() {
     }));
   }
   function move(id, delta) {
+    const currentIndex = draft.mechanisms.indexOf(id);
+    if (
+      currentIndex < 0 ||
+      currentIndex + delta < 0 ||
+      currentIndex + delta >= draft.mechanisms.length
+    )
+      return;
     change((d) => {
       const a = [...d.mechanisms];
       const i = a.indexOf(id),
@@ -513,26 +524,22 @@ export default function App() {
                         ["semester", "Semester", "z.B. WS 2025/26"],
                         ["datum", "Datum", "z.B. 14.11.2025"],
                       ].map(([key, label, placeholder]) => (
-                        <label
+                        <ContextField
                           key={key}
-                          className={key === "thema" ? "wide" : ""}
-                        >
-                          {label}
-                          <input
-                            maxLength={1500}
-                            value={draft.context[key] || ""}
-                            placeholder={placeholder}
-                            onChange={(e) =>
-                              change((d) => ({
-                                ...d,
-                                context: {
-                                  ...d.context,
-                                  [key]: e.target.value,
-                                },
-                              }))
-                            }
-                          />
-                        </label>
+                          name={key}
+                          label={label}
+                          value={draft.context[key] || ""}
+                          placeholder={placeholder}
+                          onChange={(value) =>
+                            change((d) => ({
+                              ...d,
+                              context: {
+                                ...d.context,
+                                [key]: value,
+                              },
+                            }))
+                          }
+                        />
                       ))}
                     </div>
                   </Card>
@@ -666,8 +673,9 @@ export default function App() {
                       <span className="eyebrow">04 · Übersicht</span>
                       <h2>Schritt 4: Übersicht</h2>
                       <p>
-                        Sortiere Mechaniken nach Priorität (↑/↓) und hake ab was
-                        in den Hack soll.
+                        Sortiere die Mechaniken nach Priorität und entferne, was
+                        nicht in den Hack soll. Ziehe am Griff oder verwende die
+                        Pfeiltasten. Der Safety-Rahmen bleibt immer enthalten.
                       </p>
                     </div>
                     {conflicts(draft).map((c, i) => (
@@ -679,11 +687,71 @@ export default function App() {
                       {draft.mechanisms.map((id, i) => {
                         const m = MK.find((x) => x.id === id);
                         return (
-                          <li key={id}>
+                          <li
+                            key={id}
+                            className={`${dragId === id ? "dragging" : ""} ${dropTarget?.id === id ? (dropTarget.after ? "drop-after" : "drop-before") : ""}`}
+                            onDragOver={(e) => {
+                              if (!dragId || dragId === id || busy) return;
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = "move";
+                              const bounds =
+                                e.currentTarget.getBoundingClientRect();
+                              setDropTarget({
+                                id,
+                                after:
+                                  e.clientY > bounds.top + bounds.height / 2,
+                              });
+                            }}
+                            onDrop={(e) => {
+                              if (!dragId || busy) return;
+                              e.preventDefault();
+                              const bounds =
+                                e.currentTarget.getBoundingClientRect();
+                              const after =
+                                e.clientY > bounds.top + bounds.height / 2;
+                              const next = reordered(
+                                draft.mechanisms,
+                                dragId,
+                                id,
+                                after,
+                              );
+                              if (next !== draft.mechanisms)
+                                change((d) => ({ ...d, mechanisms: next }));
+                              setDragId(null);
+                              setDropTarget(null);
+                            }}
+                          >
+                            <button
+                              className="drag-handle"
+                              draggable={!busy}
+                              type="button"
+                              aria-label={`${m.label} zum Sortieren ziehen`}
+                              title="Ziehen zum Sortieren; alternativ Pfeiltasten verwenden"
+                              onKeyDown={(e) => {
+                                if (
+                                  e.key === "ArrowUp" ||
+                                  e.key === "ArrowDown"
+                                ) {
+                                  e.preventDefault();
+                                  move(id, e.key === "ArrowUp" ? -1 : 1);
+                                }
+                              }}
+                              onDragStart={(e) => {
+                                e.dataTransfer.effectAllowed = "move";
+                                e.dataTransfer.setData("text/plain", id);
+                                setDragId(id);
+                              }}
+                              onDragEnd={() => {
+                                setDragId(null);
+                                setDropTarget(null);
+                              }}
+                            >
+                              ⠿
+                            </button>
                             <span className="number">
                               {String(i + 1).padStart(2, "0")}
                             </span>
-                            <div>
+                            <div className="priority-description">
                               <strong>{m.label}</strong>
                               <small>
                                 {m.basis ? "Basisspiel" : "Anpassung"} · {m.kat}
@@ -706,7 +774,8 @@ export default function App() {
                               </button>
                               {!m.pflicht && (
                                 <button
-                                  aria-label={`${m.label} abwählen`}
+                                  aria-label={`${m.label} entfernen`}
+                                  title="Aus der Auswahl entfernen"
                                   onClick={() => toggleMechanism(id)}
                                 >
                                   ×

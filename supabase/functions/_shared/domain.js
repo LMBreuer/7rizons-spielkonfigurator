@@ -1,4 +1,5 @@
 import { LE, MK, CONFLICTS } from "./catalog.js";
+import { displayDate } from "./fields.js";
 export { LE, MK, CONFLICTS };
 export const CATALOG_VERSION = "2026-11-17";
 export const DEFAULT_SETTINGS = {
@@ -322,7 +323,7 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
       .filter(([, v]) => v)
       .map(
         ([k, v]) =>
-          `**${{ thema: "Thema", fach: "Fach", name: "Lehrveranstaltung", dozent: "Dozent:in", semester: "Semester", datum: "Datum" }[k]}:** ${v}`,
+          `**${{ thema: "Thema", fach: "Fach", name: "Lehrveranstaltung", dozent: "Dozent:in", semester: "Semester", datum: "Datum" }[k]}:** ${k === "datum" ? displayDate(v) : v}`,
       ),
     "",
     "## Gewählte Lerntätigkeiten",

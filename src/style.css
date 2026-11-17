@@ -494,8 +494,35 @@ summary {
   padding: 18px 0;
   border-top: 1px solid var(--line);
 }
-.priority-list li > div:nth-child(2) {
+.priority-description {
   flex: 1;
+  min-width: 0;
+}
+.drag-handle {
+  flex-shrink: 0;
+  align-self: stretch;
+  min-width: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  font-size: 1.3rem;
+}
+.drag-handle:hover {
+  background: var(--surface2);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.priority-list .dragging {
+  opacity: 0.45;
+}
+.priority-list .drop-before {
+  box-shadow: inset 0 3px 0 var(--blue);
+}
+.priority-list .drop-after {
+  box-shadow: inset 0 -3px 0 var(--blue);
 }
 .priority-list small,
 .archive-row small {
