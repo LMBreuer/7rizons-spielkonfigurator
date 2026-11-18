@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
+import { newDraft } from "../supabase/functions/_shared/domain.js";
 import { JSDOM } from "jsdom";
 import { build } from "esbuild";
 import { PNG } from "pngjs";
@@ -94,6 +95,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
   );
   for (const [key, value] of Object.entries({
     window: dom.window,
+    getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
     document: dom.window.document,
     navigator: dom.window.navigator,
     HTMLElement: dom.window.HTMLElement,
@@ -116,6 +118,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   dom.window.HTMLElement.prototype.scrollIntoView = function () {};
   dom.window.scrollTo = () => {};
+  dom.window.Range.prototype.getClientRects = () => [];
+  dom.window.Range.prototype.getBoundingClientRect = () =>
+    new dom.window.DOMRect();
+  dom.window.document.elementFromPoint = () => null;
   // JSDOM has no pixel renderer; colours are measured separately above.
   dom.window.HTMLCanvasElement.prototype.getContext = () => null;
   dom.window.confirm = () => true;
@@ -145,7 +151,11 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     });
     const axe = (await import("axe-core")).default;
     const App = (await import(pathToFileURL(temp).href)).default;
+    const legacy = newDraft();
+    localStorage.setItem("7rizons:draft:v1", JSON.stringify({ draft: legacy }));
     render(React.createElement(App));
+    assert.equal(localStorage.getItem("7rizons:active-project"), legacy.id);
+    assert.ok(localStorage.getItem("7rizons:project:v1:" + legacy.id));
     const audit = async (label) => {
       const r = await axe.run(dom.window.document, {
         rules: { "color-contrast": { enabled: false } },
@@ -342,10 +352,15 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       2,
     );
     await user.click(screen.getByRole("button", { name: /Mit deiner KI-App/ }));
+    assert.equal(
+      screen.queryByRole("checkbox", { name: "Arbeitsaufträge ergänzen" }),
+      null,
+    );
     await user.click(
       screen.getByRole("button", { name: "KI-Auftrag vorbereiten" }),
     );
-    const key = "7rizons:draft:v1";
+    const key =
+      "7rizons:project:v1:" + localStorage.getItem("7rizons:active-project");
     const pending = JSON.parse(localStorage.getItem(key)).pendingRequest;
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
@@ -449,9 +464,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       }),
     );
     await audit("English worksheet");
-    const savedDocs = JSON.parse(
-      localStorage.getItem("7rizons:draft:v1"),
-    ).worksheets;
+    const savedDocs = JSON.parse(localStorage.getItem(key)).worksheets;
     assert.equal(savedDocs.at(-1).draft.language, "en");
     assert.equal(savedDocs[0].draft.language, "de");
     await user.click(
@@ -476,10 +489,13 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     assert.ok(screen.getByRole("article"));
     await user.click(screen.getByRole("button", { name: "Kopie ausfüllen" }));
-    const answerField = within(screen.getByRole("article")).getAllByRole(
-      "textbox",
+    const answerField = (
+      await within(screen.getByRole("article")).findAllByRole("textbox")
     )[0];
-    await user.type(answerField, "Unsere erste Karte");
+    answerField.focus();
+    await user.paste("Unsere erste Karte");
+    await user.keyboard("{Control>}a{/Control}");
+    await user.click(screen.getAllByRole("button", { name: "Fett" })[0]);
     await user.click(
       screen.getByRole("button", { name: "Bearbeitung beenden" }),
     );
@@ -489,14 +505,35 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     const sheets = JSON.parse(localStorage.getItem(key)).worksheets;
     assert.equal(sheets.at(-2).result.answers, undefined);
     assert.ok(
-      Object.values(sheets.at(-1).result.answers).includes(
+      JSON.stringify(sheets.at(-1).result.answers).includes(
         "Unsere erste Karte",
       ),
     );
     await user.click(screen.getByRole("button", { name: "Weiterbearbeiten" }));
     assert.equal(
-      within(screen.getByRole("article")).getAllByRole("textbox")[0].value,
+      within(screen.getByRole("article")).getAllByRole("textbox")[0]
+        .textContent,
       "Unsere erste Karte",
+    );
+    assert.ok(
+      within(screen.getByRole("article"))
+        .getAllByRole("textbox")[0]
+        .querySelector("strong"),
+    );
+    const firstProject = localStorage.getItem("7rizons:active-project");
+    await user.click(screen.getByRole("button", { name: "Neues Projekt" }));
+    const secondProject = localStorage.getItem("7rizons:active-project");
+    assert.notEqual(firstProject, secondProject);
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Projekte im Browser" }),
+      firstProject,
+    );
+    assert.equal(localStorage.getItem("7rizons:active-project"), firstProject);
+    assert.ok(screen.getByRole("article").querySelector(".card-answer strong"));
+    assert.equal(
+      JSON.parse(localStorage.getItem("7rizons:project:v1:" + secondProject))
+        .worksheets.length,
+      0,
     );
   } finally {
     cleanup?.();

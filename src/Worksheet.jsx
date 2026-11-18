@@ -9,6 +9,22 @@ import {
 } from "../supabase/functions/_shared/domain.js";
 import { translate } from "../supabase/functions/_shared/translations.js";
 
+const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
+function CardAnswer({ value }) {
+  if (typeof value === "string") return value;
+  return value.content.map((p, i) => (
+    <p key={i}>
+      {(p.content || []).map((r, j) => {
+        let text = r.text;
+        for (const m of r.marks || [])
+          text = React.createElement(m.type, null, text);
+        return <React.Fragment key={j}>{text}</React.Fragment>;
+      })}
+      {!p.content && <br />}
+    </p>
+  ));
+}
+
 export default function Worksheet({
   draft,
   result,
@@ -121,36 +137,38 @@ export default function Worksheet({
                               {i + 1}
                             </h4>
                             {onAnswer && (
-                              <textarea
-                                className="no-print"
-                                rows={4}
-                                maxLength={4000}
-                                aria-label={
-                                  t(
-                                    MK.find((x) => x.id === m.mechanismId)
-                                      .label,
-                                  ) +
-                                  " · " +
-                                  t("Dein Entwurf") +
-                                  " " +
-                                  (i + 1)
-                                }
-                                value={
-                                  result.answers?.[m.mechanismId + "-" + i] ||
-                                  ""
-                                }
-                                onChange={(event) =>
-                                  onAnswer(
-                                    m.mechanismId + "-" + i,
-                                    event.target.value,
-                                  )
-                                }
-                              />
+                              <React.Suspense fallback={null}>
+                                <CardEditor
+                                  key={result.requestId}
+                                  t={t}
+                                  label={
+                                    t(
+                                      MK.find((x) => x.id === m.mechanismId)
+                                        .label,
+                                    ) +
+                                    " · " +
+                                    t("Dein Entwurf") +
+                                    " " +
+                                    (i + 1)
+                                  }
+                                  value={
+                                    result.answers?.[m.mechanismId + "-" + i] ||
+                                    ""
+                                  }
+                                  onChange={(value) =>
+                                    onAnswer(m.mechanismId + "-" + i, value)
+                                  }
+                                />
+                              </React.Suspense>
                             )}
                             {result.answers?.[m.mechanismId + "-" + i] ? (
-                              <p className="card-answer">
-                                {result.answers[m.mechanismId + "-" + i]}
-                              </p>
+                              <section className="card-answer">
+                                <CardAnswer
+                                  value={
+                                    result.answers[m.mechanismId + "-" + i]
+                                  }
+                                />
+                              </section>
                             ) : (
                               <>
                                 <div />

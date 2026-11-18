@@ -1505,3 +1505,36 @@ html[data-input="pointer"] :focus {
     display: none;
   }
 }
+.card-editor .ProseMirror {
+  min-height: 6rem;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.card-editor .ProseMirror p,
+.card-answer p {
+  margin: 0 0 0.4em;
+}
+.card-editor button {
+  color: var(--ink);
+  background: var(--surface);
+  padding: 0.3em 0.55em;
+  border: 1px solid var(--line);
+  margin: 0 0.25em 0.3em 0;
+  border-radius: 0.25em;
+}
+.card-editor button[aria-pressed="true"] {
+  color: var(--blue);
+  border-color: currentColor;
+  background: var(--blue-light);
+}
+.project-picker {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+.project-picker select {
+  max-width: min(16rem, 70vw);
+}

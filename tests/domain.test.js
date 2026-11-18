@@ -277,3 +277,30 @@ test("working copy restores printable card answers and rejects unknown slots", (
   result.answers.fremd = "Test";
   assert.throws(() => readSnapshot(snapshot), /Arbeitsblattantworten/);
 });
+
+test("formatted cards restore and export bold, italic and paragraphs", () => {
+  const d = draft();
+  const result = templateResult(d, undefined, "guided");
+  const slot = result.mechanisms[0].mechanismId + "-0";
+  const answer = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "These", marks: [{ type: "strong" }] }],
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Frage", marks: [{ type: "em" }] }],
+      },
+    ],
+  };
+  result.answers = { [slot]: answer };
+  const snapshot = { draft: d, result, source: { kind: "template" } };
+  assert.match(
+    markdown(d, readSnapshot(snapshot).result),
+    /\*\*These\*\*\n\n_Frage_/,
+  );
+  answer.content[0].content[0].marks[0].type = "unknown";
+  assert.throws(() => readSnapshot(snapshot), /Arbeitsblattantworten/);
+});

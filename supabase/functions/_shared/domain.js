@@ -1,3 +1,4 @@
+import { validCardText, cardMarkdown } from "./card-text.js";
 import worksheetGuides from "./worksheet-guides.json" with { type: "json" };
 import { LE, MK, CONFLICTS } from "./catalog.js";
 import { orderedMechanisms, priorityOf } from "./priority.js";
@@ -337,7 +338,7 @@ function readSingleSnapshot(x) {
       ),
     );
     for (const [key, value] of Object.entries(answers))
-      if (!slots.has(key) || typeof value !== "string" || value.length > 4000)
+      if (!slots.has(key) || !validCardText(value))
         fail("Ungültige Arbeitsblattantworten.");
     result.answers = { ...answers };
   }
@@ -546,7 +547,7 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
           "",
           `**${t(m.guide ? "Dein Entwurf" : "Eigene Karte")} ${i}:**`,
           "",
-          result.answers?.[m.mechanismId + "-" + (i - 1)] ||
+          cardMarkdown(result.answers?.[m.mechanismId + "-" + (i - 1)]) ||
             Array(4).fill("______________________________").join("\n\n"),
         );
     }

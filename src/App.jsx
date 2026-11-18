@@ -34,11 +34,35 @@ const steps = [
   "Übersicht",
   "Arbeitsblatt",
 ];
+const PROJECT_PREFIX = "7rizons:project:v1:";
+const ACTIVE_PROJECT = "7rizons:active-project";
+function listProjects() {
+  const projects = [];
+  for (const key of Object.keys(localStorage)) {
+    if (!key.startsWith(PROJECT_PREFIX)) continue;
+    try {
+      const { draft } = JSON.parse(localStorage.getItem(key));
+      projects.push({
+        id: draft.id,
+        title: draft.context.thema || draft.context.name,
+      });
+    } catch {}
+  }
+  return projects;
+}
 function stored() {
   try {
-    const x = JSON.parse(localStorage.getItem(STORAGE));
+    const x = JSON.parse(
+      localStorage.getItem(
+        PROJECT_PREFIX + localStorage.getItem(ACTIVE_PROJECT),
+      ) || localStorage.getItem(STORAGE),
+    );
     if (x) {
-      return { ...readSnapshot(x), cloudRevision: x.cloudRevision || 0 };
+      return {
+        ...readSnapshot(x),
+        cloudRevision: x.cloudRevision || 0,
+        step: x.step,
+      };
     }
   } catch {}
   return {
@@ -97,7 +121,19 @@ export default function App() {
   const resultSettings = activeWorksheet?.resultSettings || DEFAULT_SETTINGS;
   const resultDraft = activeWorksheet?.draft || draft;
   const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(saved.step || 1);
+  const [projects, setProjects] = useState(() => {
+    try {
+      return listProjects();
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    const refresh = () => setProjects(listProjects());
+    window.addEventListener("storage", refresh);
+    return () => window.removeEventListener("storage", refresh);
+  }, []);
   const [page, setPage] = useState("app");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [session, setSession] = useState(null);
@@ -202,12 +238,17 @@ export default function App() {
         ? "7’rizons · Game configurator"
         : "7’rizons · Spielkonfigurator";
   }, [language]);
+  function persistProject() {
+    localStorage.setItem(
+      PROJECT_PREFIX + draft.id,
+      JSON.stringify({ ...payload(), cloudRevision, step }),
+    );
+    localStorage.setItem(ACTIVE_PROJECT, draft.id);
+    localStorage.removeItem(STORAGE);
+  }
   useEffect(() => {
     try {
-      localStorage.setItem(
-        STORAGE,
-        JSON.stringify({ ...payload(), cloudRevision }),
-      );
+      persistProject();
     } catch {
       setError(
         t(
@@ -215,7 +256,7 @@ export default function App() {
         ),
       );
     }
-  }, [draft, worksheets, activeWorksheetId, request, cloudRevision]);
+  }, [draft, worksheets, activeWorksheetId, request, cloudRevision, step]);
   useEffect(() => {
     if (!cloud) return;
     let alive = true;
@@ -445,36 +486,28 @@ export default function App() {
       ),
     );
   }
-  function applySnapshot(x, revision = 0) {
+  function applySnapshot(x, revision = 0, resumeStep) {
     x = readSnapshot(x);
+    persistProject();
+    setProjects(listProjects());
+    setEditingId(null);
+    setImportText("");
+    setApiKey("");
+    setSubmissionConsent(false);
+    setMode("template");
+    setWithInstructions(true);
     setDraft(x.draft);
     setLanguage(x.draft.language || "de");
     setWorksheets(x.worksheets);
     setActiveWorksheetId(x.activeWorksheetId);
     setRequest(x.pendingRequest);
     setCloudRevision(revision);
-    setStep(x.worksheets.length ? 5 : 1);
+    setStep(resumeStep || (x.worksheets.length ? 5 : 1));
     setPage("app");
     setPreview(null);
   }
   function newConfiguration() {
-    if (
-      !window.confirm(
-        t(
-          "Neuen Entwurf beginnen? Lade deinen aktuellen Stand vorher herunter oder speichere ihn online.",
-        ),
-      )
-    )
-      return;
-    setDraft({ ...newDraft(), language });
-    setWorksheets([]);
-    setActiveWorksheetId(null);
-    setRequest(null);
-    setCloudRevision(0);
-    setApiKey("");
-    setStep(1);
-    setPage("app");
-    setPreview(null);
+    applySnapshot({ draft: { ...newDraft(), language } });
   }
   async function loadArchive() {
     setEntries(
@@ -1311,11 +1344,49 @@ export default function App() {
                           {t("Für Online-Speichern anmelden ")}
                         </Button>
                       )}
+                      <label className="project-picker">
+                        {t("Projekte im Browser")}
+                        <select
+                          value={draft.id}
+                          onFocus={() => setProjects(listProjects())}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            act(() => {
+                              const next = JSON.parse(
+                                localStorage.getItem(PROJECT_PREFIX + id),
+                              );
+                              applySnapshot(
+                                next,
+                                next.cloudRevision,
+                                next.step,
+                              );
+                            });
+                          }}
+                        >
+                          {[
+                            ...projects.filter((p) => p.id !== draft.id),
+                            {
+                              id: draft.id,
+                              title: draft.context.thema || draft.context.name,
+                            },
+                          ].map((p, i, all) => (
+                            <option key={p.id} value={p.id}>
+                              {p.title || t("Unbenanntes Projekt")}
+                              {all.some(
+                                (other, j) =>
+                                  i !== j && other.title === p.title,
+                              )
+                                ? " · " + p.id.slice(0, 6)
+                                : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <button
                         className="text-button save-reset"
-                        onClick={newConfiguration}
+                        onClick={() => act(newConfiguration)}
                       >
-                        {t("Neuer Entwurf ")}
+                        {t("Neues Projekt")}
                       </button>
                     </div>
                   </div>

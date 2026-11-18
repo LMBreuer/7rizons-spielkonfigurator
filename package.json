@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
+    "prosemirror-commands": "^1.7.2",
+    "prosemirror-history": "^1.5.1",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.13",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.42.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
