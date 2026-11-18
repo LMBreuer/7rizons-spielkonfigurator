@@ -309,10 +309,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       ),
     );
     await audit("generated worksheet");
-    const instructionChoice = screen.getByRole("checkbox", {
-      name: "Arbeitsaufträge ergänzen",
-    });
-    assert.equal(instructionChoice.checked, true);
+    assert.equal(
+      screen.queryByRole("checkbox", { name: "Arbeitsaufträge ergänzen" }),
+      null,
+    );
     const example = screen
       .getAllByText("Ausgefülltes Beispiel anzeigen")[0]
       .closest("details");
@@ -320,21 +320,29 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(example.querySelector("summary"));
     assert.equal(example.open, true);
     assert.ok(example.classList.contains("no-print"));
+    const openSheets = async () => {
+      const menu = document.querySelector(".sheet-menu");
+      if (!menu.open) await user.click(menu.querySelector("summary"));
+    };
+    const newSheet = async () =>
+      user.click(
+        screen.getByRole("button", { name: /Neues Blatt|New worksheet/ }),
+      );
+    await openSheets();
     const collection = () =>
       within(
         screen.getByRole("group", { name: "Gespeicherte Arbeitsblätter" }),
       );
+    await openSheets();
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
       1,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Weiteres Arbeitsblatt hinzufügen" }),
-    );
-    assert.match(
-      document.activeElement.textContent.trim(),
-      /Weiteres Arbeitsblatt hinzufügen/,
-    );
+    await newSheet();
+    const instructionChoice = screen.getByRole("checkbox", {
+      name: "Arbeitsaufträge ergänzen",
+    });
+    assert.equal(instructionChoice.checked, true);
     await user.click(instructionChoice);
     await user.click(
       screen.getByRole("button", {
@@ -346,10 +354,15 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("article").classList.contains("worksheet-overview"),
     );
     assert.equal(screen.queryByText("Ausgefülltes Beispiel anzeigen"), null);
-    await user.click(instructionChoice);
+    await openSheets();
+    await openSheets();
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
       2,
+    );
+    await newSheet();
+    await user.click(
+      screen.getByRole("checkbox", { name: "Arbeitsaufträge ergänzen" }),
     );
     await user.click(screen.getByRole("button", { name: /Mit deiner KI-App/ }));
     assert.equal(
@@ -362,6 +375,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     const key =
       "7rizons:project:v1:" + localStorage.getItem("7rizons:active-project");
     const pending = JSON.parse(localStorage.getItem(key)).pendingRequest;
+    await openSheets();
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
       2,
@@ -386,18 +400,22 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(
       screen.getByRole("button", { name: "Vorschau übernehmen" }),
     );
+    await openSheets();
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
       3,
     );
     assert.ok(screen.getByRole("heading", { name: "KI-Testblatt" }));
+    await openSheets();
     await user.click(
       collection().getByRole("button", { name: /Arbeitsblatt 1:/ }),
     );
     assert.ok(screen.getByRole("heading", { name: /7’rizons Seminar-Hack/ }));
+    await openSheets();
     await user.click(
       collection().getByRole("button", { name: "Arbeitsblatt 2 löschen" }),
     );
+    await openSheets();
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
       2,
@@ -405,14 +423,12 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await audit("multiple worksheets");
     cleanup();
     render(React.createElement(App));
-    await user.selectOptions(
-      screen.getByLabelText("Direkt zu einem Schritt springen"),
-      "5",
-    );
+    await openSheets();
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
       2,
     );
+    await openSheets();
     await user.click(
       collection().getByRole("button", { name: /Arbeitsblatt 2:/ }),
     );
@@ -441,6 +457,9 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(
       screen.getByRole("button", { name: /Go to the game configurator/ }),
     );
+    await user.click(
+      screen.getByRole("button", { name: "Configuration", exact: true }),
+    );
     await user.selectOptions(
       screen.getByLabelText("Go directly to a step"),
       "1",
@@ -451,6 +470,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByLabelText("Go directly to a step"),
       "5",
     );
+    await newSheet();
     await user.click(
       screen.getByRole("button", { name: "Without AI", exact: true }),
     );
@@ -470,13 +490,15 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(
       screen.getByRole("button", { name: "Deutsch", exact: true }),
     );
-    for (const number of [3, 2, 1])
+    for (const number of [3, 2, 1]) {
+      await openSheets();
       await user.click(
         screen.getByRole("button", {
           name: `Arbeitsblatt ${number} löschen`,
           exact: true,
         }),
       );
+    }
     assert.equal(
       screen.queryByRole("group", { name: "Gespeicherte Arbeitsblätter" }),
       null,
@@ -521,12 +543,13 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .querySelector("strong"),
     );
     const firstProject = localStorage.getItem("7rizons:active-project");
-    await user.click(screen.getByRole("button", { name: "Neues Projekt" }));
+    await user.click(document.querySelector(".project-menu summary"));
+    await user.click(screen.getByRole("button", { name: /Neues Projekt/ }));
     const secondProject = localStorage.getItem("7rizons:active-project");
     assert.notEqual(firstProject, secondProject);
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Projekte im Browser" }),
-      firstProject,
+    await user.click(document.querySelector(".project-menu summary"));
+    await user.click(
+      screen.getByRole("button", { name: "Navigationstest", exact: true }),
     );
     assert.equal(localStorage.getItem("7rizons:active-project"), firstProject);
     assert.ok(screen.getByRole("article").querySelector(".card-answer strong"));

@@ -62,6 +62,8 @@ function stored() {
         ...readSnapshot(x),
         cloudRevision: x.cloudRevision || 0,
         step: x.step,
+        buildingSheet: x.buildingSheet,
+        configStep: x.configStep,
       };
     }
   } catch {}
@@ -113,6 +115,7 @@ export default function App() {
     saved.activeWorksheetId,
   );
   const [request, setRequest] = useState(saved.pendingRequest || null);
+  const [activeCard, setActiveCard] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const activeWorksheet =
     worksheets.find((w) => w.id === activeWorksheetId) || null;
@@ -122,6 +125,37 @@ export default function App() {
   const resultDraft = activeWorksheet?.draft || draft;
   const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
   const [step, setStep] = useState(saved.step || 1);
+  const [buildingSheet, setBuildingSheet] = useState(
+    saved.buildingSheet === true,
+  );
+  const lastConfigStep = useRef(
+    saved.configStep || (saved.step < 5 ? saved.step : 1),
+  );
+  if (step < 5) lastConfigStep.current = step;
+  const projectMenu = useRef(null);
+  const sheetMenu = useRef(null);
+  useEffect(() => {
+    function closeMenus(event) {
+      const escape = event.type === "keydown" && event.key === "Escape";
+      if (event.type === "keydown" && !escape) return;
+      for (const menu of mainRef.current?.querySelectorAll(
+        "details.switch-menu[open]",
+      ) || []) {
+        if (escape || !menu.contains(event.target)) {
+          menu.open = false;
+          if (escape && menu.contains(event.target))
+            menu.querySelector("summary").focus();
+        }
+      }
+    }
+    document.addEventListener("pointerdown", closeMenus);
+    document.addEventListener("keydown", closeMenus);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenus);
+      document.removeEventListener("keydown", closeMenus);
+    };
+  }, []);
+
   const [projects, setProjects] = useState(() => {
     try {
       return listProjects();
@@ -219,7 +253,7 @@ export default function App() {
     let heading;
     if (changed)
       heading = mainRef.current?.querySelector(
-        page === "app" ? ".workspace h2" : "h1",
+        page === "app" ? ".workspace h2, .worksheet h1" : "h1",
       );
     else if (
       (activeWorksheetId && activeWorksheetId !== old.activeWorksheetId) ||
@@ -241,7 +275,13 @@ export default function App() {
   function persistProject() {
     localStorage.setItem(
       PROJECT_PREFIX + draft.id,
-      JSON.stringify({ ...payload(), cloudRevision, step }),
+      JSON.stringify({
+        ...payload(),
+        cloudRevision,
+        step,
+        buildingSheet,
+        configStep: lastConfigStep.current,
+      }),
     );
     localStorage.setItem(ACTIVE_PROJECT, draft.id);
     localStorage.removeItem(STORAGE);
@@ -256,7 +296,15 @@ export default function App() {
         ),
       );
     }
-  }, [draft, worksheets, activeWorksheetId, request, cloudRevision, step]);
+  }, [
+    draft,
+    worksheets,
+    activeWorksheetId,
+    request,
+    cloudRevision,
+    step,
+    buildingSheet,
+  ]);
   useEffect(() => {
     if (!cloud) return;
     let alive = true;
@@ -401,14 +449,17 @@ export default function App() {
     });
     setWorksheets((items) => [...items, worksheet]);
     setActiveWorksheetId(worksheet.id);
+    setBuildingSheet(false);
   }
   function focusWorksheetBuilder() {
-    const heading = mainRef.current?.querySelector(".worksheet-builder h2");
-    if (heading) {
-      heading.tabIndex = -1;
-      heading.focus();
-      heading.scrollIntoView({ block: "start" });
-    }
+    setBuildingSheet(true);
+    window.requestAnimationFrame(() => {
+      const heading = mainRef.current?.querySelector(".worksheet-builder h2");
+      if (heading) {
+        heading.tabIndex = -1;
+        heading.focus();
+      }
+    });
   }
   function deleteWorksheet(id) {
     if (
@@ -432,7 +483,7 @@ export default function App() {
         mainRef.current
           ?.querySelector(`[data-worksheet-id="${nextActive}"] button`)
           ?.focus();
-      else focusWorksheetBuilder();
+      else mainRef.current?.querySelector(".worksheet-builder h2")?.focus();
     });
   }
   async function generate() {
@@ -487,6 +538,8 @@ export default function App() {
     );
   }
   function applySnapshot(x, revision = 0, resumeStep) {
+    const builderWasOpen = x.buildingSheet === true;
+    const previousStep = [1, 2, 3, 4].includes(x.configStep) ? x.configStep : 1;
     x = readSnapshot(x);
     persistProject();
     setProjects(listProjects());
@@ -501,6 +554,9 @@ export default function App() {
     setWorksheets(x.worksheets);
     setActiveWorksheetId(x.activeWorksheetId);
     setRequest(x.pendingRequest);
+    setBuildingSheet(builderWasOpen);
+    lastConfigStep.current = previousStep;
+    if (projectMenu.current) projectMenu.current.open = false;
     setCloudRevision(revision);
     setStep(resumeStep || (x.worksheets.length ? 5 : 1));
     setPage("app");
@@ -643,33 +699,182 @@ export default function App() {
         <div className="no-print">{notices}</div>
         {page === "app" && (
           <>
-            <section className="hero no-print">
-              <div className="eyebrow">
-                {t("Von der Spielidee zum Seminar")}
-              </div>
-              <h1>
-                {t("Eure Themen. ")}
-                <span>{t("Eure Welten.")}</span>
-              </h1>
-              <p>{t("Gestalte 7’rizons für deine Lehre.")}</p>
-            </section>
-            <nav
-              className="steps no-print"
-              aria-label={t("Konfigurationsschritte")}
-            >
-              {steps.map((label, i) => (
-                <button
-                  key={t(label)}
-                  disabled={busy}
-                  className={step === i + 1 ? "active" : ""}
-                  aria-current={step === i + 1 ? "step" : undefined}
-                  onClick={() => setStep(i + 1)}
+            <header className="project-head no-print">
+              <details
+                ref={projectMenu}
+                className="switch-menu project-menu"
+                onToggle={(e) => {
+                  if (e.currentTarget.open) setProjects(listProjects());
+                }}
+              >
+                <summary
+                  aria-label={
+                    t("Projekt wechseln") +
+                    " · " +
+                    (draft.context.thema ||
+                      draft.context.name ||
+                      t("Unbenanntes Projekt"))
+                  }
                 >
-                  <span>{i + 1}</span>
-                  {t(label)}
+                  <h1>
+                    {draft.context.thema ||
+                      draft.context.name ||
+                      (step === 1 && !worksheets.length ? (
+                        <>
+                          {t("Eure Themen. ")}
+                          <em>{t("Eure Welten.")}</em>
+                        </>
+                      ) : (
+                        t("Unbenanntes Projekt")
+                      ))}
+                  </h1>
+                </summary>
+                <div className="menu-body">
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      disabled={busy}
+                      aria-pressed={p.id === draft.id}
+                      onClick={() =>
+                        act(() => {
+                          if (p.id === draft.id) {
+                            projectMenu.current.open = false;
+                            return;
+                          }
+                          const next = JSON.parse(
+                            localStorage.getItem(PROJECT_PREFIX + p.id),
+                          );
+                          applySnapshot(next, next.cloudRevision, next.step);
+                        })
+                      }
+                    >
+                      {p.title || t("Unbenanntes Projekt")}
+                      {projects.some(
+                        (other) => other.id !== p.id && p.title === other.title,
+                      ) && " · " + p.id.slice(0, 6)}
+                    </button>
+                  ))}
+                  <button disabled={busy} onClick={() => act(newConfiguration)}>
+                    + {t("Neues Projekt")}
+                  </button>
+                  <fieldset disabled={busy} className="save-bar">
+                    <span className="save-status">
+                      {t("Im Browser automatisch gesichert ")}
+                    </span>
+                    <div className="save-actions">
+                      <div
+                        className="save-file-actions"
+                        role="group"
+                        aria-label={t("Konfiguration als Datei")}
+                      >
+                        <Button
+                          secondary
+                          onClick={() =>
+                            download(
+                              JSON.stringify(payload(), null, 2),
+                              jsonFilename(draft.context.thema),
+                              "application/json",
+                            )
+                          }
+                        >
+                          {t("JSON sichern ")}
+                        </Button>
+                        <Button
+                          secondary
+                          onClick={() => configImportRef.current?.click()}
+                        >
+                          {t("JSON laden ")}
+                        </Button>
+                        <input
+                          ref={configImportRef}
+                          hidden
+                          type="file"
+                          accept=".json"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            e.target.value = "";
+                            if (file)
+                              act(async () => {
+                                const x = JSON.parse(await fileText(file));
+                                x.draft = {
+                                  ...x.draft,
+                                  id: crypto.randomUUID(),
+                                };
+                                if (x.request)
+                                  x.request = {
+                                    ...x.request,
+                                    configurationId: x.draft.id,
+                                  };
+                                applySnapshot(x);
+                                setMessage(
+                                  t("Datei als neuer Entwurf geladen."),
+                                );
+                              });
+                          }}
+                        />
+                      </div>
+                      <div className="save-account-actions">
+                        {session ? (
+                          <Button secondary onClick={() => act(saveOnline)}>
+                            {t("Online speichern ")}
+                          </Button>
+                        ) : (
+                          <Button secondary onClick={() => setPage("account")}>
+                            {t("Für Online-Speichern anmelden ")}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </fieldset>
+                </div>
+              </details>
+              {step === 1 &&
+                !draft.context.thema &&
+                !draft.context.name &&
+                !worksheets.length && (
+                  <p>{t("Gestalte 7’rizons für deine Lehre.")}</p>
+                )}
+            </header>
+            {(worksheets.length > 0 || step === 5) && (
+              <nav
+                className="area-nav no-print"
+                aria-label={t("Projektbereiche")}
+              >
+                <button
+                  disabled={busy}
+                  aria-current={step < 5 ? "page" : undefined}
+                  onClick={() => setStep(lastConfigStep.current || 1)}
+                >
+                  {t("Konfiguration")}
                 </button>
-              ))}
-            </nav>
+                <button
+                  disabled={busy}
+                  aria-current={step === 5 ? "page" : undefined}
+                  onClick={() => setStep(5)}
+                >
+                  {t("Arbeitsblätter")} ({worksheets.length})
+                </button>
+              </nav>
+            )}
+            {step < 5 && (
+              <nav
+                className="steps no-print"
+                aria-label={t("Konfigurationsschritte")}
+              >
+                {steps.map((label, i) => (
+                  <button
+                    key={t(label)}
+                    disabled={busy}
+                    className={step === i + 1 ? "active" : ""}
+                    aria-current={step === i + 1 ? "step" : undefined}
+                    onClick={() => setStep(i + 1)}
+                  >
+                    <span>{i + 1}</span>
+                    {t(label)}
+                  </button>
+                ))}
+              </nav>
+            )}
             <div className="workspace no-print" aria-busy={busy}>
               <fieldset disabled={busy} aria-label={t("Spielkonfiguration")}>
                 {step === 1 && (
@@ -883,514 +1088,507 @@ export default function App() {
                 {step === 5 && (
                   <>
                     {worksheets.length > 0 && (
-                      <Card>
-                        <h2>
-                          {t("Arbeitsblätter (")}
-                          {worksheets.length})
-                        </h2>
-                        <div
-                          className="worksheet-list"
-                          role="group"
-                          aria-label={t("Gespeicherte Arbeitsblätter")}
+                      <div className="sheet-tools">
+                        <details
+                          className="switch-menu sheet-menu"
+                          ref={sheetMenu}
                         >
-                          {worksheets.map((w, index) => (
+                          <summary>
+                            {result?.answers
+                              ? t("Arbeitskopie")
+                              : t("Arbeitsblatt")}{" "}
+                            {worksheets.indexOf(activeWorksheet) + 1}
+                          </summary>
+                          <div className="menu-body">
                             <div
-                              className="worksheet-row"
-                              key={w.id}
-                              data-worksheet-id={w.id}
+                              className="worksheet-list"
+                              role="group"
+                              aria-label={t("Gespeicherte Arbeitsblätter")}
                             >
-                              <button
-                                className="worksheet-open"
-                                aria-pressed={w.id === activeWorksheetId}
-                                onClick={() => {
-                                  setActiveWorksheetId(w.id);
-                                  setPreview(null);
-                                }}
-                              >
-                                <strong>
-                                  {t("Arbeitsblatt ")}
-                                  {index + 1}: {w.result.title}
-                                </strong>
-                                <small>
-                                  {w.source.kind === "template"
-                                    ? [
-                                        t("Ohne KI"),
-                                        w.result.templateVariant &&
-                                          t(
-                                            w.result.templateVariant ===
-                                              "guided"
-                                              ? "Mit Arbeitsaufträgen"
-                                              : "Nur Übersicht",
-                                          ),
-                                      ]
-                                        .filter(Boolean)
-                                        .join(" · ")
-                                    : w.source.kind === "import"
-                                      ? t("KI-Import")
-                                      : PROVIDERS[w.source.provider] ||
-                                        t("KI")}{" "}
-                                  ·{" "}
-                                  {new Date(w.createdAt).toLocaleString(
-                                    language === "en" ? "en-GB" : "de-AT",
-                                    { timeZone: "Europe/Vienna" },
-                                  )}
-                                  {w.result.answers && t(" · Arbeitskopie")}
-                                  {w.draft.revision !== draft.revision
-                                    ? t(" · früherer Stand")
-                                    : ""}
-                                </small>
-                              </button>
-                              <Button
-                                secondary
-                                onClick={() => deleteWorksheet(w.id)}
-                                aria-label={t("Arbeitsblatt {0} löschen", {
-                                  0: index + 1,
-                                })}
-                              >
-                                {t("Löschen ")}
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </Card>
-                    )}
-                    <Card className="worksheet-builder">
-                      <div className="section-title">
-                        <span className="eyebrow">
-                          {t("05 · Arbeitsblatt")}
-                        </span>
-                        <h2>
-                          {worksheets.length
-                            ? t("Weiteres Arbeitsblatt hinzufügen")
-                            : t("Wähle deinen Weg.")}
-                        </h2>
-                        <p>
-                          {t(
-                            "Alle Wege führen zum gleichen übersichtlichen Arbeitsblatt. Du entscheidest, ob und wie KI mitarbeitet. ",
-                          )}
-                        </p>
-                      </div>
-                      <div
-                        className="mode-grid"
-                        role="group"
-                        aria-label={t("Weg zum Arbeitsblatt")}
-                      >
-                        {[
-                          [
-                            "template",
-                            "01",
-                            t("Ohne KI"),
-                            t(
-                              "Deine Auswahl, feste Anleitungen und Platz für eigene Karten.",
-                            ),
-                          ],
-                          [
-                            "external",
-                            "02",
-                            t("Mit deiner KI-App"),
-                            t(
-                              "Auftrag mitnehmen, JSON-Antwort hier wieder einfügen.",
-                            ),
-                          ],
-                          [
-                            "personal",
-                            "03",
-                            t("Mit eigenem API-Zugang"),
-                            t("OpenAI, Claude oder Gemini direkt verwenden."),
-                          ],
-                          [
-                            "workshop",
-                            "04",
-                            t("Mit Workshop-KI"),
-                            t("Der Workshop stellt den Zugang bereit."),
-                          ],
-                        ]
-                          .filter(([id]) => id !== "workshop")
-                          .map(([id, n, title, text]) => (
-                            <button
-                              className={
-                                "mode " + (mode === id ? "selected" : "")
-                              }
-                              key={id}
-                              aria-labelledby={`mode-${id}-label`}
-                              aria-describedby={`mode-${id}-description`}
-                              aria-pressed={mode === id}
-                              onClick={() => {
-                                setMode(id);
-                                setApiKey("");
-                              }}
-                            >
-                              <small aria-hidden="true">{n}</small>
-                              {mode === id && (
-                                <span
-                                  className="selection-indicator"
-                                  aria-hidden="true"
+                              {worksheets.map((w, index) => (
+                                <div
+                                  className="worksheet-row"
+                                  key={w.id}
+                                  data-worksheet-id={w.id}
                                 >
-                                  ✓
-                                </span>
-                              )}
-                              <strong id={`mode-${id}-label`}>{title}</strong>
-                              <span id={`mode-${id}-description`}>{text}</span>
-                            </button>
-                          ))}
-                      </div>
-                      {mode === "template" && (
-                        <div className="template-choice">
-                          <label className="checkbox">
-                            <input
-                              type="checkbox"
-                              checked={withInstructions}
-                              onChange={(e) =>
-                                setWithInstructions(e.target.checked)
-                              }
-                              aria-describedby="template-choice-note"
-                            />
-                            {t("Arbeitsaufträge ergänzen")}
-                          </label>
-                          <small id="template-choice-note">
-                            {t(
-                              "Ohne Häkchen erhältst du die Übersicht deiner Auswahl.",
-                            )}
-                          </small>
-                        </div>
-                      )}
-                      {(mode === "personal" || mode === "workshop") && (
-                        <div className="connection">
-                          <label>
-                            {t("KI-Anbieter ")}
-                            <select
-                              value={provider}
-                              onChange={(e) => {
-                                setProvider(e.target.value);
-                                setApiKey("");
-                              }}
-                            >
-                              {Object.entries(PROVIDERS).map(([id, label]) => (
-                                <option value={id} key={id}>
-                                  {t(label)}
-                                  {settings.models[id]
-                                    ? ""
-                                    : " · noch nicht eingerichtet"}
-                                </option>
+                                  <button
+                                    className="worksheet-open"
+                                    aria-pressed={w.id === activeWorksheetId}
+                                    onClick={() => {
+                                      sheetMenu.current.open = false;
+                                      setBuildingSheet(false);
+                                      setActiveWorksheetId(w.id);
+                                      setPreview(null);
+                                    }}
+                                  >
+                                    <strong>
+                                      {t("Arbeitsblatt ")}
+                                      {index + 1}: {w.result.title}
+                                    </strong>
+                                    <small>
+                                      {w.source.kind === "template"
+                                        ? [
+                                            t("Ohne KI"),
+                                            w.result.templateVariant &&
+                                              t(
+                                                w.result.templateVariant ===
+                                                  "guided"
+                                                  ? "Mit Arbeitsaufträgen"
+                                                  : "Nur Übersicht",
+                                              ),
+                                          ]
+                                            .filter(Boolean)
+                                            .join(" · ")
+                                        : w.source.kind === "import"
+                                          ? t("KI-Import")
+                                          : PROVIDERS[w.source.provider] ||
+                                            t("KI")}{" "}
+                                      ·{" "}
+                                      {new Date(w.createdAt).toLocaleString(
+                                        language === "en" ? "en-GB" : "de-AT",
+                                        { timeZone: "Europe/Vienna" },
+                                      )}
+                                      {w.result.answers && t(" · Arbeitskopie")}
+                                      {w.draft.revision !== draft.revision
+                                        ? t(" · früherer Stand")
+                                        : ""}
+                                    </small>
+                                  </button>
+                                  <Button
+                                    secondary
+                                    onClick={() => deleteWorksheet(w.id)}
+                                    aria-label={t("Arbeitsblatt {0} löschen", {
+                                      0: index + 1,
+                                    })}
+                                  >
+                                    {t("Löschen ")}
+                                  </Button>
+                                </div>
                               ))}
-                            </select>
-                          </label>
-                          <p className="muted">
-                            {settings.models[provider]
-                              ? t("Modell: {0}", {
-                                  0: settings.models[provider],
-                                })
-                              : t(
-                                  "Die Administration muss zunächst ein Modell für diesen Anbieter freischalten.",
-                                )}
-                          </p>
-                          {mode === "personal" ? (
-                            <>
-                              <label>
-                                {t("Dein API-Key ")}
-                                <input
-                                  type="password"
-                                  autoComplete="off"
-                                  value={apiKey}
-                                  maxLength={1000}
-                                  onChange={(e) => setApiKey(e.target.value)}
-                                  placeholder={t("API-Key für diese Sitzung")}
-                                />
-                              </label>
-                              <p className="muted">
-                                {t(
-                                  "Der Key wird nur im Arbeitsspeicher gehalten und für den Aufruf verschlüsselt an unser Backend übertragen. Er wird nicht in Entwürfen oder Downloads gespeichert. Der Anbieter rechnet die Nutzung mit deinem API-Konto ab. ",
-                                )}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <WorkshopJoin
-                                workshops={workshops}
-                                workshopId={workshopId}
-                                setWorkshopId={setWorkshopId}
-                                code={code}
-                                setCode={setCode}
-                                join={() => act(join)}
-                                session={session}
-                              />
-                              <p className="muted">
-                                {t(
-                                  "Die Workshop-KI verwendet einen zentralen Zugang. Du benötigst keinen eigenen API-Key. Nur für freigeschaltete Workshops und innerhalb ihres Limits verfügbar. ",
-                                )}
-                              </p>
-                            </>
-                          )}
-                          {!session && (
+                            </div>
+                          </div>
+                        </details>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (buildingSheet) {
+                              setPreview(null);
+                              setBuildingSheet(false);
+                            } else focusWorksheetBuilder();
+                          }}
+                        >
+                          {buildingSheet
+                            ? t("Zurück zum Blatt")
+                            : "+ " + t("Neues Blatt")}
+                        </button>
+                        {!buildingSheet &&
+                          result.templateVariant !== "overview" && (
                             <Button
                               secondary
-                              onClick={() => setPage("account")}
+                              onClick={() => {
+                                setActiveCard(
+                                  result.mechanisms[0]?.mechanismId + "-0",
+                                );
+                                if (result.answers) {
+                                  setEditingId(
+                                    editingId === activeWorksheetId
+                                      ? null
+                                      : activeWorksheetId,
+                                  );
+                                } else {
+                                  const copy = createWorksheet({
+                                    ...activeWorksheet,
+                                    result: { ...result, answers: {} },
+                                  });
+                                  setWorksheets((items) => [...items, copy]);
+                                  setActiveWorksheetId(copy.id);
+                                  setEditingId(copy.id);
+                                }
+                              }}
                             >
-                              {t("Für direkte KI anmelden ")}
+                              {t(
+                                !result.answers
+                                  ? "Kopie ausfüllen"
+                                  : editingId === activeWorksheetId
+                                    ? "Bearbeitung beenden"
+                                    : "Weiterbearbeiten",
+                              )}
                             </Button>
                           )}
-                        </div>
-                      )}
-                      <div className="actions">
-                        <Button
-                          onClick={() => act(generate)}
-                          disabled={
-                            busy ||
-                            (["personal", "workshop"].includes(mode) &&
-                              (!cloud ||
-                                !session ||
-                                !settings.models[provider]))
-                          }
-                        >
-                          {busy
-                            ? t("Wird erstellt …")
-                            : mode === "external"
-                              ? t("KI-Auftrag vorbereiten")
-                              : worksheets.length
-                                ? t("Arbeitsblatt hinzufügen")
-                                : t("Arbeitsblatt erstellen")}
-                        </Button>
+                        {result && !buildingSheet && (
+                          <details className="switch-menu export-menu">
+                            <summary aria-label={t("Drucken und Exportieren")}>
+                              ···
+                            </summary>
+                            <div className="menu-body">
+                              <button
+                                onClick={() =>
+                                  download(
+                                    markdown(
+                                      resultDraft,
+                                      result,
+                                      resultSettings,
+                                    ),
+                                    result.answers
+                                      ? "7rizons-arbeitskopie.md"
+                                      : "7rizons-arbeitsblatt.md",
+                                    "text/markdown",
+                                  )
+                                }
+                              >
+                                {t("Markdown herunterladen ")}
+                              </button>
+                              <button onClick={() => window.print()}>
+                                {t("Arbeitsblatt drucken ")}
+                              </button>
+                            </div>
+                          </details>
+                        )}
                       </div>
-                      {mode === "external" &&
-                        request &&
-                        request.configurationId === draft.id &&
-                        request.configurationRevision === draft.revision && (
-                          <div className="external-flow">
-                            <h3>{t("Dein Auftrag für eine KI deiner Wahl")}</h3>
-                            <p>
+                    )}
+                    {(!result || buildingSheet) && (
+                      <Card className="worksheet-builder">
+                        <div className="section-title">
+                          <span className="eyebrow">
+                            {t("05 · Arbeitsblatt")}
+                          </span>
+                          <h2 tabIndex={-1}>
+                            {worksheets.length
+                              ? t("Weiteres Arbeitsblatt hinzufügen")
+                              : t("Wähle deinen Weg.")}
+                          </h2>
+                          <p>
+                            {t(
+                              "Alle Wege führen zum gleichen übersichtlichen Arbeitsblatt. Du entscheidest, ob und wie KI mitarbeitet. ",
+                            )}
+                          </p>
+                        </div>
+                        <div
+                          className="mode-grid"
+                          role="group"
+                          aria-label={t("Weg zum Arbeitsblatt")}
+                        >
+                          {[
+                            [
+                              "template",
+                              "01",
+                              t("Ohne KI"),
+                              t(
+                                "Deine Auswahl, feste Anleitungen und Platz für eigene Karten.",
+                              ),
+                            ],
+                            [
+                              "external",
+                              "02",
+                              t("Mit deiner KI-App"),
+                              t(
+                                "Auftrag mitnehmen, JSON-Antwort hier wieder einfügen.",
+                              ),
+                            ],
+                            [
+                              "personal",
+                              "03",
+                              t("Mit eigenem API-Zugang"),
+                              t("OpenAI, Claude oder Gemini direkt verwenden."),
+                            ],
+                            [
+                              "workshop",
+                              "04",
+                              t("Mit Workshop-KI"),
+                              t("Der Workshop stellt den Zugang bereit."),
+                            ],
+                          ]
+                            .filter(([id]) => id !== "workshop")
+                            .map(([id, n, title, text]) => (
+                              <button
+                                className={
+                                  "mode " + (mode === id ? "selected" : "")
+                                }
+                                key={id}
+                                aria-labelledby={`mode-${id}-label`}
+                                aria-describedby={`mode-${id}-description`}
+                                aria-pressed={mode === id}
+                                onClick={() => {
+                                  setMode(id);
+                                  setApiKey("");
+                                }}
+                              >
+                                <small aria-hidden="true">{n}</small>
+                                {mode === id && (
+                                  <span
+                                    className="selection-indicator"
+                                    aria-hidden="true"
+                                  >
+                                    ✓
+                                  </span>
+                                )}
+                                <strong id={`mode-${id}-label`}>{title}</strong>
+                                <span id={`mode-${id}-description`}>
+                                  {text}
+                                </span>
+                              </button>
+                            ))}
+                        </div>
+                        {mode === "template" && (
+                          <div className="template-choice">
+                            <label className="checkbox">
+                              <input
+                                type="checkbox"
+                                checked={withInstructions}
+                                onChange={(e) =>
+                                  setWithInstructions(e.target.checked)
+                                }
+                                aria-describedby="template-choice-note"
+                              />
+                              {t("Arbeitsaufträge ergänzen")}
+                            </label>
+                            <small id="template-choice-note">
                               {t(
-                                "Er enthält Thema und Fach, Mechaniken und ein festes JSON-Antwortformat. Füge ihn selbst bei deiner KI ein. Andere Kontextangaben werden nicht mitgegeben. ",
+                                "Ohne Häkchen erhältst du die Übersicht deiner Auswahl.",
                               )}
+                            </small>
+                          </div>
+                        )}
+                        {(mode === "personal" || mode === "workshop") && (
+                          <div className="connection">
+                            <label>
+                              {t("KI-Anbieter ")}
+                              <select
+                                value={provider}
+                                onChange={(e) => {
+                                  setProvider(e.target.value);
+                                  setApiKey("");
+                                }}
+                              >
+                                {Object.entries(PROVIDERS).map(
+                                  ([id, label]) => (
+                                    <option value={id} key={id}>
+                                      {t(label)}
+                                      {settings.models[id]
+                                        ? ""
+                                        : " · noch nicht eingerichtet"}
+                                    </option>
+                                  ),
+                                )}
+                              </select>
+                            </label>
+                            <p className="muted">
+                              {settings.models[provider]
+                                ? t("Modell: {0}", {
+                                    0: settings.models[provider],
+                                  })
+                                : t(
+                                    "Die Administration muss zunächst ein Modell für diesen Anbieter freischalten.",
+                                  )}
                             </p>
-                            <textarea
-                              readOnly
-                              rows={6}
-                              value={makePrompt(request)}
-                              aria-label={t("KI-Arbeitsauftrag")}
-                            />
-                            <div className="actions">
+                            {mode === "personal" ? (
+                              <>
+                                <label>
+                                  {t("Dein API-Key ")}
+                                  <input
+                                    type="password"
+                                    autoComplete="off"
+                                    value={apiKey}
+                                    maxLength={1000}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder={t("API-Key für diese Sitzung")}
+                                  />
+                                </label>
+                                <p className="muted">
+                                  {t(
+                                    "Der Key wird nur im Arbeitsspeicher gehalten und für den Aufruf verschlüsselt an unser Backend übertragen. Er wird nicht in Entwürfen oder Downloads gespeichert. Der Anbieter rechnet die Nutzung mit deinem API-Konto ab. ",
+                                  )}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <WorkshopJoin
+                                  workshops={workshops}
+                                  workshopId={workshopId}
+                                  setWorkshopId={setWorkshopId}
+                                  code={code}
+                                  setCode={setCode}
+                                  join={() => act(join)}
+                                  session={session}
+                                />
+                                <p className="muted">
+                                  {t(
+                                    "Die Workshop-KI verwendet einen zentralen Zugang. Du benötigst keinen eigenen API-Key. Nur für freigeschaltete Workshops und innerhalb ihres Limits verfügbar. ",
+                                  )}
+                                </p>
+                              </>
+                            )}
+                            {!session && (
+                              <Button
+                                secondary
+                                onClick={() => setPage("account")}
+                              >
+                                {t("Für direkte KI anmelden ")}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        <div className="actions">
+                          <Button
+                            onClick={() => act(generate)}
+                            disabled={
+                              busy ||
+                              (["personal", "workshop"].includes(mode) &&
+                                (!cloud ||
+                                  !session ||
+                                  !settings.models[provider]))
+                            }
+                          >
+                            {busy
+                              ? t("Wird erstellt …")
+                              : mode === "external"
+                                ? t("KI-Auftrag vorbereiten")
+                                : worksheets.length
+                                  ? t("Arbeitsblatt hinzufügen")
+                                  : t("Arbeitsblatt erstellen")}
+                          </Button>
+                        </div>
+                        {mode === "external" &&
+                          request &&
+                          request.configurationId === draft.id &&
+                          request.configurationRevision === draft.revision && (
+                            <div className="external-flow">
+                              <h3>
+                                {t("Dein Auftrag für eine KI deiner Wahl")}
+                              </h3>
+                              <p>
+                                {t(
+                                  "Er enthält Thema und Fach, Mechaniken und ein festes JSON-Antwortformat. Füge ihn selbst bei deiner KI ein. Andere Kontextangaben werden nicht mitgegeben. ",
+                                )}
+                              </p>
+                              <textarea
+                                readOnly
+                                rows={6}
+                                value={makePrompt(request)}
+                                aria-label={t("KI-Arbeitsauftrag")}
+                              />
+                              <div className="actions">
+                                <Button
+                                  secondary
+                                  onClick={() =>
+                                    act(async () => {
+                                      await navigator.clipboard.writeText(
+                                        makePrompt(request),
+                                      );
+                                      setMessage(t("Auftrag kopiert."));
+                                    })
+                                  }
+                                >
+                                  {t("Auftrag kopieren ")}
+                                </Button>
+                                <Button
+                                  secondary
+                                  onClick={() =>
+                                    download(
+                                      makePrompt(request),
+                                      "7rizons-ki-auftrag.txt",
+                                    )
+                                  }
+                                >
+                                  {t("Auftrag herunterladen ")}
+                                </Button>
+                              </div>
+                              <label>
+                                {t("JSON-Antwort deiner KI ")}
+                                <textarea
+                                  rows={6}
+                                  value={importText}
+                                  onChange={(e) =>
+                                    setImportText(e.target.value)
+                                  }
+                                  placeholder={t("JSON-Antwort hier einfügen")}
+                                />
+                              </label>
+                              <Button
+                                secondary
+                                onClick={() => answerImportRef.current?.click()}
+                              >
+                                {t("Oder JSON-Datei wählen ")}
+                              </Button>
+                              <input
+                                ref={answerImportRef}
+                                hidden
+                                type="file"
+                                accept=".json,application/json,text/plain"
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  e.target.value = "";
+                                  if (file)
+                                    act(async () =>
+                                      setImportText(await fileText(file)),
+                                    );
+                                }}
+                              />
                               <Button
                                 secondary
                                 onClick={() =>
                                   act(async () => {
-                                    await navigator.clipboard.writeText(
-                                      makePrompt(request),
+                                    setPreview(
+                                      parseResult(importText, request),
                                     );
-                                    setMessage(t("Auftrag kopiert."));
+                                    setMessage(
+                                      t(
+                                        "Antwort geprüft. Kontrolliere die Vorschau und übernimm sie anschließend.",
+                                      ),
+                                    );
                                   })
                                 }
                               >
-                                {t("Auftrag kopieren ")}
-                              </Button>
-                              <Button
-                                secondary
-                                onClick={() =>
-                                  download(
-                                    makePrompt(request),
-                                    "7rizons-ki-auftrag.txt",
-                                  )
-                                }
-                              >
-                                {t("Auftrag herunterladen ")}
+                                {t("Antwort prüfen ")}
                               </Button>
                             </div>
-                            <label>
-                              {t("JSON-Antwort deiner KI ")}
-                              <textarea
-                                rows={6}
-                                value={importText}
-                                onChange={(e) => setImportText(e.target.value)}
-                                placeholder={t("JSON-Antwort hier einfügen")}
-                              />
-                            </label>
-                            <Button
-                              secondary
-                              onClick={() => answerImportRef.current?.click()}
-                            >
-                              {t("Oder JSON-Datei wählen ")}
-                            </Button>
-                            <input
-                              ref={answerImportRef}
-                              hidden
-                              type="file"
-                              accept=".json,application/json,text/plain"
-                              onChange={(e) => {
-                                const file = e.target.files[0];
-                                e.target.value = "";
-                                if (file)
-                                  act(async () =>
-                                    setImportText(await fileText(file)),
-                                  );
-                              }}
-                            />
-                            <Button
-                              secondary
-                              onClick={() =>
-                                act(async () => {
-                                  setPreview(parseResult(importText, request));
-                                  setMessage(
-                                    t(
-                                      "Antwort geprüft. Kontrolliere die Vorschau und übernimm sie anschließend.",
-                                    ),
-                                  );
-                                })
-                              }
-                            >
-                              {t("Antwort prüfen ")}
-                            </Button>
-                          </div>
-                        )}
-                    </Card>
+                          )}
+                      </Card>
+                    )}
                   </>
                 )}
-                <div className="step-actions">
-                  <Button
-                    secondary
-                    disabled={step === 1}
-                    onClick={() => setStep((s) => s - 1)}
-                  >
-                    {t("← Zurück ")}
-                  </Button>
-                  <label className="step-jump">
-                    <span className="sr-only">
-                      {t("Direkt zu einem Schritt springen ")}
-                    </span>
-                    <select
-                      value={step}
-                      onChange={(e) => setStep(Number(e.target.value))}
+                {step < 5 && (
+                  <div className="step-actions">
+                    <Button
+                      secondary
+                      disabled={step === 1}
+                      onClick={() => setStep((s) => s - 1)}
                     >
-                      {steps.map((label, index) => (
-                        <option key={t(label)} value={index + 1}>
-                          {index + 1} / {steps.length} · {t(label)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button
-                    disabled={
-                      step === 5 || (step === 2 && !draft.learning.length)
-                    }
-                    onClick={() => setStep((s) => s + 1)}
-                  >
-                    {step === 1
-                      ? t("Weiter zu den Lernerlebnissen →")
-                      : step === 2
-                        ? t("Weiter zu den Mechaniken →")
-                        : step === 3
-                          ? t("Weiter zur Übersicht ({0} gewählt) →", {
-                              0: draft.mechanisms.length,
-                            })
-                          : t("Weiter zum Arbeitsblatt →")}
-                  </Button>
-                </div>
-                <div className="save-bar">
-                  <span className="save-status">
-                    {t("Im Browser automatisch gesichert ")}
-                  </span>
-                  <div className="save-actions">
-                    <div
-                      className="save-file-actions"
-                      role="group"
-                      aria-label={t("Konfiguration als Datei")}
+                      {t("← Zurück ")}
+                    </Button>
+                    <label className="step-jump">
+                      <span className="sr-only">
+                        {t("Direkt zu einem Schritt springen ")}
+                      </span>
+                      <select
+                        value={step}
+                        onChange={(e) => setStep(Number(e.target.value))}
+                      >
+                        {steps.map((label, index) => (
+                          <option key={t(label)} value={index + 1}>
+                            {index + 1} / {steps.length} · {t(label)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      disabled={
+                        step === 5 || (step === 2 && !draft.learning.length)
+                      }
+                      onClick={() => setStep((s) => s + 1)}
                     >
-                      <Button
-                        secondary
-                        onClick={() =>
-                          download(
-                            JSON.stringify(payload(), null, 2),
-                            jsonFilename(draft.context.thema),
-                            "application/json",
-                          )
-                        }
-                      >
-                        {t("JSON sichern ")}
-                      </Button>
-                      <Button
-                        secondary
-                        onClick={() => configImportRef.current?.click()}
-                      >
-                        {t("JSON laden ")}
-                      </Button>
-                      <input
-                        ref={configImportRef}
-                        hidden
-                        type="file"
-                        accept=".json"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          e.target.value = "";
-                          if (file)
-                            act(async () => {
-                              const x = JSON.parse(await fileText(file));
-                              x.draft = { ...x.draft, id: crypto.randomUUID() };
-                              if (x.request)
-                                x.request = {
-                                  ...x.request,
-                                  configurationId: x.draft.id,
-                                };
-                              applySnapshot(x);
-                              setMessage(t("Datei als neuer Entwurf geladen."));
-                            });
-                        }}
-                      />
-                    </div>
-                    <div className="save-account-actions">
-                      {session ? (
-                        <Button secondary onClick={() => act(saveOnline)}>
-                          {t("Online speichern ")}
-                        </Button>
-                      ) : (
-                        <Button secondary onClick={() => setPage("account")}>
-                          {t("Für Online-Speichern anmelden ")}
-                        </Button>
-                      )}
-                      <label className="project-picker">
-                        {t("Projekte im Browser")}
-                        <select
-                          value={draft.id}
-                          onFocus={() => setProjects(listProjects())}
-                          onChange={(e) => {
-                            const id = e.target.value;
-                            act(() => {
-                              const next = JSON.parse(
-                                localStorage.getItem(PROJECT_PREFIX + id),
-                              );
-                              applySnapshot(
-                                next,
-                                next.cloudRevision,
-                                next.step,
-                              );
-                            });
-                          }}
-                        >
-                          {[
-                            ...projects.filter((p) => p.id !== draft.id),
-                            {
-                              id: draft.id,
-                              title: draft.context.thema || draft.context.name,
-                            },
-                          ].map((p, i, all) => (
-                            <option key={p.id} value={p.id}>
-                              {p.title || t("Unbenanntes Projekt")}
-                              {all.some(
-                                (other, j) =>
-                                  i !== j && other.title === p.title,
-                              )
-                                ? " · " + p.id.slice(0, 6)
-                                : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button
-                        className="text-button save-reset"
-                        onClick={() => act(newConfiguration)}
-                      >
-                        {t("Neues Projekt")}
-                      </button>
-                    </div>
+                      {step === 1
+                        ? t("Weiter zu den Lernerlebnissen →")
+                        : step === 2
+                          ? t("Weiter zu den Mechaniken →")
+                          : step === 3
+                            ? t("Weiter zur Übersicht ({0} gewählt) →", {
+                                0: draft.mechanisms.length,
+                              })
+                            : t("Weiter zum Arbeitsblatt →")}
+                    </Button>
                   </div>
-                </div>
+                )}
               </fieldset>
             </div>
             {step === 5 && preview && (
@@ -1433,7 +1631,7 @@ export default function App() {
                 />
               </>
             )}
-            {step === 5 && result && !preview && (
+            {step === 5 && result && !buildingSheet && !preview && (
               <>
                 {!isCurrent && (
                   <div className="notice error no-print">
@@ -1443,59 +1641,17 @@ export default function App() {
                   </div>
                 )}
                 <>
-                  <div className="actions no-print">
-                    {result.templateVariant !== "overview" && (
-                      <Button
-                        secondary
-                        onClick={() => {
-                          if (result.answers) {
-                            setEditingId(
-                              editingId === activeWorksheetId
-                                ? null
-                                : activeWorksheetId,
-                            );
-                          } else {
-                            const copy = createWorksheet({
-                              ...activeWorksheet,
-                              result: { ...result, answers: {} },
-                            });
-                            setWorksheets((items) => [...items, copy]);
-                            setActiveWorksheetId(copy.id);
-                            setEditingId(copy.id);
-                          }
-                        }}
-                      >
-                        {t(
-                          !result.answers
-                            ? "Kopie ausfüllen"
-                            : editingId === activeWorksheetId
-                              ? "Bearbeitung beenden"
-                              : "Weiterbearbeiten",
-                        )}
-                      </Button>
-                    )}
-                    <Button secondary onClick={focusWorksheetBuilder}>
-                      {t("Weiteres Arbeitsblatt hinzufügen ")}
-                    </Button>
-                    <Button
-                      secondary
-                      onClick={() =>
-                        download(
-                          markdown(resultDraft, result, resultSettings),
-                          result.answers
-                            ? "7rizons-arbeitskopie.md"
-                            : "7rizons-arbeitsblatt.md",
-                          "text/markdown",
-                        )
-                      }
-                    >
-                      {t("Markdown herunterladen ")}
-                    </Button>
-                    <Button secondary onClick={() => window.print()}>
-                      {t("Arbeitsblatt drucken ")}
-                    </Button>
-                  </div>
                   <Worksheet
+                    key={activeWorksheetId}
+                    activeCard={activeCard}
+                    onStartEditing={
+                      result.answers
+                        ? (key) => {
+                            setEditingId(activeWorksheetId);
+                            setActiveCard(key);
+                          }
+                        : undefined
+                    }
                     onAnswer={
                       editingId === activeWorksheetId
                         ? (key, value) => {

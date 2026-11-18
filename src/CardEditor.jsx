@@ -86,6 +86,7 @@ export default function CardEditor({ value, onChange, label, t }) {
       },
     });
     view.current = editor;
+    editor.focus();
     return () => editor.destroy();
   }, []);
   return (

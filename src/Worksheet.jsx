@@ -31,6 +31,8 @@ export default function Worksheet({
   settings,
   source,
   onAnswer,
+  activeCard,
+  onStartEditing,
 }) {
   const language = draft.language || "de",
     t = (text) => translate(text, language);
@@ -126,7 +128,7 @@ export default function Worksheet({
                         (_, i) => (
                           <div
                             className={
-                              onAnswer
+                              onAnswer && activeCard === m.mechanismId + "-" + i
                                 ? "writing-card editing-card"
                                 : "writing-card"
                             }
@@ -136,31 +138,57 @@ export default function Worksheet({
                               {t(m.guide ? "Dein Entwurf" : "Eigene Karte")}{" "}
                               {i + 1}
                             </h4>
-                            {onAnswer && (
-                              <React.Suspense fallback={null}>
-                                <CardEditor
-                                  key={result.requestId}
-                                  t={t}
-                                  label={
+                            {onStartEditing &&
+                              !(
+                                onAnswer &&
+                                activeCard === m.mechanismId + "-" + i
+                              ) && (
+                                <button
+                                  className="edit-slot no-print"
+                                  aria-label={
+                                    t("Karte bearbeiten") +
+                                    " · " +
                                     t(
                                       MK.find((x) => x.id === m.mechanismId)
                                         .label,
                                     ) +
-                                    " · " +
-                                    t("Dein Entwurf") +
                                     " " +
                                     (i + 1)
                                   }
-                                  value={
-                                    result.answers?.[m.mechanismId + "-" + i] ||
-                                    ""
+                                  onClick={() =>
+                                    onStartEditing(m.mechanismId + "-" + i)
                                   }
-                                  onChange={(value) =>
-                                    onAnswer(m.mechanismId + "-" + i, value)
-                                  }
-                                />
-                              </React.Suspense>
-                            )}
+                                >
+                                  ✎
+                                </button>
+                              )}
+                            {onAnswer &&
+                              activeCard === m.mechanismId + "-" + i && (
+                                <React.Suspense fallback={null}>
+                                  <CardEditor
+                                    key={result.requestId}
+                                    t={t}
+                                    label={
+                                      t(
+                                        MK.find((x) => x.id === m.mechanismId)
+                                          .label,
+                                      ) +
+                                      " · " +
+                                      t("Dein Entwurf") +
+                                      " " +
+                                      (i + 1)
+                                    }
+                                    value={
+                                      result.answers?.[
+                                        m.mechanismId + "-" + i
+                                      ] || ""
+                                    }
+                                    onChange={(value) =>
+                                      onAnswer(m.mechanismId + "-" + i, value)
+                                    }
+                                  />
+                                </React.Suspense>
+                              )}
                             {result.answers?.[m.mechanismId + "-" + i] ? (
                               <section className="card-answer">
                                 <CardAnswer
