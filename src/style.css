@@ -1476,3 +1476,21 @@ html[data-input="pointer"] :focus {
   background: var(--blue-light);
   font-weight: 700;
 }
+.template-choice {
+  margin: 1rem 0;
+}
+.template-choice label {
+  margin-bottom: 0.15rem;
+}
+.template-choice small {
+  color: var(--muted);
+}
+.mechanism-guide {
+  margin-block: 1rem;
+}
+.mechanism-guide h4 {
+  margin-bottom: 0.4rem;
+}
+.mechanism-guide details {
+  margin-bottom: 1rem;
+}

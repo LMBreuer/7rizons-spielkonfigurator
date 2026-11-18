@@ -150,3 +150,12 @@
     text-decoration: none;
   }
 }
+@media print {
+  .worksheet-overview .worksheet-category,
+  .worksheet-overview .worksheet-mechanism {
+    break-before: auto;
+  }
+  .worksheet-overview .worksheet-mechanism {
+    break-inside: avoid-page;
+  }
+}

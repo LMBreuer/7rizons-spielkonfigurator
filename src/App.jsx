@@ -110,6 +110,7 @@ export default function App() {
   const mainRef = useRef(null);
   const lastView = useRef({ page, step, result: null, preview: null });
   const [sortMessage, setSortMessage] = useState("");
+  const [withInstructions, setWithInstructions] = useState(true);
   const [mode, setMode] = useState("template");
   const [provider, setProvider] = useState("openai");
   const [apiKey, setApiKey] = useState("");
@@ -394,7 +395,11 @@ export default function App() {
   }
   async function generate() {
     if (mode === "template") {
-      const r = templateResult(draft, settings);
+      const r = templateResult(
+        draft,
+        settings,
+        withInstructions ? "guided" : "overview",
+      );
       addWorksheet(r, { kind: "template" }, settings);
       setMessage(t("Dein Arbeitsblatt ist fertig – ohne KI erstellt."));
       return;
@@ -874,7 +879,18 @@ export default function App() {
                                 </strong>
                                 <small>
                                   {w.source.kind === "template"
-                                    ? t("Ohne KI")
+                                    ? [
+                                        t("Ohne KI"),
+                                        w.result.templateVariant &&
+                                          t(
+                                            w.result.templateVariant ===
+                                              "guided"
+                                              ? "Mit Arbeitsaufträgen"
+                                              : "Nur Übersicht",
+                                          ),
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" · ")
                                     : w.source.kind === "import"
                                       ? t("KI-Import")
                                       : PROVIDERS[w.source.provider] ||
@@ -983,6 +999,26 @@ export default function App() {
                             </button>
                           ))}
                       </div>
+                      {mode === "template" && (
+                        <div className="template-choice">
+                          <label className="checkbox">
+                            <input
+                              type="checkbox"
+                              checked={withInstructions}
+                              onChange={(e) =>
+                                setWithInstructions(e.target.checked)
+                              }
+                              aria-describedby="template-choice-note"
+                            />
+                            {t("Arbeitsaufträge ergänzen")}
+                          </label>
+                          <small id="template-choice-note">
+                            {t(
+                              "Ohne Häkchen erhältst du die Übersicht deiner Auswahl.",
+                            )}
+                          </small>
+                        </div>
+                      )}
                       {(mode === "personal" || mode === "workshop") && (
                         <div className="connection">
                           <label>

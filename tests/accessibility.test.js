@@ -299,6 +299,17 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       ),
     );
     await audit("generated worksheet");
+    const instructionChoice = screen.getByRole("checkbox", {
+      name: "Arbeitsaufträge ergänzen",
+    });
+    assert.equal(instructionChoice.checked, true);
+    const example = screen
+      .getAllByText("Ausgefülltes Beispiel anzeigen")[0]
+      .closest("details");
+    assert.equal(example.open, false);
+    await user.click(example.querySelector("summary"));
+    assert.equal(example.open, true);
+    assert.ok(example.classList.contains("no-print"));
     const collection = () =>
       within(
         screen.getByRole("group", { name: "Gespeicherte Arbeitsblätter" }),
@@ -314,12 +325,18 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       document.activeElement.textContent.trim(),
       /Weiteres Arbeitsblatt hinzufügen/,
     );
+    await user.click(instructionChoice);
     await user.click(
       screen.getByRole("button", {
         name: "Arbeitsblatt hinzufügen",
         exact: true,
       }),
     );
+    assert.ok(
+      screen.getByRole("article").classList.contains("worksheet-overview"),
+    );
+    assert.equal(screen.queryByText("Ausgefülltes Beispiel anzeigen"), null);
+    await user.click(instructionChoice);
     assert.equal(
       collection().getAllByRole("button", { name: /löschen/ }).length,
       2,

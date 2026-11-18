@@ -238,3 +238,29 @@ test("worksheet collections retain independent revisions, selected output and pe
   assert.equal(legacy.worksheets.length, 1);
   assert.equal(legacy.result.configurationRevision, d.revision);
 });
+
+test("saved template editions restore with distinct print/export content, including legacy sheets", () => {
+  const d = draft();
+  for (const variant of [undefined, "guided", "overview"]) {
+    const result = templateResult(d, undefined, variant);
+    const restored = readSnapshot(
+      JSON.parse(
+        JSON.stringify({ draft: d, result, source: { kind: "template" } }),
+      ),
+    ).result;
+    assert.equal(restored.templateVariant, variant);
+    const md = markdown(d, restored);
+    if (variant === "guided") {
+      const guide = restored.mechanisms[0].guide;
+      assert.ok(md.includes(guide.questions) && md.includes(guide.frame));
+      assert.ok(!md.includes(guide.example));
+      assert.match(md, /Probelauf/);
+    } else if (variant === "overview") {
+      assert.doesNotMatch(
+        md,
+        /Entwurf 1|Eigene Karte|Probelauf|Beitrag zu den Lerntätigkeiten|Nächste Schritte/,
+      );
+      assert.match(md, /Perspektivrollen/);
+    } else assert.match(md, /Eigene Karte/);
+  }
+});

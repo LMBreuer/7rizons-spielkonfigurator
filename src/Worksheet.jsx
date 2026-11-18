@@ -12,16 +12,22 @@ import { translate } from "../supabase/functions/_shared/translations.js";
 export default function Worksheet({ draft, result, settings, source }) {
   const language = draft.language || "de",
     t = (text) => translate(text, language);
+  const overview = result.templateVariant === "overview";
+  const guided = result.templateVariant === "guided";
   const isBase = (m) =>
     Boolean(
       MK.find((x) => x.id === m.mechanismId)?.basis &&
       !draft.priority?.promoted?.includes(m.mechanismId),
     );
   return (
-    <article className="worksheet" id="worksheet" lang={language}>
+    <article
+      className={overview ? "worksheet worksheet-overview" : "worksheet"}
+      id="worksheet"
+      lang={language}
+    >
       <div className="eyebrow">{t("7’rizons · Dein Seminar-Hack")}</div>
       <h1 tabIndex={-1}>{result.title}</h1>
-      <p className="intro">{result.introduction}</p>
+      {result.introduction && <p className="intro">{result.introduction}</p>}
       <dl className="metadata">
         {Object.entries(draft.context)
           .filter(([, v]) => v)
@@ -63,36 +69,54 @@ export default function Worksheet({ draft, result, settings, source }) {
               <section className="worksheet-mechanism" key={m.mechanismId}>
                 <h3>{t(MK.find((x) => x.id === m.mechanismId)?.label)}</h3>
                 <p>{m.adaptation}</p>
-                <p>
-                  <strong>{t("Beitrag zu deinen Lerntätigkeiten:")}</strong>{" "}
-                  {m.learningContribution}
-                </p>
-                {!!m.cardExamples.length && (
+                {!overview && (
                   <>
-                    <h4>{t("Ideen für deine Karten")}</h4>
-                    <ol>
-                      {m.cardExamples.map((text, i) => (
-                        <li key={i}>{text}</li>
-                      ))}
-                    </ol>
+                    <p>
+                      <strong>{t("Beitrag zu deinen Lerntätigkeiten:")}</strong>{" "}
+                      {m.learningContribution}
+                    </p>
+                    {!!m.cardExamples.length && (
+                      <>
+                        <h4>{t("Ideen für deine Karten")}</h4>
+                        <ol>
+                          {m.cardExamples.map((text, i) => (
+                            <li key={i}>{text}</li>
+                          ))}
+                        </ol>
+                      </>
+                    )}
+                    {m.guide && (
+                      <div className="mechanism-guide">
+                        <h4>{t("Arbeitsauftrag")}</h4>
+                        <p>{m.guide.questions}</p>
+                        <p>{m.guide.frame}</p>
+                        <details className="no-print" key={result.requestId}>
+                          <summary>
+                            {t("Ausgefülltes Beispiel anzeigen")}
+                          </summary>
+                          <p>{m.guide.example}</p>
+                        </details>
+                      </div>
+                    )}
+                    <div className="writing-fields">
+                      {Array.from(
+                        { length: settingsOf(settings).cardsPerMechanism },
+                        (_, i) => (
+                          <div className="writing-card" key={i}>
+                            <h4>
+                              {t(m.guide ? "Dein Entwurf" : "Eigene Karte")}{" "}
+                              {i + 1}
+                            </h4>
+                            <div />
+                            <div />
+                            <div />
+                            <div />
+                          </div>
+                        ),
+                      )}
+                    </div>
                   </>
                 )}
-                <div className="writing-fields">
-                  {Array.from(
-                    { length: settingsOf(settings).cardsPerMechanism },
-                    (_, i) => (
-                      <div className="writing-card" key={i}>
-                        <h4>
-                          {t("Eigene Karte")} {i + 1}
-                        </h4>
-                        <div />
-                        <div />
-                        <div />
-                        <div />
-                      </div>
-                    ),
-                  )}
-                </div>
               </section>
             ))}
           </React.Fragment>
@@ -100,17 +124,19 @@ export default function Worksheet({ draft, result, settings, source }) {
       })}
       <section>
         <h2>{t("Safety-Rahmen")}</h2>
-        <p>{t(SAFETY)}</p>
+        <p>{overview ? t(MK.find((m) => m.id === "m91").kurz) : t(SAFETY)}</p>
       </section>
-      <section>
-        <h2>{t("Nächste Schritte")}</h2>
-        <ul>
-          {result.nextSteps.map((text, i) => (
-            <li key={i}>{text}</li>
-          ))}
-        </ul>
-        <p>{t(NEXT)}</p>
-      </section>
+      {!overview && (
+        <section>
+          <h2>{t(guided ? "Probelauf" : "Nächste Schritte")}</h2>
+          <ul>
+            {result.nextSteps.map((text, i) => (
+              <li key={i}>{text}</li>
+            ))}
+          </ul>
+          <p>{t(NEXT)}</p>
+        </section>
+      )}
       <p className="provenance">
         {t(
           source?.kind === "template"

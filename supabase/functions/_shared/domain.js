@@ -1,3 +1,4 @@
+import worksheetGuides from "./worksheet-guides.json" with { type: "json" };
 import { LE, MK, CONFLICTS } from "./catalog.js";
 import { orderedMechanisms, priorityOf } from "./priority.js";
 import { translate, localizeCatalog } from "./translations.js";
@@ -294,11 +295,15 @@ function readSingleSnapshot(x) {
         "Das Arbeitsblatt gehört zu einem älteren Entwurf. Erstelle es vor der Sicherung neu oder sichere den Entwurf ohne Ergebnis.",
       );
     if (x.source?.kind === "template") {
-      result = templateResult(draft, {
-        ...resultSettings,
-        maxInhalt: 4,
-        maxWiss: 5,
-      });
+      result = templateResult(
+        draft,
+        {
+          ...resultSettings,
+          maxInhalt: 4,
+          maxWiss: 5,
+        },
+        x.result.templateVariant,
+      );
       source = { kind: "template" };
     } else {
       if (!request) fail("Der zugehörige KI-Auftrag fehlt.");
@@ -396,34 +401,62 @@ export function readSnapshot(x) {
     resultSettings: active?.resultSettings || base.resultSettings,
   };
 }
-export function templateResult(d, s = DEFAULT_SETTINGS) {
+export function templateResult(d, s = DEFAULT_SETTINGS, variant) {
+  if (variant !== undefined && !["overview", "guided"].includes(variant))
+    fail("Unbekannte Arbeitsblattfassung.");
   const r = requestFor(d, s);
   const t = (text) => translate(text, d.language || "de");
   return {
+    ...(variant ? { templateVariant: variant } : {}),
     schemaVersion: 1,
     requestId: r.requestId,
     configurationRevision: d.revision,
     title: `${t("7’rizons Seminar-Hack")}${d.context.thema ? ": " + d.context.thema : ""}`,
-    introduction: t(
-      "Dieses Arbeitsblatt fasst deine Auswahl zusammen und führt dich durch die Anpassung für dein Seminar. Entwickle eigene Beispiele und erprobe sie in einer kurzen Spielrunde.",
-    ),
+    introduction:
+      variant === "overview"
+        ? ""
+        : t(
+            "Dieses Arbeitsblatt fasst deine Auswahl zusammen und führt dich durch die Anpassung für dein Seminar. Entwickle eigene Beispiele und erprobe sie in einer kurzen Spielrunde.",
+          ),
     mechanisms: r.mechanisms.map((m) => ({
       mechanismId: m.id,
       adaptation: t(m.desc),
+      ...(variant === "guided"
+        ? {
+            guide: Object.fromEntries(
+              Object.entries(worksheetGuides[m.id]).map(([key, text]) => [
+                key,
+                t(text),
+              ]),
+            ),
+          }
+        : {}),
       learningContribution:
-        LE.filter((l) => d.learning.includes(l.id) && m.w[l.id])
-          .map(
-            (l) =>
-              `${t(l.label)}: ${t(m.w[l.id] === "P" ? "trägt die Lerntätigkeit" : m.w[l.id] === "S" ? "unterstützt die Lerntätigkeit" : "erzeugt bewusste Reibung")}`,
-          )
-          .join("; ") ||
-        t("Prüfe den Beitrag dieser Mechanik zu deinen Lernzielen."),
+        variant === "overview"
+          ? ""
+          : LE.filter((l) => d.learning.includes(l.id) && m.w[l.id])
+              .map(
+                (l) =>
+                  `${t(l.label)}: ${t(m.w[l.id] === "P" ? "trägt die Lerntätigkeit" : m.w[l.id] === "S" ? "unterstützt die Lerntätigkeit" : "erzeugt bewusste Reibung")}`,
+              )
+              .join("; ") ||
+            t("Prüfe den Beitrag dieser Mechanik zu deinen Lernzielen."),
       cardExamples: [],
     })),
-    nextSteps: [
-      t("Formuliere eigene Kartentexte zum Seminarthema."),
-      t("Teste den Hack und halte Beobachtungen fest."),
-    ],
+    nextSteps:
+      variant === "overview"
+        ? []
+        : variant === "guided"
+          ? [
+              t(
+                "Spielt eine kurze Szene mit eurem Entwurf. An welcher Handlung konntet ihr die gewählte Lerntätigkeit erkennen?",
+              ),
+              t("Für den nächsten Versuch ändern wir ___, weil im Spiel ___."),
+            ]
+          : [
+              t("Formuliere eigene Kartentexte zum Seminarthema."),
+              t("Teste den Hack und halte Beobachtungen fest."),
+            ],
   };
 }
 export function markdown(d, result, s = DEFAULT_SETTINGS) {
@@ -467,6 +500,9 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
         `### ${t(MK.find((x) => x.id === m.mechanismId)?.label || m.mechanismId)}`,
         "",
         m.adaptation,
+      );
+      if (result.templateVariant === "overview") continue;
+      lines.push(
         "",
         `**${t("Beitrag zu den Lerntätigkeiten:")}** ${m.learningContribution}`,
         "",
@@ -474,10 +510,19 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
           (text, i) => `- ${t("Beispiel")} ${i + 1}: ${text}`,
         ),
       );
+      if (m.guide)
+        lines.push(
+          "",
+          `**${t("Arbeitsauftrag")}**`,
+          "",
+          m.guide.questions,
+          "",
+          m.guide.frame,
+        );
       for (let i = 1; i <= settingsOf(s).cardsPerMechanism; i++)
         lines.push(
           "",
-          `**${t("Eigene Karte")} ${i}:**`,
+          `**${t(m.guide ? "Dein Entwurf" : "Eigene Karte")} ${i}:**`,
           "",
           "______________________________",
           "",
@@ -493,9 +538,14 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
     "",
     `## ${t("Safety-Rahmen")}`,
     "",
-    t(SAFETY),
+    result.templateVariant === "overview"
+      ? t(MK.find((m) => m.id === "m91").kurz)
+      : t(SAFETY),
+  );
+  if (result.templateVariant === "overview") return lines.join("\n");
+  lines.push(
     "",
-    `## ${t("Nächste Schritte")}`,
+    `## ${t(result.templateVariant === "guided" ? "Probelauf" : "Nächste Schritte")}`,
     "",
     ...result.nextSteps.map((text) => `- ${text}`),
     "",
