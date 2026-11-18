@@ -264,3 +264,16 @@ test("saved template editions restore with distinct print/export content, includ
     } else assert.match(md, /Eigene Karte/);
   }
 });
+
+test("working copy restores printable card answers and rejects unknown slots", () => {
+  const d = draft();
+  const result = templateResult(d, undefined, "guided");
+  const slot = result.mechanisms[0].mechanismId + "-0";
+  result.answers = { [slot]: "Karte A\nZweite Zeile" };
+  const snapshot = { draft: d, result, source: { kind: "template" } };
+  const restored = readSnapshot(JSON.parse(JSON.stringify(snapshot))).result;
+  assert.deepEqual(restored.answers, result.answers);
+  assert.ok(markdown(d, restored).includes(result.answers[slot]));
+  result.answers.fremd = "Test";
+  assert.throws(() => readSnapshot(snapshot), /Arbeitsblattantworten/);
+});

@@ -475,6 +475,29 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       }),
     );
     assert.ok(screen.getByRole("article"));
+    await user.click(screen.getByRole("button", { name: "Kopie ausfüllen" }));
+    const answerField = within(screen.getByRole("article")).getAllByRole(
+      "textbox",
+    )[0];
+    await user.type(answerField, "Unsere erste Karte");
+    await user.click(
+      screen.getByRole("button", { name: "Bearbeitung beenden" }),
+    );
+    assert.ok(
+      within(screen.getByRole("article")).getByText("Unsere erste Karte"),
+    );
+    const sheets = JSON.parse(localStorage.getItem(key)).worksheets;
+    assert.equal(sheets.at(-2).result.answers, undefined);
+    assert.ok(
+      Object.values(sheets.at(-1).result.answers).includes(
+        "Unsere erste Karte",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Weiterbearbeiten" }));
+    assert.equal(
+      within(screen.getByRole("article")).getAllByRole("textbox")[0].value,
+      "Unsere erste Karte",
+    );
   } finally {
     cleanup?.();
     await unlink(temp).catch(() => {});

@@ -9,7 +9,13 @@ import {
 } from "../supabase/functions/_shared/domain.js";
 import { translate } from "../supabase/functions/_shared/translations.js";
 
-export default function Worksheet({ draft, result, settings, source }) {
+export default function Worksheet({
+  draft,
+  result,
+  settings,
+  source,
+  onAnswer,
+}) {
   const language = draft.language || "de",
     t = (text) => translate(text, language);
   const overview = result.templateVariant === "overview";
@@ -102,15 +108,57 @@ export default function Worksheet({ draft, result, settings, source }) {
                       {Array.from(
                         { length: settingsOf(settings).cardsPerMechanism },
                         (_, i) => (
-                          <div className="writing-card" key={i}>
+                          <div
+                            className={
+                              onAnswer
+                                ? "writing-card editing-card"
+                                : "writing-card"
+                            }
+                            key={i}
+                          >
                             <h4>
                               {t(m.guide ? "Dein Entwurf" : "Eigene Karte")}{" "}
                               {i + 1}
                             </h4>
-                            <div />
-                            <div />
-                            <div />
-                            <div />
+                            {onAnswer && (
+                              <textarea
+                                className="no-print"
+                                rows={4}
+                                maxLength={4000}
+                                aria-label={
+                                  t(
+                                    MK.find((x) => x.id === m.mechanismId)
+                                      .label,
+                                  ) +
+                                  " · " +
+                                  t("Dein Entwurf") +
+                                  " " +
+                                  (i + 1)
+                                }
+                                value={
+                                  result.answers?.[m.mechanismId + "-" + i] ||
+                                  ""
+                                }
+                                onChange={(event) =>
+                                  onAnswer(
+                                    m.mechanismId + "-" + i,
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            )}
+                            {result.answers?.[m.mechanismId + "-" + i] ? (
+                              <p className="card-answer">
+                                {result.answers[m.mechanismId + "-" + i]}
+                              </p>
+                            ) : (
+                              <>
+                                <div />
+                                <div />
+                                <div />
+                                <div />
+                              </>
+                            )}
                           </div>
                         ),
                       )}

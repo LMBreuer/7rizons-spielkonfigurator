@@ -89,6 +89,7 @@ export default function App() {
     saved.activeWorksheetId,
   );
   const [request, setRequest] = useState(saved.pendingRequest || null);
+  const [editingId, setEditingId] = useState(null);
   const activeWorksheet =
     worksheets.find((w) => w.id === activeWorksheetId) || null;
   const result = activeWorksheet?.result || null;
@@ -178,14 +179,14 @@ export default function App() {
   useEffect(() => {
     const old = lastView.current;
     const changed = old.page !== page || old.step !== step;
-    lastView.current = { page, step, result, preview };
+    lastView.current = { page, step, activeWorksheetId, preview };
     let heading;
     if (changed)
       heading = mainRef.current?.querySelector(
         page === "app" ? ".workspace h2" : "h1",
       );
     else if (
-      (result && result !== old.result) ||
+      (activeWorksheetId && activeWorksheetId !== old.activeWorksheetId) ||
       (preview && preview !== old.preview)
     )
       heading = mainRef.current?.querySelector(".worksheet h1");
@@ -193,7 +194,7 @@ export default function App() {
       heading.tabIndex = -1;
       heading.focus();
     }
-  }, [page, step, result, preview]);
+  }, [page, step, activeWorksheetId, preview]);
   useEffect(() => {
     document.documentElement.lang = language;
     document.title =
@@ -900,6 +901,7 @@ export default function App() {
                                     language === "en" ? "en-GB" : "de-AT",
                                     { timeZone: "Europe/Vienna" },
                                   )}
+                                  {w.result.answers && t(" · Arbeitskopie")}
                                   {w.draft.revision !== draft.revision
                                     ? t(" · früherer Stand")
                                     : ""}
@@ -1371,6 +1373,36 @@ export default function App() {
                 )}
                 <>
                   <div className="actions no-print">
+                    {result.templateVariant !== "overview" && (
+                      <Button
+                        secondary
+                        onClick={() => {
+                          if (result.answers) {
+                            setEditingId(
+                              editingId === activeWorksheetId
+                                ? null
+                                : activeWorksheetId,
+                            );
+                          } else {
+                            const copy = createWorksheet({
+                              ...activeWorksheet,
+                              result: { ...result, answers: {} },
+                            });
+                            setWorksheets((items) => [...items, copy]);
+                            setActiveWorksheetId(copy.id);
+                            setEditingId(copy.id);
+                          }
+                        }}
+                      >
+                        {t(
+                          !result.answers
+                            ? "Kopie ausfüllen"
+                            : editingId === activeWorksheetId
+                              ? "Bearbeitung beenden"
+                              : "Weiterbearbeiten",
+                        )}
+                      </Button>
+                    )}
                     <Button secondary onClick={focusWorksheetBuilder}>
                       {t("Weiteres Arbeitsblatt hinzufügen ")}
                     </Button>
@@ -1379,7 +1411,9 @@ export default function App() {
                       onClick={() =>
                         download(
                           markdown(resultDraft, result, resultSettings),
-                          "7rizons-arbeitsblatt.md",
+                          result.answers
+                            ? "7rizons-arbeitskopie.md"
+                            : "7rizons-arbeitsblatt.md",
                           "text/markdown",
                         )
                       }
@@ -1391,6 +1425,28 @@ export default function App() {
                     </Button>
                   </div>
                   <Worksheet
+                    onAnswer={
+                      editingId === activeWorksheetId
+                        ? (key, value) => {
+                            setWorksheets((items) =>
+                              items.map((w) =>
+                                w.id === activeWorksheetId
+                                  ? {
+                                      ...w,
+                                      result: {
+                                        ...w.result,
+                                        answers: {
+                                          ...w.result.answers,
+                                          [key]: value,
+                                        },
+                                      },
+                                    }
+                                  : w,
+                              ),
+                            );
+                          }
+                        : undefined
+                    }
                     draft={resultDraft}
                     result={result}
                     settings={resultSettings}

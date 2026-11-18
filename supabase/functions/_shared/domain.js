@@ -319,6 +319,28 @@ function readSingleSnapshot(x) {
         source.model = x.source.model;
     }
   }
+  if (result && x.result.answers !== undefined) {
+    const answers = x.result.answers;
+    if (
+      !answers ||
+      typeof answers !== "object" ||
+      Array.isArray(answers) ||
+      result.templateVariant === "overview"
+    )
+      fail("Ungültige Arbeitsblattantworten.");
+    const slots = new Set(
+      result.mechanisms.flatMap((m) =>
+        Array.from(
+          { length: resultSettings.cardsPerMechanism },
+          (_, i) => m.mechanismId + "-" + i,
+        ),
+      ),
+    );
+    for (const [key, value] of Object.entries(answers))
+      if (!slots.has(key) || typeof value !== "string" || value.length > 4000)
+        fail("Ungültige Arbeitsblattantworten.");
+    result.answers = { ...answers };
+  }
   return { draft, result, request, source, resultSettings };
 }
 export function createWorksheet(snapshot) {
@@ -524,13 +546,8 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
           "",
           `**${t(m.guide ? "Dein Entwurf" : "Eigene Karte")} ${i}:**`,
           "",
-          "______________________________",
-          "",
-          "______________________________",
-          "",
-          "______________________________",
-          "",
-          "______________________________",
+          result.answers?.[m.mechanismId + "-" + (i - 1)] ||
+            Array(4).fill("______________________________").join("\n\n"),
         );
     }
   }

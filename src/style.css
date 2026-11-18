@@ -1494,3 +1494,14 @@ html[data-input="pointer"] :focus {
 .mechanism-guide details {
   margin-bottom: 1rem;
 }
+
+.card-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media screen {
+  .editing-card > div,
+  .editing-card > .card-answer {
+    display: none;
+  }
+}
