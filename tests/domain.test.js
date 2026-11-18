@@ -174,3 +174,67 @@ test("central API keys encrypted with random IV; wrong key rejected", async () =
   assert.equal(await unseal(x, key), "personal-secret");
   await assert.rejects(() => unseal(x, Buffer.alloc(32).toString("base64")));
 });
+
+test("worksheet collections retain independent revisions, selected output and pending AI request", async () => {
+  const { createWorksheet } =
+    await import("../supabase/functions/_shared/domain.js");
+  const d = draft();
+  const first = createWorksheet({
+    draft: d,
+    result: templateResult(d),
+    source: { kind: "template" },
+  });
+  const newer = {
+    ...d,
+    revision: d.revision + 1,
+    context: { ...d.context, thema: "Neues Thema" },
+  };
+  const r = requestFor(newer, { cardsPerMechanism: 2 });
+  const second = createWorksheet({
+    draft: newer,
+    result: answer(r),
+    request: r,
+    source: { kind: "import", apiKey: "SECRET" },
+    resultSettings: { cardsPerMechanism: 2 },
+  });
+  const pending = requestFor(newer);
+  const restored = readSnapshot(
+    JSON.parse(
+      JSON.stringify({
+        draft: newer,
+        worksheets: [first, second],
+        activeWorksheetId: second.id,
+        pendingRequest: pending,
+      }),
+    ),
+  );
+  assert.equal(restored.worksheets.length, 2);
+  assert.equal(restored.activeWorksheetId, second.id);
+  assert.equal(restored.result.title, "Titel");
+  assert.equal(restored.request.requestId, r.requestId);
+  assert.equal(restored.pendingRequest.requestId, pending.requestId);
+  assert.equal(restored.worksheets[0].draft.context.thema, "Stadt und Hof");
+  assert.equal(restored.worksheets[1].resultSettings.cardsPerMechanism, 2);
+  assert.ok(!JSON.stringify(restored).includes("SECRET"));
+  const oldSelected = readSnapshot({
+    ...restored,
+    activeWorksheetId: first.id,
+  });
+  assert.equal(oldSelected.result, null);
+  assert.equal(oldSelected.worksheets.length, 2);
+  const removed = readSnapshot({ ...restored, worksheets: [first] });
+  assert.equal(removed.activeWorksheetId, first.id);
+  assert.throws(() =>
+    readSnapshot({ ...restored, worksheets: [first, first] }),
+  );
+  assert.throws(() =>
+    readSnapshot({ ...restored, worksheets: [{ ...second, draft: d }] }),
+  );
+  const legacy = readSnapshot({
+    draft: d,
+    result: templateResult(d),
+    source: { kind: "template" },
+  });
+  assert.equal(legacy.worksheets.length, 1);
+  assert.equal(legacy.result.configurationRevision, d.revision);
+});

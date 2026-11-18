@@ -90,7 +90,7 @@ test("text palette pairs meet 4.5:1, and high contrast pairs meet 7:1", async ()
 test("semantic audit, keyboard navigation, live sorting feedback and forms across all three appearances", async () => {
   const dom = new JSDOM(
     '<!doctype html><html lang="de"><head><title>Test</title><meta name="theme-color" content="#fff"></head><body></body></html>',
-    { url: "https://example.test/" },
+    { url: "https://example.test/", pretendToBeVisual: true },
   );
   for (const [key, value] of Object.entries({
     window: dom.window,
@@ -163,7 +163,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       "true",
     );
     await user.tab();
-    assert.equal(document.activeElement.textContent, "Zum Inhalt springen");
+    assert.equal(
+      document.activeElement.textContent.trim(),
+      "Zum Inhalt springen",
+    );
     await user.keyboard("{Enter}");
     assert.equal(document.activeElement.id, "main-content");
     assert.equal(screen.getByLabelText("Datum").type, "date");
@@ -181,7 +184,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       );
     await step("Lerntätigkeiten");
     assert.equal(
-      document.activeElement.textContent,
+      document.activeElement.textContent.trim(),
       "Schritt 2: Lernerlebnisse wählen",
     );
     await user.click(
@@ -214,16 +217,25 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     await step("Mechaniken");
     await audit("mechanisms");
+    await user.click(
+      screen.getByRole("button", {
+        name: /Perspektivrollen \(ohne Vollcharakter\)/,
+      }),
+    );
     await step("Übersicht");
+    assert.ok(screen.getByRole("heading", { name: "Im Basisspiel vorhanden" }));
+    await user.click(
+      screen.getByRole("checkbox", { name: /Zweiteilige Kartenstruktur/ }),
+    );
     const handle = screen.getByRole("button", {
-      name: "Zweiteilige Kartenstruktur zum Sortieren ziehen",
+      name: "Zweiteilige Kartenstruktur – Priorität ändern",
     });
     handle.focus();
     await user.keyboard("{ArrowDown}");
     await waitFor(() =>
       assert.match(
         screen.getByRole("status").textContent,
-        /Zweiteilige Kartenstruktur: Position 3/,
+        /Zweiteilige Kartenstruktur: Position 2/,
       ),
     );
     assert.ok(
@@ -231,14 +243,17 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       "keyboard sorting retains focus",
     );
     await user.click(
-      screen.getByRole("button", {
-        name: "Zweiteilige Kartenstruktur entfernen",
+      screen.getByRole("checkbox", {
+        name: /Zweiteilige Kartenstruktur/,
       }),
     );
     await waitFor(() =>
-      assert.match(screen.getByRole("status").textContent, /wurde entfernt/),
+      assert.ok(
+        screen.getByRole("checkbox", { name: /Zweiteilige Kartenstruktur/ })
+          .checked === false,
+      ),
     );
-    assert.ok(document.activeElement.classList.contains("drag-handle"));
+    assert.ok(document.activeElement.type === "checkbox");
     await audit("priorities");
     await step("Arbeitsblatt");
     assert.equal(
@@ -264,9 +279,99 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("button", { name: "Arbeitsblatt erstellen" }),
     );
     await waitFor(() =>
-      assert.match(document.activeElement.textContent, /7’rizons Seminar-Hack/),
+      assert.match(
+        document.activeElement.textContent.trim(),
+        /7’rizons Seminar-Hack/,
+      ),
     );
     await audit("generated worksheet");
+    const collection = () =>
+      within(
+        screen.getByRole("group", { name: "Gespeicherte Arbeitsblätter" }),
+      );
+    assert.equal(
+      collection().getAllByRole("button", { name: /löschen/ }).length,
+      1,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Weiteres Arbeitsblatt hinzufügen" }),
+    );
+    assert.match(
+      document.activeElement.textContent.trim(),
+      /Weiteres Arbeitsblatt hinzufügen/,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Arbeitsblatt hinzufügen",
+        exact: true,
+      }),
+    );
+    assert.equal(
+      collection().getAllByRole("button", { name: /löschen/ }).length,
+      2,
+    );
+    await user.click(screen.getByRole("button", { name: /Mit deiner KI-App/ }));
+    await user.click(
+      screen.getByRole("button", { name: "KI-Auftrag vorbereiten" }),
+    );
+    const key = "7rizons:draft:v1";
+    const pending = JSON.parse(localStorage.getItem(key)).pendingRequest;
+    assert.equal(
+      collection().getAllByRole("button", { name: /löschen/ }).length,
+      2,
+    );
+    const answer = {
+      schemaVersion: 1,
+      requestId: pending.requestId,
+      configurationRevision: pending.configurationRevision,
+      title: "KI-Testblatt",
+      introduction: "Testeinleitung",
+      mechanisms: pending.mechanisms.map((m) => ({
+        mechanismId: m.id,
+        adaptation: "Anpassung",
+        learningContribution: "Lernbeitrag",
+        cardExamples: Array(pending.cardsPerMechanism).fill("Beispiel"),
+      })),
+      nextSteps: ["Erproben"],
+    };
+    await user.click(screen.getByLabelText("JSON-Antwort deiner KI"));
+    await user.paste(JSON.stringify(answer));
+    await user.click(screen.getByRole("button", { name: "Antwort prüfen" }));
+    await user.click(
+      screen.getByRole("button", { name: "Vorschau übernehmen" }),
+    );
+    assert.equal(
+      collection().getAllByRole("button", { name: /löschen/ }).length,
+      3,
+    );
+    assert.ok(screen.getByRole("heading", { name: "KI-Testblatt" }));
+    await user.click(
+      collection().getByRole("button", { name: /Arbeitsblatt 1:/ }),
+    );
+    assert.ok(screen.getByRole("heading", { name: /7’rizons Seminar-Hack/ }));
+    await user.click(
+      collection().getByRole("button", { name: "Arbeitsblatt 2 löschen" }),
+    );
+    assert.equal(
+      collection().getAllByRole("button", { name: /löschen/ }).length,
+      2,
+    );
+    await audit("multiple worksheets");
+    cleanup();
+    render(React.createElement(App));
+    await user.selectOptions(
+      screen.getByLabelText("Direkt zu einem Schritt springen"),
+      "5",
+    );
+    assert.equal(
+      collection().getAllByRole("button", { name: /löschen/ }).length,
+      2,
+    );
+    await user.click(
+      collection().getByRole("button", { name: /Arbeitsblatt 2:/ }),
+    );
+    assert.ok(screen.getByRole("heading", { name: "KI-Testblatt" }));
+
     await user.click(screen.getByRole("button", { name: "Anmelden" }));
     assert.equal(screen.getByLabelText("E-Mail").type, "email");
     assert.equal(
@@ -280,10 +385,65 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await audit("account");
     await user.click(screen.getByRole("contentinfo").querySelector("button"));
     assert.equal(
-      document.activeElement.textContent,
+      document.activeElement.textContent.trim(),
       "Über den Spielkonfigurator",
     );
     await audit("about");
+    await user.click(screen.getByRole("button", { name: /English/ }));
+    assert.equal(document.documentElement.lang, "en");
+    await audit("English about");
+    await user.click(
+      screen.getByRole("button", { name: /Go to the game configurator/ }),
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Go directly to a step"),
+      "1",
+    );
+    assert.ok(screen.getByRole("heading", { name: "Step 1: Seminar context" }));
+    assert.equal(document.title, "7’rizons · Game configurator");
+    await user.selectOptions(
+      screen.getByLabelText("Go directly to a step"),
+      "5",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Without AI", exact: true }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Add worksheet", exact: true }),
+    );
+    assert.ok(screen.getByRole("heading", { name: /7’rizons seminar hack/ }));
+    assert.ok(
+      within(screen.getByRole("article")).getByRole("heading", {
+        name: "Perspective roles (without a full character)",
+      }),
+    );
+    await audit("English worksheet");
+    const savedDocs = JSON.parse(
+      localStorage.getItem("7rizons:draft:v1"),
+    ).worksheets;
+    assert.equal(savedDocs.at(-1).draft.language, "en");
+    assert.equal(savedDocs[0].draft.language, "de");
+    await user.click(
+      screen.getByRole("button", { name: "Deutsch", exact: true }),
+    );
+    for (const number of [3, 2, 1])
+      await user.click(
+        screen.getByRole("button", {
+          name: `Arbeitsblatt ${number} löschen`,
+          exact: true,
+        }),
+      );
+    assert.equal(
+      screen.queryByRole("group", { name: "Gespeicherte Arbeitsblätter" }),
+      null,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Arbeitsblatt erstellen",
+        exact: true,
+      }),
+    );
+    assert.ok(screen.getByRole("article"));
   } finally {
     cleanup?.();
     await unlink(temp).catch(() => {});

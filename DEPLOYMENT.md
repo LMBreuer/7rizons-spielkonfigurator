@@ -1,10 +1,12 @@
 # Bereitstellung
 
+Für die konkrete Einrichtung am eigenen Rechner: [Supabase Schritt für Schritt](SUPABASE-SCHRITT-FUER-SCHRITT.md).
+
 ## 1. Supabase-Projekt
 
 Ein eigenes Projekt für den Konfigurator verwenden. Keine Migration in das bestehende Loomspun-Projekt einspielen.
 
-1. `supabase/migrations/202611170001_workshop.sql` auf dem neuen Projekt ausführen, vorzugsweise mit Supabase CLI/Migrationsworkflow.
+1. Alle SQL-Dateien aus `supabase/migrations/` in Dateinamenreihenfolge auf dem neuen Projekt ausführen, vorzugsweise mit Supabase CLI/Migrationsworkflow.
 2. E-Mail-Anmeldung aktivieren und produktiven SMTP-Versand einrichten. Die für den Workshop benötigte Zustellmenge und Limits testen.
 3. Als Site URL und erlaubte Redirect URL die tatsächliche Pages-Adresse hinterlegen, geplant: `https://lmbreuer.github.io/7rizons-spielkonfigurator/`. Für lokale Abnahme zusätzlich `http://127.0.0.1:5173/` erlauben.
 4. Die beiden Adminkonten über die Supabase-Administration erstellen. Passwortvergabe und Rücksetzung durch die jeweiligen Personen durchführen lassen, nicht im Repository oder Chat ablegen.
@@ -55,6 +57,7 @@ Unter Settings → Pages als Source **GitHub Actions** wählen. Der Workflow fü
 
 - Zwei echte Teilnehmerkonten sowie ein Admin: fremde Entwürfe unsichtbar, Abgaben nur für eigene Person und Moderation sichtbar.
 - Magic Link auf zweitem Gerät und erlaubte Rücksprungadresse testen.
+- Mehrere Arbeitsblätter ohne KI und mit KI hinzufügen, einzeln auswählen/löschen und per JSON wiederherstellen; Abgabe enthält nur das ausgewählte aktuelle Arbeitsblatt.
 - Privaten Entwurf speichern, neu laden, auf anderem Gerät fortsetzen; parallele Änderung muss einen Versionskonflikt melden.
 - Alle vier Arbeitsblatt-Wege mit realistischem Seminarthema durchlaufen. Eigene Keys dürfen in keiner Sicherungsdatei erscheinen.
 - Je aktiviertem Anbieter einen echten Aufruf testen; Loginfehler, abgelehntes Modell, Kontingentlimit und Timeout prüfen.

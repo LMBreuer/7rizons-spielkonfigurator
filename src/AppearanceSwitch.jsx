@@ -1,3 +1,4 @@
+import { t } from "./i18n.js";
 import React from "react";
 
 const choices = [
@@ -7,13 +8,17 @@ const choices = [
 ];
 export default function AppearanceSwitch({ value, onChange }) {
   return (
-    <div className="appearance-switch" role="group" aria-label="Darstellung">
+    <div
+      className="appearance-switch"
+      role="group"
+      aria-label={t("Darstellung")}
+    >
       {choices.map(([mode, label]) => (
         <button
           key={mode}
           type="button"
-          aria-label={label}
-          title={label}
+          aria-label={t(label)}
+          title={t(label)}
           aria-pressed={value === mode}
           onClick={() => onChange(mode)}
         >

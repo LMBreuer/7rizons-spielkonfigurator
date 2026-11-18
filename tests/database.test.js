@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 test("database migration enforces private drafts, admin roles, explicit submissions, revisions and quotas", async () => {
   const db = new PGlite();
@@ -12,15 +12,11 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     await db.exec(
       `create schema auth; create table auth.users(id uuid primary key); create role anon; create role authenticated; create role service_role bypassrls; create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to anon,authenticated,service_role; grant execute on function auth.uid() to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role;`,
     );
-    await db.exec(
-      await readFile(
-        new URL(
-          "../supabase/migrations/202611170001_workshop.sql",
-          import.meta.url,
-        ),
-        "utf8",
-      ),
-    );
+    const migrations = new URL("../supabase/migrations/", import.meta.url);
+    for (const file of (await readdir(migrations))
+      .filter((x) => x.endsWith(".sql"))
+      .sort())
+      await db.exec(await readFile(new URL(file, migrations), "utf8"));
     await db.query("insert into auth.users values($1),($2),($3)", [
       owner,
       other,
@@ -50,7 +46,12 @@ test("database migration enforces private drafts, admin roles, explicit submissi
             config,
             rev,
             "Mein Entwurf",
-            JSON.stringify({ draft: {}, result: { title: "Ergebnis" } }),
+            JSON.stringify({
+              draft: {},
+              result: { title: "Ergebnis" },
+              worksheets: [{ private: "x".repeat(210000) }],
+              pendingRequest: { private: "PRIVATE" },
+            }),
           ],
         )
       ).rows[0].revision;
@@ -117,6 +118,14 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       (await db.query("select * from public.submissions")).rows.length,
       1,
     );
+    const shared = (
+      await db.query("select payload from public.submissions where id=$1", [
+        submission,
+      ])
+    ).rows[0].payload;
+    assert.equal(shared.result.title, "Ergebnis");
+    assert.equal(shared.worksheets, undefined);
+    assert.equal(shared.pendingRequest, undefined);
     await db.query("select public.review_submission($1)", [submission]);
     await assert.rejects(
       () =>

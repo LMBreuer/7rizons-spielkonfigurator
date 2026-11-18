@@ -1,0 +1,152 @@
+/* A4 worksheet stylesheet. Screen UI and theme rules do not determine print. */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 17mm 20mm;
+    @bottom-left {
+      content: "7’rizons · Harald Eckmüller · LMB";
+      font: 8pt sans-serif;
+      color: #555;
+    }
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font: 8pt sans-serif;
+      color: #555;
+    }
+  }
+  html:root,
+  html:root[data-theme] {
+    font-size: 100%;
+    color-scheme: light;
+    --bg: #fff;
+    --surface: #fff;
+    --surface2: #fff;
+    --ink: #111;
+    --muted: #444;
+    --blue: #245789;
+    --teal: #176957;
+    --line: #aaa;
+  }
+  body {
+    background: #fff;
+    color: #111;
+    font:
+      10.5pt/1.45 Arial,
+      sans-serif;
+  }
+  .no-print,
+  .topbar,
+  .hero,
+  .steps,
+  .workspace,
+  .footer,
+  .skip-link {
+    display: none !important;
+  }
+  main {
+    display: block;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
+  .worksheet {
+    display: block;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    max-width: none;
+    background: #fff;
+    color: #111;
+  }
+  .worksheet h1 {
+    font-size: 23pt;
+    line-height: 1.15;
+    margin: 4mm 0;
+  }
+  .worksheet h2 {
+    font-size: 15pt;
+    line-height: 1.25;
+    margin: 6mm 0 3mm;
+    break-after: avoid-page;
+  }
+  .worksheet h3,
+  .worksheet h4 {
+    font-size: 11pt;
+    break-after: avoid-page;
+  }
+  .worksheet h1,
+  .worksheet h2,
+  .worksheet h3,
+  .worksheet h4 {
+    outline: 0 !important;
+  }
+  .worksheet .eyebrow {
+    font-size: 8pt;
+    letter-spacing: 0.07em;
+    break-after: avoid-page;
+  }
+  .worksheet .metadata {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3mm 7mm;
+    break-inside: avoid-page;
+  }
+  .worksheet .metadata div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .worksheet section {
+    margin-top: 6mm;
+  }
+  .worksheet-mechanism {
+    break-before: page;
+  }
+  .worksheet .worksheet-category {
+    break-before: page;
+  }
+  .worksheet-category + .worksheet-mechanism {
+    break-before: auto;
+  }
+  .worksheet p,
+  .worksheet li {
+    orphans: 3;
+    widows: 3;
+  }
+  .worksheet ol,
+  .worksheet ul {
+    padding-left: 5mm;
+  }
+  .worksheet .writing-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+  .worksheet .writing-card {
+    break-inside: avoid-page;
+    min-height: 35mm;
+    padding: 3mm;
+    border: 1px solid #aaa;
+    border-radius: 0;
+  }
+  .worksheet .writing-card h3,
+  .worksheet .writing-card h4 {
+    margin: 0 0 3mm;
+    font-size: 9pt;
+  }
+  .worksheet .writing-card div {
+    height: 6mm;
+    border-bottom: 1px solid #bbb;
+  }
+  .worksheet .provenance {
+    margin-top: 8mm;
+    font-size: 8pt;
+    color: #555;
+    break-inside: avoid-page;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

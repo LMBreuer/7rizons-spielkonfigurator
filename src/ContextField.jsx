@@ -1,3 +1,4 @@
+import { t, getLanguage } from "./i18n.js";
 import React, { useState } from "react";
 import {
   semesterOptions,
@@ -21,7 +22,7 @@ export default function ContextField({
     return (
       <div>
         <label htmlFor={id}>
-          {label}
+          {t(label)}
           <select
             id={id}
             value={other ? "custom" : value}
@@ -35,24 +36,28 @@ export default function ContextField({
               }
             }}
           >
-            <option value="">Bitte wählen (optional)</option>
+            <option value="">{t("Bitte wählen (optional)")}</option>
             {options.map((s, i) => (
               <option key={s} value={s}>
-                {s}
-                {i === 0 ? " · aktuell" : ""}
+                {getLanguage() === "en"
+                  ? s
+                      .replace(/^WS /, "Winter semester ")
+                      .replace(/^SoSe /, "Summer semester ")
+                  : s}
+                {i === 0 ? t(" · aktuell") : ""}
               </option>
             ))}
-            <option value="custom">Anderes Semester …</option>
+            <option value="custom">{t("Anderes Semester …")}</option>
           </select>
         </label>
         {other && (
           <label htmlFor={`${id}-custom`}>
-            Anderes Semester
+            {t("Anderes Semester ")}
             <input
               id={`${id}-custom`}
               maxLength={1500}
               value={value}
-              placeholder={placeholder}
+              placeholder={t(placeholder)}
               onChange={(e) => onChange(e.target.value)}
             />
           </label>
@@ -65,7 +70,7 @@ export default function ContextField({
     return (
       <div>
         <label htmlFor={id}>
-          {label}
+          {t(label)}
           <input
             id={id}
             type="date"
@@ -76,7 +81,9 @@ export default function ContextField({
         </label>
         {value && !iso && (
           <p className="muted" id={`${id}-legacy`}>
-            Gespeicherte Angabe: {value}. Wähle ein Datum, um sie zu ersetzen.
+            {t("Gespeicherte Angabe: ")}
+            {value}
+            {t(". Wähle ein Datum, um sie zu ersetzen. ")}
           </p>
         )}
       </div>
@@ -84,12 +91,12 @@ export default function ContextField({
   }
   return (
     <label className={name === "thema" ? "wide" : ""} htmlFor={id}>
-      {label}
+      {t(label)}
       <input
         id={id}
         maxLength={1500}
         value={value}
-        placeholder={placeholder}
+        placeholder={t(placeholder)}
         onChange={(e) => onChange(e.target.value)}
       />
     </label>

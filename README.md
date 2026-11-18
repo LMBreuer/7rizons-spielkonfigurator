@@ -2,7 +2,7 @@
 
 Ein Workshopwerkzeug für Hochschullehrende: Seminarkontext festlegen, Lerntätigkeiten und Spielmechaniken wählen, priorisieren und ein druckbares Arbeitsblatt erstellen.
 
-Created by Harald Eckmüller · Mit technischem Rückenwind von LMB.
+Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LMB.
 
 ## Vier Wege zum Arbeitsblatt
 
@@ -63,3 +63,19 @@ Die erste Version verwendet einen festen, versionierten Mechanikkatalog. Auswahl
 Neue KI-Aufträge berücksichtigen aktuelle Einstellungen; bereits erstellte Arbeitsblätter behalten ihre Kartenzahl. KI-Ausgaben müssen fachlich geprüft werden. Eine abgeschnittene oder nicht zum Auftrag passende Antwort wird nicht als fertiges Arbeitsblatt übernommen. Keine automatische kostenpflichtige Wiederholung; fehlgeschlagene Versuche verbrauchen vorsorglich ebenfalls ein Aufrufkontingent. Aufruf-/Tokenlimits sind keine exakte Euro-Budgetgrenze – zusätzlich Budgetlimits beim API-Anbieter setzen.
 
 Die erste Backendbereitstellung, Mailzustellung und reale Anbieteraufrufe benötigen eine gesonderte Abnahme mit dem gewählten Projekt und Testzugängen. Die bereitgestellten Unit-/Datenbanktests ersetzen diese Abnahme nicht.
+
+## Mehrere Arbeitsblätter
+
+Jede Erstellung oder übernommene KI-Antwort fügt ein eigenes Arbeitsblatt hinzu. Die Liste in Schritt 5 erlaubt Auswählen und einzelnes Löschen. Jedes Arbeitsblatt behält seinen Konfigurationsstand und seine Kartenzahl; ältere Stände bleiben sichtbar und exportierbar. Eine neue KI-Anfrage überschreibt keine bisherigen Ergebnisse.
+
+Browser-Sicherung, JSON-Export und private Online-Speicherung enthalten die gesamte Sammlung samt Auswahl und offenem KI-Auftrag. Bisherige Sicherungen mit einem einzelnen Ergebnis werden beim Laden übernommen. JSON-Dateien und Online-Payloads dürfen bis knapp 2 MB groß sein. Eine Workshop-Abgabe enthält ausschließlich das ausgewählte Arbeitsblatt zum aktuellen Entwurfsstand, keine weiteren Arbeitsblätter oder offenen Aufträge. Dafür auch bei vorhandenen Backends die Migration `202611180001_worksheet_collection.sql` einspielen.
+
+## Original, Sprachen und Druck
+
+Der dokumentierte Abgleich mit dem gelieferten Artifact und Beispiel-Arbeitsblatt steht in [ORIGINAL-ABGLEICH.md](ORIGINAL-ABGLEICH.md). Schritt 4 trennt Basisspiel und gruppierte Hauptanpassungen; Lernerlebnisgruppen und Mechaniken lassen sich mit Maus und Tastatur priorisieren. Abwählen erhält den Kandidaten.
+
+DE/EN lässt sich in der Kopfzeile umschalten. Die leicht anpassbare Übersetzungsdatei und das Verfahren sind in [TRANSLATIONS.md](TRANSLATIONS.md) beschrieben. Der Tab-Titel bleibt unabhängig vom aktuellen Fragebogenschritt. Programmatische Fokusführung bleibt für Screenreader erhalten; sichtbare Fokusrahmen erscheinen bei Tastaturbedienung.
+
+`src/print.css` wird als eigene CSS-Datei mit `media="print"` eingebunden. Sie enthält A4-Ränder, Mechanik-Umbrüche, ungeteilte Schreibkarten und Seitenzähler über CSS-Seitenrandboxen. [Aktuelle Chromium-Browser unterstützen diese Zähler](https://developer.chrome.com/blog/print-margins?hl=en); Browser ohne Unterstützung zeigen sie nicht. Für alternative Browser können die Kopf-/Fußzeilen des Druckdialogs als Ersatz verwendet werden. Die visuelle Druckabnahme steht noch aus.
+
+Für die erste Backendbereitstellung gibt es [SUPABASE-SCHRITT-FUER-SCHRITT.md](SUPABASE-SCHRITT-FUER-SCHRITT.md). Die Backendverbindung wurde noch nicht hergestellt.
