@@ -107,6 +107,12 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       configurable: true,
       writable: true,
     });
+  const stylesheet = dom.window.document.createElement("style");
+  stylesheet.textContent = await readFile(
+    new URL("../src/style.css", import.meta.url),
+    "utf8",
+  );
+  dom.window.document.head.append(stylesheet);
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   dom.window.HTMLElement.prototype.scrollIntoView = function () {};
   dom.window.scrollTo = () => {};
@@ -224,6 +230,14 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     await step("Übersicht");
     assert.ok(screen.getByRole("heading", { name: "Im Basisspiel vorhanden" }));
+    const baseCheckbox = screen.getByRole("checkbox", {
+      name: /Zweiteilige Kartenstruktur/,
+    });
+    assert.equal(dom.window.getComputedStyle(baseCheckbox).width, "18px");
+    assert.equal(
+      parseFloat(dom.window.getComputedStyle(baseCheckbox).minHeight),
+      0,
+    );
     await user.click(
       screen.getByRole("checkbox", { name: /Zweiteilige Kartenstruktur/ }),
     );

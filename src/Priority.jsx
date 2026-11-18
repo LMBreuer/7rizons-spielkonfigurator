@@ -15,6 +15,7 @@ export default function Priority({
   const t = (s) => translate(s, language);
   const p = priorityOf(draft),
     [drag, setDrag] = useState(null),
+    [dropTarget, setDropTarget] = useState(null),
     focus = useRef(null),
     container = useRef(null);
   useEffect(() => {
@@ -82,7 +83,10 @@ export default function Priority({
           e.dataTransfer.effectAllowed = "move";
           setDrag({ kind, id });
         }}
-        onDragEnd={() => setDrag(null)}
+        onDragEnd={() => {
+          setDrag(null);
+          setDropTarget(null);
+        }}
       >
         ⠿
       </button>
@@ -91,15 +95,27 @@ export default function Priority({
   function drop(kind, id) {
     return {
       onDragOver: (e) => {
-        if (drag?.kind === kind) {
+        if (
+          drag?.kind === kind &&
+          drag.id !== id &&
+          (kind === "learning" ||
+            assignToLearning(drag.id, draft.learning) ===
+              assignToLearning(id, draft.learning))
+        ) {
           e.preventDefault();
           e.stopPropagation();
+          e.dataTransfer.dropEffect = "move";
+          const bounds = e.currentTarget.getBoundingClientRect();
+          setDropTarget({
+            id,
+            after: e.clientY > bounds.top + bounds.height / 2,
+          });
         }
       },
       onDrop: (e) => {
+        if (drag?.kind !== kind) return;
         e.preventDefault();
         e.stopPropagation();
-        if (drag?.kind !== kind) return;
         if (
           kind === "mechanism" &&
           assignToLearning(drag.id, draft.learning) !==
@@ -109,6 +125,7 @@ export default function Priority({
         const r = e.currentTarget.getBoundingClientRect();
         move(kind, drag.id, id, e.clientY > r.top + r.height / 2);
         setDrag(null);
+        setDropTarget(null);
       },
     };
   }
@@ -129,9 +146,8 @@ export default function Priority({
     .map((id) => MK.find((m) => m.id === id))
     .filter((m) => m.basis && !m.pflicht && !p.promoted.includes(m.id));
   return (
-    <section className="panel" ref={container}>
+    <section className="panel priority-panel" ref={container}>
       <div className="section-title">
-        <span className="eyebrow">04 · {t("Übersicht")}</span>
         <h2>{t("Schritt 4: Übersicht")}</h2>
         <p>
           {t(
@@ -156,10 +172,14 @@ export default function Priority({
       </p>
       <div className="base-mechanics">
         <div className="base-safety">
-          <span aria-hidden="true">✓</span>
-          <strong>{t("Safety-Rahmen")}</strong>
-          <span>{t("CATS, X-Karte, Open Door")}</span>
-          <span className="tag">{t("IMMER")}</span>
+          <span className="safety-check" aria-hidden="true">
+            ✓
+          </span>
+          <span className="base-copy">
+            <strong>{t("Safety-Rahmen")}</strong>
+            <span>{t("CATS, X-Karte, Open Door")}</span>
+          </span>
+          <span className="priority-badge always">{t("IMMER")}</span>
         </div>
         {base.map((m) => (
           <label className="base-mechanic" key={m.id} data-base-id={m.id}>
@@ -176,9 +196,11 @@ export default function Priority({
                 });
               }}
             />
-            <strong>{t(m.label)}</strong>
-            <span>{t(m.kurz)}</span>
-            {m.kern && <span className="tag">{t("KERN")}</span>}
+            <span className="base-copy">
+              <strong>{t(m.label)}</strong>
+              <span>{t(m.kurz)}</span>
+            </span>
+            {m.kern && <span className="priority-badge core">{t("KERN")}</span>}
           </label>
         ))}
         {!base.length && (
@@ -211,7 +233,7 @@ export default function Priority({
           if (!ids.length) return null;
           return (
             <section
-              className={`priority-group ${le?.group === "wiss" ? "wiss" : ""}`}
+              className={`priority-group ${le?.group === "wiss" ? "wiss" : ""} ${drag?.id === leId ? "dragging" : ""} ${dropTarget?.id === leId ? (dropTarget.after ? "drop-after" : "drop-before") : ""}`}
               key={leId}
               data-sort-id={leId}
               {...drop("learning", leId)}
@@ -224,12 +246,28 @@ export default function Priority({
                 <small>{t(le?.bloom || "")}</small>
                 <div className="rank-buttons">
                   <button
+                    disabled={
+                      p.learningOrder.filter((l) =>
+                        p.mechanismOrder.some(
+                          (m) => assignToLearning(m, draft.learning) === l,
+                        ),
+                      )[0] === leId
+                    }
                     aria-label={`${t(le?.label || leId)} ${t("nach oben")}`}
                     onClick={() => arrow("learning", leId, -1)}
                   >
                     ↑
                   </button>
                   <button
+                    disabled={
+                      p.learningOrder
+                        .filter((l) =>
+                          p.mechanismOrder.some(
+                            (m) => assignToLearning(m, draft.learning) === l,
+                          ),
+                        )
+                        .at(-1) === leId
+                    }
                     aria-label={`${t(le?.label || leId)} ${t("nach unten")}`}
                     onClick={() => arrow("learning", leId, 1)}
                   >
@@ -244,9 +282,7 @@ export default function Priority({
                     <li
                       key={id}
                       data-sort-id={id}
-                      className={
-                        p.finalSelection.includes(id) ? "included" : ""
-                      }
+                      className={`${p.finalSelection.includes(id) ? "included" : ""} ${drag?.id === id ? "dragging" : ""} ${dropTarget?.id === id ? (dropTarget.after ? "drop-after" : "drop-before") : ""}`}
                       {...drop("mechanism", id)}
                     >
                       {handle("mechanism", id, m.label)}
@@ -261,23 +297,33 @@ export default function Priority({
                           <small>{t(m.kurz)}</small>
                         </span>
                       </label>
-                      {m.kern && <span className="tag">{t("KERN")}</span>}
-                      {m.basis && <span className="tag">{t("BASIS")}</span>}
-                      <div className="rank-buttons">
-                        <button
-                          disabled={i === 0}
-                          aria-label={`${t(m.label)} ${t("nach oben")}`}
-                          onClick={() => arrow("mechanism", id, -1)}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          disabled={i === ids.length - 1}
-                          aria-label={`${t(m.label)} ${t("nach unten")}`}
-                          onClick={() => arrow("mechanism", id, 1)}
-                        >
-                          ↓
-                        </button>
+                      <div className="priority-row-meta">
+                        <div className="priority-badges">
+                          {m.kern && (
+                            <span className="priority-badge core">
+                              {t("KERN")}
+                            </span>
+                          )}
+                          {m.basis && (
+                            <span className="priority-badge">{t("BASIS")}</span>
+                          )}
+                        </div>
+                        <div className="rank-buttons">
+                          <button
+                            disabled={i === 0}
+                            aria-label={`${t(m.label)} ${t("nach oben")}`}
+                            onClick={() => arrow("mechanism", id, -1)}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            disabled={i === ids.length - 1}
+                            aria-label={`${t(m.label)} ${t("nach unten")}`}
+                            onClick={() => arrow("mechanism", id, 1)}
+                          >
+                            ↓
+                          </button>
+                        </div>
                       </div>
                     </li>
                   );
