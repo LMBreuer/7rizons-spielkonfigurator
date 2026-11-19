@@ -33,6 +33,28 @@ import { jsonFilename } from "./downloads.js";
 import Logo from "./Logo.jsx";
 import AppearanceSwitch from "./AppearanceSwitch.jsx";
 import { APPEARANCE_KEY, initialAppearance } from "./appearance.js";
+const API_KEY_GUIDES = {
+  openai: "https://developers.openai.com/api/docs/quickstart",
+  anthropic: "https://platform.claude.com/docs/en/get-api-key",
+  gemini: "https://ai.google.dev/gemini-api/docs/api-key",
+};
+
+function ApiKeyHelp({ provider }) {
+  return (
+    <p className="muted">
+      <a
+        href={API_KEY_GUIDES[provider]}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {t("API-Key bei {0} erstellen", { 0: PROVIDERS[provider] })}
+      </a>
+      {" · "}
+      {t("Beim Anbieter anmelden, einen Key erstellen und hier einfügen.")}
+    </p>
+  );
+}
+
 const STORAGE = "7rizons:draft:v1";
 const steps = [
   "Kontext",
@@ -1583,6 +1605,7 @@ export default function App() {
                                     placeholder={t("API-Key für diese Sitzung")}
                                   />
                                 </label>
+                                <ApiKeyHelp provider={provider} />
                                 <p className="muted">
                                   {t(
                                     "Der Key wird nur im Arbeitsspeicher gehalten und für den Aufruf verschlüsselt an unser Backend übertragen. Er wird nicht in Entwürfen oder Downloads gespeichert. Der Anbieter rechnet die Nutzung mit deinem API-Konto ab. ",
@@ -2337,6 +2360,7 @@ export default function App() {
                   maxLength={1000}
                 />
               </label>
+              <ApiKeyHelp provider={centralProvider} />
               <div className="actions">
                 <Button
                   disabled={
@@ -2383,6 +2407,11 @@ export default function App() {
             </Card>
             <Card>
               <h2>{t("Workshops")}</h2>
+              <p className="muted">
+                {t(
+                  "Gib den Zugangscode an die Teilnehmenden weiter. Sie melden sich an und geben ihn unter „Dein Zugang“ ein. Danach können sie Arbeitsblätter an diesen Workshop abgeben.",
+                )}
+              </p>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -2432,6 +2461,18 @@ export default function App() {
                     <input readOnly value={w.join_code} />
                   </label>
                   <div className="actions">
+                    <Button
+                      secondary
+                      disabled={busy}
+                      onClick={() =>
+                        act(async () => {
+                          await navigator.clipboard.writeText(w.join_code);
+                          setMessage(t("Workshop-Code kopiert."));
+                        })
+                      }
+                    >
+                      {t("Workshop-Code kopieren")}
+                    </Button>
                     <Button
                       secondary
                       onClick={() =>

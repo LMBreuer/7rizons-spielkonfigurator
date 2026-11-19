@@ -1,4 +1,9 @@
 {
+  "API-Key bei {0} erstellen": "Create an API key at {0}",
+  "Beim Anbieter anmelden, einen Key erstellen und hier einfügen.": "Sign in with the provider, create a key and paste it here.",
+  "Gib den Zugangscode an die Teilnehmenden weiter. Sie melden sich an und geben ihn unter „Dein Zugang“ ein. Danach können sie Arbeitsblätter an diesen Workshop abgeben.": "Give the access code to participants. They sign in and enter it under Your account. They can then submit worksheets to this workshop.",
+  "Workshop-Code kopieren": "Copy workshop code",
+  "Workshop-Code kopiert.": "Workshop code copied.",
   "Projektleiste": "Project bar",
   "Projekt importieren": "Import project",
   "Importkopie": "Imported copy",
