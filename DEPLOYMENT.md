@@ -30,7 +30,7 @@ Deployment-Secrets:
 
 Die Verschlüsselungsvariable dauerhaft sicher verwahren. Bei Verlust sind gespeicherte zentrale API-Keys nicht wiederherstellbar. Vor Rotation müssen zentrale Keys neu verschlüsselt bzw. neu eingegeben werden; nicht einfach nur den Deployment-Key wechseln.
 
-Zentrale Anbieter-API-Keys werden anschließend in der Konfigurator-Administration eingegeben. Das Backend speichert nur Chiffretext mit zufälliger IV. Die Administration kann den Einrichtungsstatus sehen, aber keine Schlüssel zurücklesen. Request-/Body-Logging und externe Telemetrie für beide Funktionen deaktiviert lassen. Auch beim Debuggen keine Requestbodies, Zugangsdaten oder Header ausgeben.
+Anbieter-API-Keys werden in der Konfigurator-Administration unter **Gespeicherte KI-Zugänge** eingegeben. **Nur für mich** bindet den Zugang an das eigene Admin-Konto. **Für einen Workshop** bindet den Zugang an den ausgewählten Workshop. Mitglieder verwenden ihn nach Freigabe der Workshop-KI innerhalb des dort gesetzten Limits. Das Backend speichert nur Chiffretext mit zufälliger IV. Die Administration kann den Einrichtungsstatus sehen, aber keine Schlüssel zurücklesen. Request-/Body-Logging und externe Telemetrie für beide Funktionen deaktiviert lassen. Auch beim Debuggen keine Requestbodies, Zugangsdaten oder Header ausgeben.
 
 ## 3. Frontendkonfiguration
 

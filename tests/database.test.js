@@ -39,7 +39,36 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       (await db.query("select * from public.app_settings")).rows.length,
       1,
     );
+    await assert.rejects(
+      () => db.query("select * from public.scoped_provider_credentials"),
+      /permission denied/,
+    );
+    await identity("", "service_role");
+    await db.query(
+      `insert into public.scoped_provider_credentials (provider, owner_id, ciphertext, iv)
+        values ('openai', $1, 'test-ciphertext', 'test-iv'), ('openai', $2, 'another-ciphertext', 'test-iv')`,
+      [owner, other],
+    );
+    await db.query(
+      `insert into public.scoped_provider_credentials (provider, owner_id, ciphertext, iv)
+        values ('openai', $1, 'updated-ciphertext', 'test-iv')
+        on conflict (provider, owner_id, workshop_id) do update set ciphertext = excluded.ciphertext`,
+      [owner],
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select ciphertext from public.scoped_provider_credentials where owner_id = $1",
+          [owner],
+        )
+      ).rows[0].ciphertext,
+      "updated-ciphertext",
+    );
     await identity(owner);
+    await assert.rejects(
+      () => db.query("select * from public.scoped_provider_credentials"),
+      /permission denied/,
+    );
     assert.equal(
       (await db.query("select public.is_admin() as value")).rows[0].value,
       false,

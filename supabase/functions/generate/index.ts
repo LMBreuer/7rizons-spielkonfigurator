@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const b = await body(req);
     if (
       !Object.hasOwn(PROVIDERS, b.provider) ||
-      !["personal", "workshop"].includes(b.mode)
+      !["personal", "workshop", "saved"].includes(b.mode)
     )
       throw new Error("Unbekannter KI-Zugang.");
     const { data: row, error: se } = await user
@@ -52,27 +52,46 @@ Deno.serve(async (req) => {
         /[\r\n]/.test(key))
     )
       throw new Error("Bitte einen gültigen API-Key eintragen.");
+    if (b.mode === "saved") {
+      const { data: admin, error } = await user.rpc("is_admin");
+      if (error || !admin) throw new Error("Nur Administration.");
+    }
+    if (b.mode === "workshop") {
+      const { data: available, error } = await user.rpc("my_workshops");
+      if (
+        error ||
+        !available?.some(
+          (w: { id: string; active: boolean; central_ai: boolean }) =>
+            w.id === b.workshopId && w.active && w.central_ai,
+        )
+      )
+        throw new Error(
+          "Workshop-KI ist für diesen Zugang nicht freigeschaltet.",
+        );
+    }
+    if (b.mode !== "personal") {
+      const query = service
+        .from("scoped_provider_credentials")
+        .select("ciphertext,iv")
+        .eq("provider", b.provider);
+      const { data: record, error } = await (
+        b.mode === "workshop"
+          ? query.eq("workshop_id", b.workshopId).is("owner_id", null)
+          : query.eq("owner_id", identity.id).is("workshop_id", null)
+      ).single();
+      if (error || !record)
+        throw new Error("Für diesen Anbieter ist kein Zugang hinterlegt.");
+      key = await unseal(
+        record,
+        Deno.env.get("CREDENTIAL_ENCRYPTION_KEY") || "",
+      );
+    }
     const { error: limit } = await service.rpc("reserve_generation", {
       p_user: identity.id,
       p_workshop: b.mode === "workshop" ? b.workshopId : null,
       p_hourly: settings.hourlyLimit,
     });
     if (limit) throw new Error(limit.message);
-    if (b.mode === "workshop") {
-      const { data: record, error } = await service
-        .from("provider_credentials")
-        .select("ciphertext,iv")
-        .eq("provider", b.provider)
-        .single();
-      if (error || !record)
-        throw new Error(
-          "Für diesen Anbieter ist noch kein Workshop-Zugang hinterlegt.",
-        );
-      key = await unseal(
-        record,
-        Deno.env.get("CREDENTIAL_ENCRYPTION_KEY") || "",
-      );
-    }
     const spec = providerRequest(b.provider, key, model, makePrompt(request));
     let response;
     try {

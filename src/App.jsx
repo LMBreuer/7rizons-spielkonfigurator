@@ -1,3 +1,10 @@
+import {
+  isProjectId,
+  readExchange,
+  nextExchange,
+  projectFingerprint,
+  importDecision,
+} from "./project-exchange.js";
 import { t, useLanguage } from "./i18n.js";
 import React, { useEffect, useRef, useState } from "react";
 import { cloud, unwrap, callFunction } from "./cloud.js";
@@ -41,10 +48,14 @@ function listProjects() {
   for (const key of Object.keys(localStorage)) {
     if (!key.startsWith(PROJECT_PREFIX)) continue;
     try {
-      const { draft } = JSON.parse(localStorage.getItem(key));
+      const { draft, exchange, importCopy } = JSON.parse(
+        localStorage.getItem(key),
+      );
       projects.push({
         id: draft.id,
         title: draft.context.thema || draft.context.name,
+        projectId: readExchange(exchange)?.projectId || draft.id,
+        importCopy: importCopy === true,
       });
     } catch {}
   }
@@ -64,6 +75,9 @@ function stored() {
         step: x.step,
         buildingSheet: x.buildingSheet,
         configStep: x.configStep,
+        exchange: readExchange(x.exchange),
+        exchangeBase: x.exchangeBase,
+        importCopy: x.importCopy === true,
       };
     }
   } catch {}
@@ -106,6 +120,11 @@ export default function App() {
   const [language, setLanguage] = useLanguage();
   useEffect(() => trackInputMethod(), []);
   const [saved] = useState(stored);
+  const [exchange, setExchange] = useState(saved.exchange || null);
+  const [exchangeBase, setExchangeBase] = useState(saved.exchangeBase || null);
+  const [importCopy, setImportCopy] = useState(saved.importCopy || false);
+  const [importConflict, setImportConflict] = useState(null);
+  const importDialog = useRef(null);
   const [draft, setDraft] = useState(() => ({
     ...saved.draft,
     language: saved.worksheets?.length ? saved.draft.language : language,
@@ -203,10 +222,25 @@ export default function App() {
   const [credentials, setCredentials] = useState([]);
   const [centralProvider, setCentralProvider] = useState("openai");
   const [centralKey, setCentralKey] = useState("");
+  const [credentialScope, setCredentialScope] = useState("private");
+  const [credentialWorkshopId, setCredentialWorkshopId] = useState("");
+  const hasSelectedCredential = credentials.some(
+    (credential) =>
+      credential.provider === centralProvider &&
+      credential.workshop_id ===
+        (credentialScope === "workshop" ? credentialWorkshopId : null),
+  );
+  const credentialTarget = {
+    provider: centralProvider,
+    scope: credentialScope,
+    workshopId:
+      credentialScope === "workshop" ? credentialWorkshopId : undefined,
+  };
   const [submissionConsent, setSubmissionConsent] = useState(false);
   const isCurrent = result?.configurationRevision === draft.revision;
   const payload = () => ({
     draft,
+    ...(exchange ? { exchange, exchangeBase, importCopy } : {}),
     result: isCurrent ? result : null,
     request: isCurrent ? activeWorksheet?.request : null,
     source: isCurrent ? source : null,
@@ -301,6 +335,9 @@ export default function App() {
     }
   }, [
     draft,
+    exchange,
+    exchangeBase,
+    importCopy,
     worksheets,
     activeWorksheetId,
     request,
@@ -345,6 +382,11 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     setAdmin(false);
+    setCredentials([]);
+    setCentralKey("");
+    setMode((mode) =>
+      ["saved", "workshop"].includes(mode) ? "template" : mode,
+    );
     setWorkshops([]);
     setWorkshopId("");
     setEntries([]);
@@ -543,8 +585,20 @@ export default function App() {
   function applySnapshot(x, revision = 0, resumeStep) {
     const builderWasOpen = x.buildingSheet === true;
     const previousStep = [1, 2, 3, 4].includes(x.configStep) ? x.configStep : 1;
+    const metadata = {
+      exchange: readExchange(x.exchange),
+      base:
+        typeof x.exchangeBase === "string" &&
+        /^[0-9a-f]{64}$/.test(x.exchangeBase)
+          ? x.exchangeBase
+          : null,
+      copy: x.importCopy === true,
+    };
     x = readSnapshot(x);
     persistProject();
+    setExchange(metadata.exchange);
+    setExchangeBase(metadata.base);
+    setImportCopy(metadata.copy);
     setProjects(listProjects());
     setEditingId(null);
     setImportText("");
@@ -565,6 +619,101 @@ export default function App() {
     setPage("app");
     setPreview(null);
   }
+  async function exportProject() {
+    const snapshot = payload();
+    const meta = nextExchange(draft.id, exchange);
+    const baseline = await projectFingerprint(snapshot);
+    const file = { ...snapshot, exchange: meta };
+    delete file.exchangeBase;
+    delete file.importCopy;
+    download(
+      JSON.stringify(file, null, 2),
+      jsonFilename(draft.context.thema),
+      "application/json",
+    );
+    setExchange(meta);
+    setExchangeBase(baseline);
+  }
+  function acceptImport(incoming, baseline, target, copy = false) {
+    const id =
+      target?.draft.id ||
+      (copy || !isProjectId(incoming.draft.id)
+        ? crypto.randomUUID()
+        : incoming.draft.id);
+    const projectId =
+      incoming.exchange?.projectId ||
+      (isProjectId(incoming.draft.id) ? incoming.draft.id : id);
+    // Older exports keep the project identity even when no export lineage was recorded.
+    const meta = incoming.exchange || nextExchange(projectId, null);
+    applySnapshot(
+      {
+        ...incoming,
+        draft: { ...incoming.draft, id },
+        exchange: meta,
+        exchangeBase: baseline,
+        importCopy: copy || target?.importCopy === true,
+      },
+      target?.cloudRevision || 0,
+    );
+    setMessage(t(copy ? "Als neues Projekt geladen." : "Projekt geladen."));
+  }
+  async function importProject(file) {
+    const raw = JSON.parse(await fileText(file));
+    const incoming = {
+      ...readSnapshot(raw),
+      exchange: readExchange(raw.exchange),
+    };
+    const projectId = incoming.exchange?.projectId || incoming.draft.id;
+    const related = listProjects().filter(
+      (p) => p.projectId === projectId || p.id === incoming.draft.id,
+    );
+    const baseline = await projectFingerprint(incoming);
+    if (!related.length) {
+      acceptImport(incoming, baseline, null);
+      return;
+    }
+    const records = related.map((p) =>
+      p.id === draft.id
+        ? {
+            ...payload(),
+            cloudRevision,
+            step,
+            buildingSheet,
+            configStep: lastConfigStep.current,
+          }
+        : JSON.parse(localStorage.getItem(PROJECT_PREFIX + p.id)),
+    );
+    const exact = records.find(
+      (record) => record.draft.id === incoming.draft.id,
+    );
+    const candidates = [
+      exact,
+      ...records.filter((record) => record !== exact),
+    ].filter(Boolean);
+    for (const record of candidates) {
+      const decision = importDecision(
+        record,
+        incoming.exchange,
+        await projectFingerprint(record),
+        baseline,
+      );
+      if (decision === "open") {
+        if (record.draft.id !== draft.id)
+          applySnapshot(record, record.cloudRevision, record.step);
+        setMessage(t("Dieses Projekt ist bereits vorhanden."));
+        return;
+      }
+      if (decision === "update") {
+        acceptImport(incoming, baseline, record);
+        return;
+      }
+    }
+    setImportConflict({ incoming, baseline, target: exact || candidates[0] });
+  }
+  useEffect(() => {
+    if (importConflict && !importDialog.current.open)
+      importDialog.current.showModal();
+  }, [importConflict]);
   function newConfiguration() {
     applySnapshot({ draft: { ...newDraft(), language } });
   }
@@ -700,6 +849,49 @@ export default function App() {
           {t(sortMessage)}
         </div>
         <div className="no-print">{notices}</div>
+        {importConflict && (
+          <dialog
+            ref={importDialog}
+            className="project-import-dialog"
+            aria-labelledby="project-import-title"
+            onCancel={() => setImportConflict(null)}
+          >
+            <h2 id="project-import-title">{t("Anderer Projektstand")}</h2>
+            <p>
+              {t(
+                "Zu diesem Projekt gibt es bereits einen anderen Stand. Möchtest du ihn überschreiben oder die Datei als neues Projekt laden?",
+              )}
+            </p>
+            <div className="actions">
+              <Button
+                autoFocus
+                secondary
+                onClick={() => setImportConflict(null)}
+              >
+                {t("Abbrechen")}
+              </Button>
+              <Button
+                secondary
+                onClick={() => {
+                  const { incoming, baseline, target } = importConflict;
+                  setImportConflict(null);
+                  act(() => acceptImport(incoming, baseline, target));
+                }}
+              >
+                {t("Überschreiben")}
+              </Button>
+              <Button
+                onClick={() => {
+                  const { incoming, baseline } = importConflict;
+                  setImportConflict(null);
+                  act(() => acceptImport(incoming, baseline, null, true));
+                }}
+              >
+                {t("Als neues Projekt laden")}
+              </Button>
+            </div>
+          </dialog>
+        )}
         {page === "app" && (
           <>
             <header className="project-head no-print">
@@ -707,7 +899,11 @@ export default function App() {
                 {t("Eure Themen. ")}
                 <em>{t("Eure Welten.")}</em>
               </h1>
-              <div className="project-heading">
+              <div
+                className="project-heading"
+                role="group"
+                aria-label={t("Projektleiste")}
+              >
                 {(draft.context.thema || draft.context.name) && (
                   <p className="project-title">
                     {draft.context.thema || draft.context.name}
@@ -741,6 +937,7 @@ export default function App() {
                         }
                       >
                         {p.title || t("Unbenanntes Projekt")}
+                        {p.importCopy && " · " + t("Importkopie")}
                         {projects.some(
                           (other) =>
                             other.id !== p.id && p.title === other.title,
@@ -760,16 +957,7 @@ export default function App() {
                           role="group"
                           aria-label={t("Konfiguration als Datei")}
                         >
-                          <Button
-                            secondary
-                            onClick={() =>
-                              download(
-                                JSON.stringify(payload(), null, 2),
-                                jsonFilename(draft.context.thema),
-                                "application/json",
-                              )
-                            }
-                          >
+                          <Button secondary onClick={() => act(exportProject)}>
                             {t("Projekt herunterladen")}
                             <small className="project-download-format">
                               {t("JSON-Datei")}
@@ -779,7 +967,7 @@ export default function App() {
                             secondary
                             onClick={() => configImportRef.current?.click()}
                           >
-                            {t("JSON laden ")}
+                            {t("Projekt importieren")}
                           </Button>
                           <input
                             ref={configImportRef}
@@ -789,49 +977,30 @@ export default function App() {
                             onChange={(e) => {
                               const file = e.target.files[0];
                               e.target.value = "";
-                              if (file)
-                                act(async () => {
-                                  const x = JSON.parse(await fileText(file));
-                                  x.draft = {
-                                    ...x.draft,
-                                    id: crypto.randomUUID(),
-                                  };
-                                  if (x.request)
-                                    x.request = {
-                                      ...x.request,
-                                      configurationId: x.draft.id,
-                                    };
-                                  applySnapshot(x);
-                                  setMessage(
-                                    t("Datei als neuer Entwurf geladen."),
-                                  );
-                                });
+                              if (file) act(() => importProject(file));
                             }}
                           />
                         </div>
-                        <div className="save-account-actions">
-                          {session ? (
-                            <Button secondary onClick={() => act(saveOnline)}>
-                              {t("Online speichern ")}
-                            </Button>
-                          ) : (
-                            <Button
-                              secondary
-                              onClick={() => setPage("account")}
-                            >
-                              {t("Für Online-Speichern anmelden ")}
-                            </Button>
-                          )}
-                        </div>
                       </div>
-                      {savedLocally && (
-                        <span className="save-status">
-                          {t("Im Browser gespeichert")}
-                        </span>
-                      )}
                     </fieldset>
                   </div>
                 </details>
+                <div className="project-storage">
+                  {savedLocally && (
+                    <span className="save-status">
+                      {t("Im Browser gespeichert")}
+                    </span>
+                  )}
+                  {session && (
+                    <Button
+                      secondary
+                      disabled={busy}
+                      onClick={() => act(saveOnline)}
+                    >
+                      {t("Online speichern ")}
+                    </Button>
+                  )}
+                </div>
               </div>
               {step === 1 &&
                 !draft.context.thema &&
@@ -1297,13 +1466,28 @@ export default function App() {
                               t("OpenAI, Claude oder Gemini direkt verwenden."),
                             ],
                             [
+                              "saved",
+                              "04",
+                              t("Mit gespeichertem Zugang"),
+                              t(
+                                "Verwende deinen privaten API-Key aus der Administration.",
+                              ),
+                            ],
+                            [
                               "workshop",
                               "04",
                               t("Mit Workshop-KI"),
                               t("Der Workshop stellt den Zugang bereit."),
                             ],
                           ]
-                            .filter(([id]) => id !== "workshop")
+                            .filter(
+                              ([id]) =>
+                                (id !== "saved" || admin) &&
+                                (id !== "workshop" ||
+                                  workshops.some(
+                                    (w) => w.active && w.central_ai,
+                                  )),
+                            )
                             .map(([id, n, title, text]) => (
                               <button
                                 className={
@@ -1354,7 +1538,7 @@ export default function App() {
                             </small>
                           </div>
                         )}
-                        {(mode === "personal" || mode === "workshop") && (
+                        {["personal", "workshop", "saved"].includes(mode) && (
                           <div className="connection">
                             <label>
                               {t("KI-Anbieter ")}
@@ -1406,22 +1590,24 @@ export default function App() {
                                 </p>
                               </>
                             ) : (
-                              <>
-                                <WorkshopJoin
-                                  workshops={workshops}
-                                  workshopId={workshopId}
-                                  setWorkshopId={setWorkshopId}
-                                  code={code}
-                                  setCode={setCode}
-                                  join={() => act(join)}
-                                  session={session}
-                                />
-                                <p className="muted">
-                                  {t(
-                                    "Die Workshop-KI verwendet einen zentralen Zugang. Du benötigst keinen eigenen API-Key. Nur für freigeschaltete Workshops und innerhalb ihres Limits verfügbar. ",
-                                  )}
-                                </p>
-                              </>
+                              mode === "workshop" && (
+                                <>
+                                  <WorkshopJoin
+                                    workshops={workshops}
+                                    workshopId={workshopId}
+                                    setWorkshopId={setWorkshopId}
+                                    code={code}
+                                    setCode={setCode}
+                                    join={() => act(join)}
+                                    session={session}
+                                  />
+                                  <p className="muted">
+                                    {t(
+                                      "Die Workshop-KI verwendet einen zentralen Zugang. Du benötigst keinen eigenen API-Key. Nur für freigeschaltete Workshops und innerhalb ihres Limits verfügbar. ",
+                                    )}
+                                  </p>
+                                </>
+                              )
                             )}
                             {!session && (
                               <Button
@@ -1438,7 +1624,9 @@ export default function App() {
                             onClick={() => act(generate)}
                             disabled={
                               busy ||
-                              (["personal", "workshop"].includes(mode) &&
+                              (["personal", "workshop", "saved"].includes(
+                                mode,
+                              ) &&
                                 (!cloud ||
                                   !session ||
                                   !settings.models[provider]))
@@ -2071,18 +2259,51 @@ export default function App() {
               </Button>
             </Card>
             <Card>
-              <h2>{t("Zentrale KI-Zugänge")}</h2>
+              <h2>{t("Gespeicherte KI-Zugänge")}</h2>
               <p>
                 {t(
                   "API-Keys werden serverseitig verschlüsselt gespeichert und nie wieder angezeigt. ",
                 )}
               </p>
-              <p>
-                {credentials.length
-                  ? credentials.map((c) => PROVIDERS[c.provider]).join(", ") +
-                    t(" eingerichtet")
-                  : t("Noch keine zentralen Zugänge eingerichtet.")}
-              </p>
+              <label>
+                {t("Freigabe")}
+                <select
+                  value={credentialScope}
+                  onChange={(e) => {
+                    setCredentialScope(e.target.value);
+                    setCentralKey("");
+                  }}
+                >
+                  <option value="private">{t("Nur für mich")}</option>
+                  <option value="workshop">{t("Für einen Workshop")}</option>
+                </select>
+              </label>
+              {credentialScope === "workshop" && (
+                <>
+                  <label>
+                    {t("Workshop")}
+                    <select
+                      value={credentialWorkshopId}
+                      onChange={(e) => {
+                        setCredentialWorkshopId(e.target.value);
+                        setCentralKey("");
+                      }}
+                    >
+                      <option value="">{t("Workshop auswählen")}</option>
+                      {adminWorkshops.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="muted">
+                    {t(
+                      "Teilnehmende können den Zugang verwenden, sobald die Workshop-KI für diesen Workshop eingeschaltet ist.",
+                    )}
+                  </p>
+                </>
+              )}
               <label>
                 {t("Anbieter ")}
                 <select
@@ -2099,6 +2320,13 @@ export default function App() {
                   ))}
                 </select>
               </label>
+              <p>
+                {t(
+                  hasSelectedCredential
+                    ? "API-Key hinterlegt."
+                    : "Für diese Auswahl ist kein API-Key hinterlegt.",
+                )}
+              </p>
               <label>
                 {t("Neuer API-Key ")}
                 <input
@@ -2111,17 +2339,21 @@ export default function App() {
               </label>
               <div className="actions">
                 <Button
-                  disabled={busy || !centralKey}
+                  disabled={
+                    busy ||
+                    !centralKey.trim() ||
+                    (credentialScope === "workshop" && !credentialWorkshopId)
+                  }
                   onClick={() =>
                     act(async () => {
                       const d = await callFunction("credentials", {
                         action: "set",
-                        provider: centralProvider,
+                        ...credentialTarget,
                         apiKey: centralKey.trim(),
                       });
                       setCentralKey("");
                       setCredentials(d.credentials);
-                      setMessage(t("Zentraler Zugang gespeichert."));
+                      setMessage(t("Zugang gespeichert."));
                     })
                   }
                 >
@@ -2129,18 +2361,16 @@ export default function App() {
                 </Button>
                 <Button
                   secondary
-                  disabled={busy}
+                  disabled={busy || !hasSelectedCredential}
                   onClick={() =>
                     act(async () => {
                       if (
-                        !confirm(
-                          t("Zentralen Zugang dieses Anbieters entfernen?"),
-                        )
+                        !confirm(t("Diesen gespeicherten API-Key entfernen?"))
                       )
                         return;
                       const d = await callFunction("credentials", {
                         action: "delete",
-                        provider: centralProvider,
+                        ...credentialTarget,
                       });
                       setCredentials(d.credentials);
                       setMessage(t("Zugang entfernt."));

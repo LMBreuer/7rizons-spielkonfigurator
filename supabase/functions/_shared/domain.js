@@ -310,7 +310,7 @@ function readSingleSnapshot(x) {
       if (!request) fail("Der zugehörige KI-Auftrag fehlt.");
       result = parseResult(x.result, request);
       source = {
-        kind: ["personal", "workshop", "import"].includes(x.source?.kind)
+        kind: ["personal", "workshop", "import", "saved"].includes(x.source?.kind)
           ? x.source.kind
           : "import",
       };
