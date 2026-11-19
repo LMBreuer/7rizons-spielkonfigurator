@@ -31,8 +31,14 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       await db.exec("set role " + role);
     };
     await identity("", "anon");
-    await assert.rejects(() => db.query("select public.my_workshops()"), /permission denied/);
-    assert.equal((await db.query("select * from public.app_settings")).rows.length, 1);
+    await assert.rejects(
+      () => db.query("select public.my_workshops()"),
+      /permission denied/,
+    );
+    assert.equal(
+      (await db.query("select * from public.app_settings")).rows.length,
+      1,
+    );
     await identity(owner);
     assert.equal(
       (await db.query("select public.is_admin() as value")).rows[0].value,

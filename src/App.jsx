@@ -703,19 +703,16 @@ export default function App() {
         {page === "app" && (
           <>
             <header className="project-head no-print">
+              <h1>
+                {t("Eure Themen. ")}
+                <em>{t("Eure Welten.")}</em>
+              </h1>
               <div className="project-heading">
-                <h1>
-                  {draft.context.thema ||
-                    draft.context.name ||
-                    (step === 1 && !worksheets.length ? (
-                      <>
-                        {t("Eure Themen. ")}
-                        <em>{t("Eure Welten.")}</em>
-                      </>
-                    ) : (
-                      t("Unbenanntes Projekt")
-                    ))}
-                </h1>
+                {(draft.context.thema || draft.context.name) && (
+                  <p className="project-title">
+                    {draft.context.thema || draft.context.name}
+                  </p>
+                )}
                 <details
                   ref={projectMenu}
                   className="switch-menu project-menu"
@@ -723,7 +720,7 @@ export default function App() {
                     if (e.currentTarget.open) setProjects(listProjects());
                   }}
                 >
-                  <summary>{t("Projekt")}</summary>
+                  <summary>{t("Projektverwaltung")}</summary>
                   <div className="menu-body">
                     {projects.map((p) => (
                       <button

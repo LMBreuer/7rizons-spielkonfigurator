@@ -543,7 +543,9 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .querySelector("strong"),
     );
     const firstProject = localStorage.getItem("7rizons:active-project");
-    const projectTrigger = screen.getByText("Projekt", { selector: "summary" });
+    const projectTrigger = screen.getByText("Projektverwaltung", {
+      selector: "summary",
+    });
     await user.click(projectTrigger);
     assert.equal(projectTrigger.parentElement.open, true);
     const downloadProject = screen.getByRole("button", {
