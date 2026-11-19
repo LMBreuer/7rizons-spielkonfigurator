@@ -187,6 +187,19 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     assert.equal(document.activeElement.id, "main-content");
     assert.equal(screen.getByLabelText("Datum").type, "date");
     assert.equal(screen.getByLabelText("Semester").tagName, "SELECT");
+    const semester = screen.getByLabelText("Semester", { exact: true });
+    await user.selectOptions(semester, "custom");
+    await user.type(
+      screen.getByLabelText("Anderes Semester", { exact: true }),
+      "WS 2024/25",
+    );
+    assert.equal(screen.getByLabelText("Datum").type, "date");
+    await audit("context with custom semester");
+    await user.selectOptions(semester, "");
+    assert.equal(
+      screen.queryByLabelText("Anderes Semester", { exact: true }),
+      null,
+    );
     await user.type(
       screen.getByLabelText(/Thema des Seminars/),
       "Navigationstest",

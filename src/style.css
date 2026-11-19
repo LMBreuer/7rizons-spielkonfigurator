@@ -328,6 +328,25 @@ fieldset {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
+@media (min-width: 801px) {
+  .context-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: start;
+  }
+  .context-grid > :not(.wide) {
+    grid-column: span 2;
+    min-width: 0;
+  }
+  .context-grid > :nth-child(2),
+  .context-grid > :nth-child(3) {
+    grid-column: span 3;
+  }
+}
+@media (max-width: 800px) {
+  .context-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .wide {
   grid-column: 1/-1;
 }

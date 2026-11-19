@@ -893,7 +893,7 @@ export default function App() {
                         )}
                       </p>
                     </div>
-                    <div className="field-grid">
+                    <div className="field-grid context-grid">
                       {[
                         [
                           "thema",
