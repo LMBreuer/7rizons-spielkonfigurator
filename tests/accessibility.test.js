@@ -543,7 +543,32 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .querySelector("strong"),
     );
     const firstProject = localStorage.getItem("7rizons:active-project");
-    await user.click(document.querySelector(".project-menu summary"));
+    const projectTrigger = screen.getByText("Projekt", { selector: "summary" });
+    await user.click(projectTrigger);
+    assert.equal(projectTrigger.parentElement.open, true);
+    const downloadProject = screen.getByRole("button", {
+      name: "Projekt herunterladen JSON-Datei",
+    });
+    assert.ok(screen.getByText("Im Browser gespeichert"));
+    const createUrl = URL.createObjectURL;
+    const clickAnchor = dom.window.HTMLAnchorElement.prototype.click;
+    let downloaded;
+    let filename;
+    try {
+      URL.createObjectURL = (blob) => {
+        downloaded = blob;
+        return createUrl(blob);
+      };
+      dom.window.HTMLAnchorElement.prototype.click = function () {
+        filename = this.download;
+      };
+      await user.click(downloadProject);
+      assert.match(filename, /\.json$/);
+      assert.equal(JSON.parse(await downloaded.text()).draft.id, firstProject);
+    } finally {
+      URL.createObjectURL = createUrl;
+      dom.window.HTMLAnchorElement.prototype.click = clickAnchor;
+    }
     await user.click(screen.getByRole("button", { name: /Neues Projekt/ }));
     const secondProject = localStorage.getItem("7rizons:active-project");
     assert.notEqual(firstProject, secondProject);

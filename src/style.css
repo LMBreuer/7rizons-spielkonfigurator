@@ -1572,12 +1572,22 @@ html[data-input="pointer"] :focus {
 .switch-menu[open] summary::after {
   transform: rotate(225deg);
 }
-.project-menu h1 {
-  display: inline;
+.project-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  position: relative;
+}
+.project-heading h1 {
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: clamp(1.55rem, 4vw, 2.35rem);
   letter-spacing: -0.035em;
 }
-.project-menu em {
+.project-heading em {
   font-style: normal;
   color: var(--blue);
 }
@@ -1722,6 +1732,25 @@ html[data-input="pointer"] :focus {
 .sheet-tools .button {
   min-height: 2rem;
   background: transparent;
+}
+.switch-menu.project-menu {
+  position: static;
+}
+.project-menu > summary {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.9rem;
+}
+.project-menu > summary:hover,
+.project-menu[open] > summary {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.project-download-format {
+  display: block;
+  color: var(--muted);
 }
 .project-menu .menu-body {
   min-width: min(18rem, 80vw);

@@ -272,6 +272,7 @@ export default function App() {
         ? "7’rizons · Game configurator"
         : "7’rizons · Spielkonfigurator";
   }, [language]);
+  const [savedLocally, setSavedLocally] = useState(false);
   function persistProject() {
     localStorage.setItem(
       PROJECT_PREFIX + draft.id,
@@ -289,7 +290,9 @@ export default function App() {
   useEffect(() => {
     try {
       persistProject();
+      setSavedLocally(true);
     } catch {
+      setSavedLocally(false);
       setError(
         t(
           "Der Browser kann den Entwurf nicht sichern. Bitte als JSON herunterladen.",
@@ -700,134 +703,139 @@ export default function App() {
         {page === "app" && (
           <>
             <header className="project-head no-print">
-              <details
-                ref={projectMenu}
-                className="switch-menu project-menu"
-                onToggle={(e) => {
-                  if (e.currentTarget.open) setProjects(listProjects());
-                }}
-              >
-                <summary
-                  aria-label={
-                    t("Projekt wechseln") +
-                    " · " +
-                    (draft.context.thema ||
-                      draft.context.name ||
-                      t("Unbenanntes Projekt"))
-                  }
+              <div className="project-heading">
+                <h1>
+                  {draft.context.thema ||
+                    draft.context.name ||
+                    (step === 1 && !worksheets.length ? (
+                      <>
+                        {t("Eure Themen. ")}
+                        <em>{t("Eure Welten.")}</em>
+                      </>
+                    ) : (
+                      t("Unbenanntes Projekt")
+                    ))}
+                </h1>
+                <details
+                  ref={projectMenu}
+                  className="switch-menu project-menu"
+                  onToggle={(e) => {
+                    if (e.currentTarget.open) setProjects(listProjects());
+                  }}
                 >
-                  <h1>
-                    {draft.context.thema ||
-                      draft.context.name ||
-                      (step === 1 && !worksheets.length ? (
-                        <>
-                          {t("Eure Themen. ")}
-                          <em>{t("Eure Welten.")}</em>
-                        </>
-                      ) : (
-                        t("Unbenanntes Projekt")
-                      ))}
-                  </h1>
-                </summary>
-                <div className="menu-body">
-                  {projects.map((p) => (
-                    <button
-                      key={p.id}
-                      disabled={busy}
-                      aria-pressed={p.id === draft.id}
-                      onClick={() =>
-                        act(() => {
-                          if (p.id === draft.id) {
-                            projectMenu.current.open = false;
-                            return;
-                          }
-                          const next = JSON.parse(
-                            localStorage.getItem(PROJECT_PREFIX + p.id),
-                          );
-                          applySnapshot(next, next.cloudRevision, next.step);
-                        })
-                      }
-                    >
-                      {p.title || t("Unbenanntes Projekt")}
-                      {projects.some(
-                        (other) => other.id !== p.id && p.title === other.title,
-                      ) && " · " + p.id.slice(0, 6)}
-                    </button>
-                  ))}
-                  <button disabled={busy} onClick={() => act(newConfiguration)}>
-                    + {t("Neues Projekt")}
-                  </button>
-                  <fieldset disabled={busy} className="save-bar">
-                    <span className="save-status">
-                      {t("Im Browser automatisch gesichert ")}
-                    </span>
-                    <div className="save-actions">
-                      <div
-                        className="save-file-actions"
-                        role="group"
-                        aria-label={t("Konfiguration als Datei")}
+                  <summary>{t("Projekt")}</summary>
+                  <div className="menu-body">
+                    {projects.map((p) => (
+                      <button
+                        key={p.id}
+                        disabled={busy}
+                        aria-pressed={p.id === draft.id}
+                        onClick={() =>
+                          act(() => {
+                            if (p.id === draft.id) {
+                              projectMenu.current.open = false;
+                              return;
+                            }
+                            const next = JSON.parse(
+                              localStorage.getItem(PROJECT_PREFIX + p.id),
+                            );
+                            applySnapshot(next, next.cloudRevision, next.step);
+                          })
+                        }
                       >
-                        <Button
-                          secondary
-                          onClick={() =>
-                            download(
-                              JSON.stringify(payload(), null, 2),
-                              jsonFilename(draft.context.thema),
-                              "application/json",
-                            )
-                          }
+                        {p.title || t("Unbenanntes Projekt")}
+                        {projects.some(
+                          (other) =>
+                            other.id !== p.id && p.title === other.title,
+                        ) && " · " + p.id.slice(0, 6)}
+                      </button>
+                    ))}
+                    <button
+                      disabled={busy}
+                      onClick={() => act(newConfiguration)}
+                    >
+                      + {t("Neues Projekt")}
+                    </button>
+                    <fieldset disabled={busy} className="save-bar">
+                      <div className="save-actions">
+                        <div
+                          className="save-file-actions"
+                          role="group"
+                          aria-label={t("Konfiguration als Datei")}
                         >
-                          {t("JSON sichern ")}
-                        </Button>
-                        <Button
-                          secondary
-                          onClick={() => configImportRef.current?.click()}
-                        >
-                          {t("JSON laden ")}
-                        </Button>
-                        <input
-                          ref={configImportRef}
-                          hidden
-                          type="file"
-                          accept=".json"
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            e.target.value = "";
-                            if (file)
-                              act(async () => {
-                                const x = JSON.parse(await fileText(file));
-                                x.draft = {
-                                  ...x.draft,
-                                  id: crypto.randomUUID(),
-                                };
-                                if (x.request)
-                                  x.request = {
-                                    ...x.request,
-                                    configurationId: x.draft.id,
+                          <Button
+                            secondary
+                            onClick={() =>
+                              download(
+                                JSON.stringify(payload(), null, 2),
+                                jsonFilename(draft.context.thema),
+                                "application/json",
+                              )
+                            }
+                          >
+                            {t("Projekt herunterladen")}
+                            <small className="project-download-format">
+                              {t("JSON-Datei")}
+                            </small>
+                          </Button>
+                          <Button
+                            secondary
+                            onClick={() => configImportRef.current?.click()}
+                          >
+                            {t("JSON laden ")}
+                          </Button>
+                          <input
+                            ref={configImportRef}
+                            hidden
+                            type="file"
+                            accept=".json"
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              e.target.value = "";
+                              if (file)
+                                act(async () => {
+                                  const x = JSON.parse(await fileText(file));
+                                  x.draft = {
+                                    ...x.draft,
+                                    id: crypto.randomUUID(),
                                   };
-                                applySnapshot(x);
-                                setMessage(
-                                  t("Datei als neuer Entwurf geladen."),
-                                );
-                              });
-                          }}
-                        />
+                                  if (x.request)
+                                    x.request = {
+                                      ...x.request,
+                                      configurationId: x.draft.id,
+                                    };
+                                  applySnapshot(x);
+                                  setMessage(
+                                    t("Datei als neuer Entwurf geladen."),
+                                  );
+                                });
+                            }}
+                          />
+                        </div>
+                        <div className="save-account-actions">
+                          {session ? (
+                            <Button secondary onClick={() => act(saveOnline)}>
+                              {t("Online speichern ")}
+                            </Button>
+                          ) : (
+                            <Button
+                              secondary
+                              onClick={() => setPage("account")}
+                            >
+                              {t("Für Online-Speichern anmelden ")}
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="save-account-actions">
-                        {session ? (
-                          <Button secondary onClick={() => act(saveOnline)}>
-                            {t("Online speichern ")}
-                          </Button>
-                        ) : (
-                          <Button secondary onClick={() => setPage("account")}>
-                            {t("Für Online-Speichern anmelden ")}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </fieldset>
-                </div>
-              </details>
+                      {savedLocally && (
+                        <span className="save-status">
+                          {t("Im Browser gespeichert")}
+                        </span>
+                      )}
+                    </fieldset>
+                  </div>
+                </details>
+              </div>
               {step === 1 &&
                 !draft.context.thema &&
                 !draft.context.name &&
