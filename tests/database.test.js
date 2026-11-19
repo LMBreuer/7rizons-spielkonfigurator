@@ -10,7 +10,7 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     config = "00000000-0000-4000-8000-000000000010";
   try {
     await db.exec(
-      `create schema auth; create table auth.users(id uuid primary key); create role anon; create role authenticated; create role service_role bypassrls; create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to anon,authenticated,service_role; grant execute on function auth.uid() to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role;`,
+      `create schema auth; create table auth.users(id uuid primary key); create role anon; create role authenticated; create role service_role bypassrls; create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to anon,authenticated,service_role; grant execute on function auth.uid() to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role; alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;`,
     );
     const migrations = new URL("../supabase/migrations/", import.meta.url);
     for (const file of (await readdir(migrations))
@@ -30,6 +30,9 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       ]);
       await db.exec("set role " + role);
     };
+    await identity("", "anon");
+    await assert.rejects(() => db.query("select public.my_workshops()"), /permission denied/);
+    assert.equal((await db.query("select * from public.app_settings")).rows.length, 1);
     await identity(owner);
     assert.equal(
       (await db.query("select public.is_admin() as value")).rows[0].value,
