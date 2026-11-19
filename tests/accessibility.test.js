@@ -470,9 +470,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(
       screen.getByRole("button", { name: /Go to the game configurator/ }),
     );
-    await user.click(
-      screen.getByRole("button", { name: "Configuration", exact: true }),
-    );
+    await user.click(screen.getByRole("button", { name: /Context/ }));
     await user.selectOptions(
       screen.getByLabelText("Go directly to a step"),
       "1",

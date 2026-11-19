@@ -16,7 +16,7 @@ Ein eigenes Projekt für den Konfigurator verwenden. Keine Migration in das best
 insert into public.admins(user_id) values ('AUTH-USER-UUID');
 ```
 
-Normale Nutzer können diese Tabelle nicht verändern. Magic-Link- und Passwortlogin verwenden denselben Supabase-Identitätsdienst.
+Die Superadmin-Rolle für die Projektübersicht separat über `public.superadmins(user_id)` vergeben. Workshopmoderation in der Webapp unter **Administration → Workshops → Projekte und Moderation** einem bestätigten Konto zuordnen. Magic-Link- und Passwortlogin verwenden denselben Supabase-Identitätsdienst.
 
 ## 2. Edge Functions
 
@@ -50,7 +50,7 @@ Unter Settings → Pages als Source **GitHub Actions** wählen. Der Workflow fü
 1. Als Admin anmelden und für die gewünschten Anbieter gültige Modell-IDs eintragen. Leere IDs deaktivieren den Anbieter. Verfügbarkeit, API-Berechtigungen und Ausgabeformat je Modell prüfen.
 2. Für zentrale Nutzung einen Provider-Key hinterlegen, beim Anbieter ein Kostenlimit setzen und einen Workshop anlegen.
 3. Workshop-KI bewusst einschalten; standardmäßig ist sie aus.
-4. Workshopcode an die vorgesehenen Teilnehmenden weitergeben. Der Code ermöglicht angemeldeten Personen den Workshopbeitritt; er ist kein API-Key. Codes vertraulich behandeln und Workshops nach Ende schließen.
+4. Einladungslink, QR-Code oder Zugangscode an die vorgesehenen Teilnehmenden weitergeben. Nach der Anmeldung bestätigen sie den Workshopbeitritt. Einladungen vertraulich behandeln und Workshops nach Ende schließen.
 5. Aufruflimit insgesamt und Stundenlimit je Person setzen. Fehlversuche zählen mit. Bereits abgeschickte Provideraufrufe können auch bei Timeout Kosten verursachen.
 
 ## 5. Abnahme vor dem Workshop

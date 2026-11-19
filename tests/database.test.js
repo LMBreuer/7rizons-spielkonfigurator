@@ -10,7 +10,7 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     config = "00000000-0000-4000-8000-000000000010";
   try {
     await db.exec(
-      `create schema auth; create table auth.users(id uuid primary key); create role anon; create role authenticated; create role service_role bypassrls; create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to anon,authenticated,service_role; grant execute on function auth.uid() to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role; alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;`,
+      `create schema auth; create table auth.users(id uuid primary key, email text, email_confirmed_at timestamptz); create role anon; create role authenticated; create role service_role bypassrls; create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to anon,authenticated,service_role; grant execute on function auth.uid() to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role; alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;`,
     );
     const migrations = new URL("../supabase/migrations/", import.meta.url);
     for (const file of (await readdir(migrations))
@@ -23,6 +23,11 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       admin,
     ]);
     await db.query("insert into public.admins values($1)", [admin]);
+    await db.query("insert into public.superadmins values($1)", [admin]);
+    await db.query(
+      "update auth.users set email = case when id = $1 then 'owner@example.test' else 'moderator@example.test' end, email_confirmed_at = now() where id in ($1,$2)",
+      [owner, other],
+    );
     const identity = async (id, role = "authenticated") => {
       await db.exec("reset role");
       await db.query("select set_config('request.jwt.claim.sub',$1,false)", [
@@ -171,6 +176,136 @@ test("database migration enforces private drafts, admin roles, explicit submissi
           "insert into public.provider_credentials(provider,ciphertext,iv) values('openai','encrypted','iv')",
         ),
       /row-level security/,
+    );
+    const visible = (
+      await db.query("select * from public.superadmin_projects()")
+    ).rows[0];
+    assert.equal(visible.title, "Mein Entwurf");
+    assert.equal(visible.payload, undefined);
+    assert.equal(
+      (
+        await db.query(
+          "select public.request_project_access($1) as recipient",
+          [config],
+        )
+      ).rows[0].recipient,
+      "owner@example.test",
+    );
+    const request = (
+      await db.query("select * from public.superadmin_projects()")
+    ).rows[0];
+    await assert.rejects(
+      () =>
+        db.query("select public.read_approved_project($1)", [
+          request.request_id,
+        ]),
+      /nicht freigegeben/,
+    );
+    await db.query(
+      "select public.set_workshop_moderator($1,'moderator@example.test',true)",
+      [w],
+    );
+    await identity(other);
+    await assert.rejects(
+      () => db.query("select public.superadmin_projects()"),
+      /Superadministration/,
+    );
+    await assert.rejects(
+      () =>
+        db.query("select public.answer_project_access($1,'approved',2)", [
+          request.request_id,
+        ]),
+      /Freigabeanfrage/,
+    );
+    await assert.rejects(
+      () =>
+        db.query("select public.set_workshop_project($1,$2,true)", [w, config]),
+      /eigene Online-Projekte/,
+    );
+    await identity(owner);
+    await db.query("select public.set_workshop_project($1,$2,true)", [
+      w,
+      config,
+    ]);
+    await assert.rejects(
+      () =>
+        db.query("select public.answer_project_access($1,'approved',1)", [
+          request.request_id,
+        ]),
+      /geändert/,
+    );
+    await db.query("select public.answer_project_access($1,'approved',2)", [
+      request.request_id,
+    ]);
+    const token = (
+      await db.query("select public.create_project_share($1,2) as token", [
+        config,
+      ])
+    ).rows[0].token;
+    await identity("", "anon");
+    assert.equal(
+      (await db.query("select public.read_project_share($1) as value", [token]))
+        .rows[0].value.title,
+      "Mein Entwurf",
+    );
+    await assert.rejects(
+      () => db.query("select * from public.project_share_links"),
+      /permission denied/,
+    );
+    await identity(other);
+    assert.equal(
+      (await db.query("select * from public.my_moderated_workshops()")).rows[0]
+        .id,
+      w,
+    );
+    assert.equal(
+      (await db.query("select * from public.list_workshop_projects($1)", [w]))
+        .rows[0].id,
+      config,
+    );
+    const unrelated = (await db.query("select gen_random_uuid() as id")).rows[0]
+      .id;
+    await assert.rejects(
+      () =>
+        db.query("select * from public.list_workshop_projects($1)", [
+          unrelated,
+        ]),
+      /Moderation dieses/,
+    );
+    assert.equal(
+      (await db.query("select * from public.submissions")).rows.length,
+      1,
+    );
+    assert.equal(
+      (await db.query("select * from public.configurations")).rows.length,
+      0,
+    );
+    await identity(admin);
+    assert.equal(
+      (
+        await db.query("select public.read_approved_project($1) as value", [
+          request.request_id,
+        ])
+      ).rows[0].value.result.title,
+      "Ergebnis",
+    );
+    await identity(owner);
+    await db.query("select public.answer_project_access($1,'revoked',2)", [
+      request.request_id,
+    ]);
+    await db.query("select public.revoke_project_share($1)", [config]);
+    await identity(admin);
+    await assert.rejects(
+      () =>
+        db.query("select public.read_approved_project($1)", [
+          request.request_id,
+        ]),
+      /nicht freigegeben/,
+    );
+    assert.equal(
+      (await db.query("select public.read_project_share($1) as value", [token]))
+        .rows[0].value,
+      null,
     );
     await identity(owner, "service_role");
     await db.query("select public.reserve_generation($1,$2,10)", [owner, w]);

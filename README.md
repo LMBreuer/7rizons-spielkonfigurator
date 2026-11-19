@@ -46,7 +46,7 @@ Magic Link ist der normale Login. Admins können E-Mail/Passwort verwenden; die 
 
 Die KI liefert ausschließlich Inhalte, keine ausführbaren Layouts. Ausgabe und Drucklayout bestimmt die Anwendung. Persönliche API-Keys werden weder in Browser-Storage noch in Datenbank, Exporten oder Logs gespeichert. Sie werden für den konkreten Aufruf über HTTPS an die Backendfunktion und den gewählten Anbieter übertragen. Zentrale Schlüssel werden mit AES-256-GCM verschlüsselt gespeichert; der Verschlüsselungsschlüssel bleibt ein Deployment-Secret.
 
-Private Speicherung und Workshop-Abgabe sind getrennt. Eine Abgabe erzeugt eine Kopie des ausdrücklich freigegebenen Stands. Spätere Entwurfsänderungen verändern diese Kopie nicht. Die Moderation sieht keine privaten Entwürfe. Teilnehmende können Abgaben zurückziehen; bereits exportierte Kopien werden dadurch nicht zurückgerufen.
+Die Superadministration sieht Titel und Änderungsdatum online gespeicherter Projekte. Projektinhalte werden als Kopie des aktuellen Online-Stands erst nach Zustimmung freigegeben. Workshopmoderator:innen sehen Titel und Änderungsdatum ausdrücklich zugeordneter Projekte sowie eingereichte Arbeitsblätter ihres Workshops. Freigabelinks geben Personen mit dem Link Zugriff auf eine Kopie eines gespeicherten Projektstands. Freigaben können widerrufen werden. Bereits heruntergeladene Kopien bleiben bei den Empfänger:innen.
 
 ## Darstellung und Zugänglichkeit
 

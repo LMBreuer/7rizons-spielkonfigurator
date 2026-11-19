@@ -1,11 +1,18 @@
 import {
+  AdminProjectList,
+  ProjectRequests,
+  WorkshopInvite,
+  WorkshopManagement,
+  WorkshopProjectList,
+} from "./ProjectModeration.jsx";
+import {
   isProjectId,
   readExchange,
   nextExchange,
   projectFingerprint,
   importDecision,
 } from "./project-exchange.js";
-import { t, useLanguage } from "./i18n.js";
+import { t, useLanguage, getLanguage } from "./i18n.js";
 import React, { useEffect, useRef, useState } from "react";
 import { cloud, unwrap, callFunction } from "./cloud.js";
 import {
@@ -53,6 +60,32 @@ function ApiKeyHelp({ provider }) {
       {t("Beim Anbieter anmelden, einen Key erstellen und hier einfügen.")}
     </p>
   );
+}
+
+const invitationKey = "7rizons:workshop-invitation";
+function initialInvite() {
+  const code = new URLSearchParams(window.location.search)
+    .get("workshop")
+    ?.trim();
+  try {
+    if (code && /^[a-z0-9-]{16,80}$/i.test(code)) {
+      sessionStorage.setItem(invitationKey, code);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("workshop");
+      url.searchParams.set("view", "account");
+      window.history.replaceState(null, "", url.href);
+      return code;
+    }
+    return sessionStorage.getItem(invitationKey) || "";
+  } catch {
+    return code || "";
+  }
+}
+function sharedProjectLink(token) {
+  return new URL(
+    window.location.pathname + "#projekt=" + token,
+    window.location.origin,
+  ).href;
 }
 
 const STORAGE = "7rizons:draft:v1";
@@ -209,10 +242,30 @@ export default function App() {
     window.addEventListener("storage", refresh);
     return () => window.removeEventListener("storage", refresh);
   }, []);
-  const [page, setPage] = useState("app");
+  const [inviteCode] = useState(initialInvite);
+  const [shareToken] = useState(() =>
+    new URLSearchParams(window.location.hash.slice(1)).get("projekt"),
+  );
+  const [page, setPage] = useState(() =>
+    shareToken
+      ? "shared-project"
+      : inviteCode ||
+          new URLSearchParams(window.location.search).get("view") === "account"
+        ? "account"
+        : "app",
+  );
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [session, setSession] = useState(null);
   const [admin, setAdmin] = useState(false);
+  const [superadmin, setSuperadmin] = useState(false);
+  const [adminTab, setAdminTab] = useState("workshops");
+  const [moderatedWorkshops, setModeratedWorkshops] = useState([]);
+  const [moderation, setModeration] = useState(null);
+  const [workshopLinks, setWorkshopLinks] = useState([]);
+  const [projectShare, setProjectShare] = useState(null);
+  const [sharedProject, setSharedProject] = useState(null);
+  const [sharedSheetId, setSharedSheetId] = useState("");
+  const [shareLoaded, setShareLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -235,7 +288,7 @@ export default function App() {
   const [adminLogin, setAdminLogin] = useState(false);
   const [workshops, setWorkshops] = useState([]);
   const [workshopId, setWorkshopId] = useState("");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(inviteCode);
   const [entries, setEntries] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [mySubmissions, setMySubmissions] = useState([]);
@@ -404,6 +457,10 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     setAdmin(false);
+    setSuperadmin(false);
+    setAdminTab("workshops");
+    setModeratedWorkshops([]);
+    setModeration(null);
     setCredentials([]);
     setCentralKey("");
     setMode((mode) =>
@@ -416,6 +473,12 @@ export default function App() {
     if (session) {
       cloud.rpc("is_admin").then(({ data }) => {
         if (alive) setAdmin(!!data);
+      });
+      cloud.rpc("is_superadmin").then(({ data }) => {
+        if (alive) setSuperadmin(!!data);
+      });
+      cloud.rpc("my_moderated_workshops").then(({ data }) => {
+        if (alive) setModeratedWorkshops(data || []);
       });
       cloud.rpc("my_workshops").then(({ data }) => {
         if (alive) setWorkshops(data || []);
@@ -433,6 +496,44 @@ export default function App() {
       alive = false;
     };
   }, [session?.user.id]);
+  useEffect(() => {
+    let alive = true;
+    setWorkshopLinks([]);
+    if (session) {
+      cloud
+        .rpc("my_workshop_project_links", { p_project: draft.id })
+        .then(({ data }) => {
+          if (alive) setWorkshopLinks(data || []);
+        });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [session?.user.id, draft.id]);
+  useEffect(() => {
+    if (!shareToken) return;
+    let alive = true;
+    async function read() {
+      try {
+        if (!cloud || !isProjectId(shareToken)) return;
+        const data = unwrap(
+          await cloud.rpc("read_project_share", { p_token: shareToken }),
+        );
+        if (!data || !alive) return;
+        const snapshot = readSnapshot(data.project);
+        setSharedProject({ ...data, snapshot });
+        setSharedSheetId(snapshot.activeWorksheetId || "");
+      } catch (error) {
+        if (alive) setError(t(error.message));
+      } finally {
+        if (alive) setShareLoaded(true);
+      }
+    }
+    read();
+    return () => {
+      alive = false;
+    };
+  }, [shareToken]);
   useEffect(() => {
     setSubmissionConsent(false);
   }, [draft.revision, result, workshopId]);
@@ -485,6 +586,9 @@ export default function App() {
     await refreshWorkshops();
     setWorkshopId(id);
     setCode("");
+    try {
+      sessionStorage.removeItem(invitationKey);
+    } catch {}
     setMessage(t("Du bist dem Workshop beigetreten."));
   }
   async function saveOnline() {
@@ -767,13 +871,97 @@ export default function App() {
           .order("created_at", { ascending: false }),
       ),
     );
+    setPage("admin");
     const data = await callFunction("credentials", {
       action: "status",
       provider: "openai",
     });
     setCredentials(data.credentials);
-    setPage("admin");
   }
+  async function changeWorkshopLink(id, link) {
+    if (link) await saveOnline();
+    unwrap(
+      await cloud.rpc("set_workshop_project", {
+        p_workshop: id,
+        p_project: draft.id,
+        p_link: link,
+      }),
+    );
+    setWorkshopLinks(
+      unwrap(
+        await cloud.rpc("my_workshop_project_links", { p_project: draft.id }),
+      ),
+    );
+    setMessage(
+      t(
+        link
+          ? "Projekt dem Workshop zugeordnet."
+          : "Projektzuordnung entfernt.",
+      ),
+    );
+  }
+  async function loadModeration(workshop) {
+    const [projects, entries] = await Promise.all([
+      cloud.rpc("list_workshop_projects", { p_workshop: workshop.id }),
+      cloud
+        .from("submissions")
+        .select("id,title,status,created_at,workshop_id,payload")
+        .eq("workshop_id", workshop.id)
+        .order("created_at", { ascending: false }),
+    ]);
+    setModeration({
+      workshop,
+      projects: unwrap(projects),
+      submissions: unwrap(entries),
+    });
+    setPage("moderation");
+  }
+  async function loadProjectShare() {
+    setProjectShare(
+      unwrap(await cloud.rpc("my_project_share", { p_project: draft.id }))[0] ||
+        null,
+    );
+    if (projectMenu.current) projectMenu.current.open = false;
+    setPage("project-share");
+  }
+  async function publishProjectShare() {
+    const revision = await saveOnline();
+    const token = unwrap(
+      await cloud.rpc("create_project_share", {
+        p_project: draft.id,
+        p_revision: revision,
+      }),
+    );
+    setProjectShare({ token, shared_revision: revision });
+  }
+  function openApprovedProject(project, payload) {
+    const snapshot = readSnapshot(payload);
+    setSharedProject({
+      title: project.title,
+      project: payload,
+      snapshot,
+      stand: project.shared_revision,
+    });
+    setSharedSheetId(snapshot.activeWorksheetId || "");
+    setPage("superadmin-project");
+  }
+  function downloadSharedProject(title, snapshot) {
+    download(
+      JSON.stringify(snapshot, null, 2),
+      jsonFilename(title),
+      "application/json",
+    );
+  }
+  const activeSharedSheet = sharedProject?.snapshot.worksheets.find(
+    (w) => w.id === sharedSheetId,
+  );
+  const adminSections = [
+    ...(superadmin ? [["projects", t("Projekte")]] : []),
+    ["workshops", t("Workshops")],
+    ["submissions", t("Abgaben")],
+    ["credentials", t("KI-Zugänge")],
+    ["settings", t("Einstellungen")],
+  ];
   const notices = (
     <>
       {error && (
@@ -846,16 +1034,6 @@ export default function App() {
               </button>
             ))}
           </div>
-          {session && (
-            <button disabled={busy} onClick={() => act(loadArchive)}>
-              {t("Meine Entwürfe ")}
-            </button>
-          )}
-          {admin && (
-            <button disabled={busy} onClick={() => act(loadAdmin)}>
-              {t("Administration ")}
-            </button>
-          )}
           <button disabled={busy} onClick={() => setPage("account")}>
             {session ? t("Mein Zugang") : t("Anmelden")}
           </button>
@@ -917,20 +1095,27 @@ export default function App() {
         {page === "app" && (
           <>
             <header className="project-head no-print">
-              <h1>
-                {t("Eure Themen. ")}
-                <em>{t("Eure Welten.")}</em>
-              </h1>
+              <div className="project-identity">
+                <h1>
+                  {t("Eure Themen. ")}
+                  <em>{t("Eure Welten.")}</em>
+                </h1>
+                {draft.context.thema || draft.context.name ? (
+                  <p className="project-title">
+                    {draft.context.thema || draft.context.name}
+                  </p>
+                ) : (
+                  step === 1 &&
+                  !worksheets.length && (
+                    <p>{t("Gestalte 7’rizons für deine Lehre.")}</p>
+                  )
+                )}
+              </div>
               <div
                 className="project-heading"
                 role="group"
                 aria-label={t("Projektleiste")}
               >
-                {(draft.context.thema || draft.context.name) && (
-                  <p className="project-title">
-                    {draft.context.thema || draft.context.name}
-                  </p>
-                )}
                 <details
                   ref={projectMenu}
                   className="switch-menu project-menu"
@@ -972,6 +1157,30 @@ export default function App() {
                     >
                       + {t("Neues Projekt")}
                     </button>
+                    {session && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => act(loadProjectShare)}
+                      >
+                        {t("Projekt per Link teilen")}
+                      </button>
+                    )}
+                    {session &&
+                      (workshops.some((w) => w.active) ||
+                        workshopLinks.length > 0) && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            if (projectMenu.current)
+                              projectMenu.current.open = false;
+                            setPage("project-workshops");
+                          }}
+                        >
+                          {t("Projekt einem Workshop zuordnen")}
+                        </button>
+                      )}
                     <fieldset disabled={busy} className="save-bar">
                       <div className="save-actions">
                         <div
@@ -1024,53 +1233,45 @@ export default function App() {
                   )}
                 </div>
               </div>
-              {step === 1 &&
-                !draft.context.thema &&
-                !draft.context.name &&
-                !worksheets.length && (
-                  <p>{t("Gestalte 7’rizons für deine Lehre.")}</p>
-                )}
             </header>
-            {(worksheets.length > 0 || step === 5) && (
-              <nav
-                className="area-nav no-print"
-                aria-label={t("Projektbereiche")}
-              >
+            <nav
+              className="steps no-print"
+              aria-label={t("Konfigurationsschritte")}
+            >
+              {steps.map((label, i) => (
                 <button
+                  key={t(label)}
                   disabled={busy}
-                  aria-current={step < 5 ? "page" : undefined}
-                  onClick={() => setStep(lastConfigStep.current || 1)}
+                  className={step === i + 1 ? "active" : ""}
+                  aria-current={step === i + 1 ? "step" : undefined}
+                  onClick={() => setStep(i + 1)}
                 >
-                  {t("Konfiguration")}
+                  <span>{i + 1}</span>
+                  {i === 4 && worksheets.length
+                    ? `${t("Arbeitsblätter")} (${worksheets.length})`
+                    : t(label)}
                 </button>
-                <button
-                  disabled={busy}
-                  aria-current={step === 5 ? "page" : undefined}
-                  onClick={() => setStep(5)}
-                >
-                  {t("Arbeitsblätter")} ({worksheets.length})
-                </button>
-              </nav>
-            )}
-            {step < 5 && (
-              <nav
-                className="steps no-print"
-                aria-label={t("Konfigurationsschritte")}
+              ))}
+            </nav>
+            <label className="step-jump mobile-step-jump no-print">
+              <span className="sr-only">
+                {t("Direkt zu einem Schritt springen ")}
+              </span>
+              <select
+                value={step}
+                onChange={(e) => setStep(Number(e.target.value))}
               >
-                {steps.map((label, i) => (
-                  <button
-                    key={t(label)}
-                    disabled={busy}
-                    className={step === i + 1 ? "active" : ""}
-                    aria-current={step === i + 1 ? "step" : undefined}
-                    onClick={() => setStep(i + 1)}
-                  >
-                    <span>{i + 1}</span>
-                    {t(label)}
-                  </button>
+                {steps.map((label, index) => (
+                  <option key={t(label)} value={index + 1}>
+                    {t("Schritt {0} von {1}", {
+                      0: index + 1,
+                      1: steps.length,
+                    })}{" "}
+                    · {t(label)}
+                  </option>
                 ))}
-              </nav>
-            )}
+              </select>
+            </label>
             <div className="workspace no-print" aria-busy={busy}>
               <fieldset disabled={busy} aria-label={t("Spielkonfiguration")}>
                 {step === 1 && (
@@ -1772,21 +1973,7 @@ export default function App() {
                     >
                       {t("← Zurück ")}
                     </Button>
-                    <label className="step-jump">
-                      <span className="sr-only">
-                        {t("Direkt zu einem Schritt springen ")}
-                      </span>
-                      <select
-                        value={step}
-                        onChange={(e) => setStep(Number(e.target.value))}
-                      >
-                        {steps.map((label, index) => (
-                          <option key={t(label)} value={index + 1}>
-                            {index + 1} / {steps.length} · {t(label)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+
                     <Button
                       disabled={
                         step === 5 || (step === 2 && !draft.learning.length)
@@ -1900,7 +2087,7 @@ export default function App() {
                       <h2>{t("Mit der Workshopmoderation teilen")}</h2>
                       <p>
                         {t(
-                          "Dein Entwurf ist privat. Erst mit der Abgabe erhält die Moderation eine Kopie dieses Stands samt Kontextangaben. ",
+                          "Mit der Abgabe erhält die Moderation eine Kopie des gewählten Arbeitsblatts samt Kontextangaben. Eine Projektzuordnung zeigt nur Titel und Änderungsdatum.",
                         )}
                       </p>
                       <WorkshopJoin
@@ -1914,6 +2101,36 @@ export default function App() {
                         }}
                         join={() => act(join)}
                       />
+                      {workshops.some((w) => w.id === workshopId && w.active) &&
+                        !workshopLinks.some(
+                          (link) => link.workshop_id === workshopId,
+                        ) && (
+                          <Button
+                            secondary
+                            disabled={busy}
+                            onClick={() =>
+                              act(() => changeWorkshopLink(workshopId, true))
+                            }
+                          >
+                            {t("Projekt diesem Workshop zuordnen")}
+                          </Button>
+                        )}
+                      {workshopLinks.map((link) => (
+                        <div className="archive-row" key={link.workshop_id}>
+                          <span>{link.title}</span>
+                          <Button
+                            secondary
+                            disabled={busy}
+                            onClick={() =>
+                              act(() =>
+                                changeWorkshopLink(link.workshop_id, false),
+                              )
+                            }
+                          >
+                            {t("Zuordnung entfernen")}
+                          </Button>
+                        </div>
+                      ))}
                       <label className="checkbox">
                         <input
                           type="checkbox"
@@ -1974,6 +2191,45 @@ export default function App() {
                   {t("Angemeldet als ")}
                   {session.user.email}
                 </p>
+                <div className="actions account-actions">
+                  <Button
+                    secondary
+                    disabled={busy}
+                    onClick={() => act(loadArchive)}
+                  >
+                    {t("Meine Entwürfe ")}
+                  </Button>
+                  {admin && (
+                    <Button
+                      secondary
+                      disabled={busy}
+                      onClick={() => {
+                        setAdminTab(superadmin ? "projects" : "workshops");
+                        act(loadAdmin);
+                      }}
+                    >
+                      {t("Administration ")}
+                    </Button>
+                  )}
+                </div>
+                {moderatedWorkshops.length > 0 && (
+                  <section className="account-section">
+                    <h2>{t("Meine moderierten Workshops")}</h2>
+                    <div className="actions">
+                      {moderatedWorkshops.map((w) => (
+                        <Button
+                          key={w.id}
+                          secondary
+                          disabled={busy}
+                          onClick={() => act(() => loadModeration(w))}
+                        >
+                          {w.title}
+                        </Button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                <ProjectRequests act={act} busy={busy} message={setMessage} />
                 <WorkshopJoin
                   {...{
                     workshops,
@@ -2211,420 +2467,655 @@ export default function App() {
             )}
           </Card>
         )}
-        {page === "admin" && admin && (
-          <div className="admin-grid">
-            <Card>
-              <span className="eyebrow">{t("Administration")}</span>
-              <h1>{t("Administration")}</h1>
-              <p>
-                {t(
-                  "Modelle und Auswahlgrenzen gelten für neue Aufträge. Bereits erstellte Arbeitsblätter behalten ihre Einstellungen. ",
-                )}
-              </p>
-              <div className="field-grid">
-                {[
-                  ["maxInhalt", t("Inhaltliche Auswahlgrenze"), 4],
-                  ["maxWiss", t("Wissenschaftliche Auswahlgrenze"), 5],
-                  ["cardsPerMechanism", t("Karten je Mechanik"), 5],
-                  ["hourlyLimit", t("KI-Aufrufe je Person / Stunde"), 30],
-                ].map(([k, label, max]) => (
-                  <label key={k}>
-                    {t(label)}
-                    <input
-                      type="number"
-                      min="1"
-                      max={max}
-                      value={settings[k]}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          [k]: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                ))}
-                {Object.entries(PROVIDERS).map(([id, label]) => (
-                  <label key={id}>
-                    {t(label)}
-                    {t(" · Modell-ID ")}
-                    <input
-                      value={settings.models[id]}
-                      maxLength={100}
-                      placeholder={t("Leer = Anbieter deaktiviert")}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          models: { ...s.models, [id]: e.target.value },
-                        }))
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  act(async () => {
-                    const s = settingsOf(settings);
-                    unwrap(
-                      await cloud
-                        .from("app_settings")
-                        .update({ value: s })
-                        .eq("id", true),
-                    );
-                    setSettings(s);
-                    setMessage(t("Einstellungen veröffentlicht."));
-                  })
-                }
-              >
-                {t("Einstellungen veröffentlichen ")}
-              </Button>
-            </Card>
-            <Card>
-              <h2>{t("Gespeicherte KI-Zugänge")}</h2>
-              <p>
-                {t(
-                  "API-Keys werden serverseitig verschlüsselt gespeichert und nie wieder angezeigt. ",
-                )}
-              </p>
-              <label>
-                {t("Freigabe")}
-                <select
-                  value={credentialScope}
-                  onChange={(e) => {
-                    setCredentialScope(e.target.value);
-                    setCentralKey("");
-                  }}
-                >
-                  <option value="private">{t("Nur für mich")}</option>
-                  <option value="workshop">{t("Für einen Workshop")}</option>
-                </select>
-              </label>
-              {credentialScope === "workshop" && (
-                <>
-                  <label>
-                    {t("Workshop")}
-                    <select
-                      value={credentialWorkshopId}
-                      onChange={(e) => {
-                        setCredentialWorkshopId(e.target.value);
-                        setCentralKey("");
-                      }}
-                    >
-                      <option value="">{t("Workshop auswählen")}</option>
-                      {adminWorkshops.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <p className="muted">
-                    {t(
-                      "Teilnehmende können den Zugang verwenden, sobald die Workshop-KI für diesen Workshop eingeschaltet ist.",
-                    )}
-                  </p>
-                </>
+        {page === "project-share" && session && (
+          <Card>
+            <h1>{t("Projekt per Link teilen")}</h1>
+            <p>
+              {t(
+                "Personen mit dem Link können eine Kopie des gespeicherten Stands samt Arbeitsblättern lesen und übernehmen. Du kannst den Link widerrufen.",
               )}
-              <label>
-                {t("Anbieter ")}
-                <select
-                  value={centralProvider}
-                  onChange={(e) => {
-                    setCentralProvider(e.target.value);
-                    setCentralKey("");
-                  }}
-                >
-                  {Object.entries(PROVIDERS).map(([id, l]) => (
-                    <option key={id} value={id}>
-                      {t(l)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p>
-                {t(
-                  hasSelectedCredential
-                    ? "API-Key hinterlegt."
-                    : "Für diese Auswahl ist kein API-Key hinterlegt.",
-                )}
-              </p>
-              <label>
-                {t("Neuer API-Key ")}
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={centralKey}
-                  onChange={(e) => setCentralKey(e.target.value)}
-                  maxLength={1000}
-                />
-              </label>
-              <ApiKeyHelp provider={centralProvider} />
-              <div className="actions">
-                <Button
-                  disabled={
-                    busy ||
-                    !centralKey.trim() ||
-                    (credentialScope === "workshop" && !credentialWorkshopId)
-                  }
-                  onClick={() =>
-                    act(async () => {
-                      const d = await callFunction("credentials", {
-                        action: "set",
-                        ...credentialTarget,
-                        apiKey: centralKey.trim(),
-                      });
-                      setCentralKey("");
-                      setCredentials(d.credentials);
-                      setMessage(t("Zugang gespeichert."));
-                    })
-                  }
-                >
-                  {t("Zugang hinterlegen ")}
-                </Button>
-                <Button
-                  secondary
-                  disabled={busy || !hasSelectedCredential}
-                  onClick={() =>
-                    act(async () => {
-                      if (
-                        !confirm(t("Diesen gespeicherten API-Key entfernen?"))
-                      )
-                        return;
-                      const d = await callFunction("credentials", {
-                        action: "delete",
-                        ...credentialTarget,
-                      });
-                      setCredentials(d.credentials);
-                      setMessage(t("Zugang entfernt."));
-                    })
-                  }
-                >
-                  {t("Zugang entfernen ")}
-                </Button>
-              </div>
-            </Card>
-            <Card>
-              <h2>{t("Workshops")}</h2>
-              <p className="muted">
-                {t(
-                  "Gib den Zugangscode an die Teilnehmenden weiter. Sie melden sich an und geben ihn unter „Dein Zugang“ ein. Danach können sie Arbeitsblätter an diesen Workshop abgeben.",
-                )}
-              </p>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  act(async () => {
-                    unwrap(
-                      await cloud.from("workshops").insert({
-                        title: workshopTitle,
-                        join_code: crypto.randomUUID().replaceAll("-", ""),
-                      }),
-                    );
-                    setWorkshopTitle("");
-                    setAdminWorkshops(
-                      unwrap(
-                        await cloud
-                          .from("workshops")
-                          .select("*")
-                          .order("created_at", { ascending: false }),
-                      ),
-                    );
-                    await refreshWorkshops();
-                    setMessage(
-                      t(
-                        "Workshop angelegt. Zentrale KI ist zunächst ausgeschaltet.",
-                      ),
-                    );
-                  });
-                }}
-              >
+            </p>
+            {projectShare && (
+              <>
                 <label>
-                  {t("Neuer Workshop ")}
+                  {t("Freigabelink")}
                   <input
-                    value={workshopTitle}
-                    onChange={(e) => setWorkshopTitle(e.target.value)}
-                    required
-                    maxLength={200}
+                    readOnly
+                    value={sharedProjectLink(projectShare.token)}
+                    onFocus={(e) => e.currentTarget.select()}
                   />
                 </label>
-                <Button type="submit" disabled={busy}>
-                  {t("Workshop anlegen ")}
-                </Button>
-              </form>
-              {adminWorkshops.map((w) => (
-                <div className="workshop-admin" key={w.id}>
-                  <h3>{w.title}</h3>
-                  <label>
-                    {t("Zugangscode ")}
-                    <input readOnly value={w.join_code} />
-                  </label>
+                <p className="muted">
+                  {t("Stand {0}", { 0: projectShare.shared_revision })}
+                </p>
+              </>
+            )}
+            <div className="actions">
+              <Button disabled={busy} onClick={() => act(publishProjectShare)}>
+                {t(
+                  projectShare
+                    ? "Link für den aktuellen Stand ersetzen"
+                    : "Freigabelink erstellen",
+                )}
+              </Button>
+              {projectShare && (
+                <>
+                  <Button
+                    secondary
+                    disabled={busy}
+                    onClick={() =>
+                      act(async () => {
+                        await navigator.clipboard.writeText(
+                          sharedProjectLink(projectShare.token),
+                        );
+                        setMessage(t("Freigabelink kopiert."));
+                      })
+                    }
+                  >
+                    {t("Freigabelink kopieren")}
+                  </Button>
+                  <Button
+                    secondary
+                    disabled={busy}
+                    onClick={() =>
+                      act(async () => {
+                        unwrap(
+                          await cloud.rpc("revoke_project_share", {
+                            p_project: draft.id,
+                          }),
+                        );
+                        setProjectShare(null);
+                        setMessage(t("Freigabelink widerrufen."));
+                      })
+                    }
+                  >
+                    {t("Freigabelink widerrufen")}
+                  </Button>
+                </>
+              )}
+              <Button secondary onClick={() => setPage("app")}>
+                {t("Zum Konfigurator")}
+              </Button>
+            </div>
+          </Card>
+        )}
+        {(page === "shared-project" ||
+          (page === "superadmin-project" && superadmin)) && (
+          <>
+            <Card className="no-print">
+              <h1>{sharedProject?.title || t("Geteiltes Projekt")}</h1>
+              {!sharedProject && (
+                <p>
+                  {t(
+                    shareLoaded
+                      ? "Dieser Freigabelink ist nicht mehr gültig."
+                      : "Projekt wird geladen …",
+                  )}
+                </p>
+              )}
+              {sharedProject && (
+                <>
+                  <p>
+                    {t("Freigegebener Stand {0}", { 0: sharedProject.stand })}
+                  </p>
+                  {sharedProject.snapshot.worksheets.length > 0 && (
+                    <label>
+                      {t("Arbeitsblatt")}
+                      <select
+                        value={sharedSheetId}
+                        onChange={(e) => setSharedSheetId(e.target.value)}
+                      >
+                        {sharedProject.snapshot.worksheets.map((w, index) => (
+                          <option key={w.id} value={w.id}>
+                            {index + 1}. {w.result.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {!sharedProject.snapshot.worksheets.length && (
+                    <dl className="shared-context">
+                      {[
+                        ["thema", "Thema"],
+                        ["fach", "Fach / Disziplin"],
+                        ["name", "Name der Lehrveranstaltung"],
+                        ["dozent", "Dozent:in"],
+                        ["semester", "Semester"],
+                        ["datum", "Datum"],
+                      ]
+                        .filter(
+                          ([key]) => sharedProject.snapshot.draft.context[key],
+                        )
+                        .map(([key, label]) => (
+                          <div key={key}>
+                            <dt>{t(label)}</dt>
+                            <dd>{sharedProject.snapshot.draft.context[key]}</dd>
+                          </div>
+                        ))}
+                    </dl>
+                  )}
                   <div className="actions">
+                    {page === "shared-project" && (
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          act(async () => {
+                            const incoming = {
+                              ...sharedProject.snapshot,
+                              exchange: readExchange(
+                                sharedProject.project.exchange,
+                              ),
+                            };
+                            acceptImport(
+                              incoming,
+                              await projectFingerprint(incoming),
+                              null,
+                              true,
+                            );
+                            window.history.replaceState(
+                              null,
+                              "",
+                              window.location.pathname,
+                            );
+                          })
+                        }
+                      >
+                        {t("Als eigenes Projekt übernehmen")}
+                      </Button>
+                    )}
+                    <Button
+                      secondary
+                      onClick={() =>
+                        downloadSharedProject(
+                          sharedProject.title,
+                          sharedProject.project,
+                        )
+                      }
+                    >
+                      {t("Projekt herunterladen")}
+                    </Button>
+                    {page === "superadmin-project" && (
+                      <Button secondary onClick={() => setPage("admin")}>
+                        {t("Zurück zur Projektübersicht")}
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </Card>
+            {activeSharedSheet && (
+              <Worksheet
+                draft={activeSharedSheet.draft}
+                result={activeSharedSheet.result}
+                settings={activeSharedSheet.resultSettings}
+                source={activeSharedSheet.source}
+              />
+            )}
+          </>
+        )}
+        {page === "project-workshops" && session && (
+          <Card>
+            <h1>{t("Projekt einem Workshop zuordnen")}</h1>
+            <p>
+              {t(
+                "Die Moderation sieht Titel und Änderungsdatum. Arbeitsblätter kannst du gesondert abgeben.",
+              )}
+            </p>
+            {workshops
+              .filter(
+                (w) =>
+                  w.active ||
+                  workshopLinks.some((link) => link.workshop_id === w.id),
+              )
+              .map((w) => {
+                const linked = workshopLinks.some(
+                  (link) => link.workshop_id === w.id,
+                );
+                return (
+                  <div className="archive-row" key={w.id}>
+                    <span>{w.title}</span>
                     <Button
                       secondary
                       disabled={busy}
                       onClick={() =>
-                        act(async () => {
-                          await navigator.clipboard.writeText(w.join_code);
-                          setMessage(t("Workshop-Code kopiert."));
-                        })
+                        act(() => changeWorkshopLink(w.id, !linked))
                       }
                     >
-                      {t("Workshop-Code kopieren")}
-                    </Button>
-                    <Button
-                      secondary
-                      onClick={() =>
-                        act(async () => {
-                          unwrap(
-                            await cloud.rpc("join_workshop", {
-                              p_code: w.join_code,
-                            }),
-                          );
-                          await refreshWorkshops();
-                          setMessage(t("Du bist dem Workshop beigetreten."));
-                        })
-                      }
-                    >
-                      {t("Selbst beitreten ")}
-                    </Button>
-                    <Button
-                      secondary
-                      onClick={() =>
-                        act(async () => {
-                          unwrap(
-                            await cloud
-                              .from("workshops")
-                              .update({ active: !w.active })
-                              .eq("id", w.id),
-                          );
-                          await loadAdmin();
-                          await refreshWorkshops();
-                        })
-                      }
-                    >
-                      {w.active
-                        ? t("Workshop schließen")
-                        : t("Workshop öffnen")}
-                    </Button>
-                    <Button
-                      secondary
-                      onClick={() =>
-                        act(async () => {
-                          unwrap(
-                            await cloud
-                              .from("workshops")
-                              .update({ central_ai: !w.central_ai })
-                              .eq("id", w.id),
-                          );
-                          await loadAdmin();
-                          await refreshWorkshops();
-                        })
-                      }
-                    >
-                      {w.central_ai
-                        ? t("Workshop-KI ausschalten")
-                        : t("Workshop-KI einschalten")}
+                      {t(linked ? "Zuordnung entfernen" : "Projekt zuordnen")}
                     </Button>
                   </div>
-                  <label>
-                    {t("Maximale KI-Aufrufe insgesamt ")}
-                    <input
-                      type="number"
-                      min="1"
-                      max="10000"
-                      defaultValue={w.generation_limit}
-                      onBlur={(e) =>
-                        act(async () => {
-                          const n = Number(e.target.value);
-                          if (!Number.isInteger(n) || n < 1 || n > 10000)
-                            throw new Error(
-                              t("Limit muss zwischen 1 und 10000 liegen."),
-                            );
-                          unwrap(
-                            await cloud
-                              .from("workshops")
-                              .update({ generation_limit: n })
-                              .eq("id", w.id),
-                          );
-                          setMessage(t("Workshoplimit gespeichert."));
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-              ))}
-            </Card>
-            <Card>
-              <h2>{t("Abgaben an die Moderation")}</h2>
-              <p>
-                {t(
-                  "Hier erscheinen nur ausdrücklich eingereichte Stände, keine privaten Entwürfe. ",
-                )}
-              </p>
-              {submissions.map((s) => (
-                <div className="archive-row" key={s.id}>
-                  <span>
-                    <strong>{s.title}</strong>
-                    <small>
-                      {
-                        adminWorkshops.find((w) => w.id === s.workshop_id)
-                          ?.title
-                      }{" "}
-                      ·{" "}
-                      {new Date(s.created_at).toLocaleString(
-                        language === "en" ? "en-GB" : "de-AT",
-                      )}{" "}
-                      · {t(s.status)}
-                    </small>
-                  </span>
-                  <Button
-                    secondary
-                    onClick={() =>
-                      download(
-                        JSON.stringify(s.payload, null, 2),
-                        jsonFilename(s.payload.draft.context.thema, "abgabe"),
-                        "application/json",
-                      )
-                    }
+                );
+              })}
+            <Button secondary onClick={() => setPage("app")}>
+              {t("Zum Konfigurator")}
+            </Button>
+          </Card>
+        )}
+        {page === "moderation" && session && moderation && (
+          <Card>
+            <h1>{moderation.workshop.title}</h1>
+            {moderation.workshop.active && (
+              <WorkshopInvite
+                workshop={moderation.workshop}
+                act={act}
+                message={setMessage}
+              />
+            )}
+            <h2>{t("Zugeordnete Projekte")}</h2>
+            <WorkshopProjectList projects={moderation.projects} />
+            <h2>{t("Abgaben")}</h2>
+            <SubmissionList
+              submissions={moderation.submissions}
+              workshops={[moderation.workshop]}
+              act={act}
+              onReview={(id) =>
+                setModeration((current) => ({
+                  ...current,
+                  submissions: current.submissions.map((s) =>
+                    s.id === id ? { ...s, status: "gesichtet" } : s,
+                  ),
+                }))
+              }
+            />
+          </Card>
+        )}
+        {page === "admin" && admin && (
+          <div className="admin-grid">
+            <header className="admin-heading">
+              <h1>{t("Administration")}</h1>
+              <nav
+                className="admin-tabs"
+                aria-label={t("Administrationsbereiche")}
+              >
+                {adminSections.map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-current={adminTab === id ? "page" : undefined}
+                    onClick={() => setAdminTab(id)}
                   >
-                    {t("JSON ")}
-                  </Button>
-                  <Button
-                    secondary
-                    onClick={() => {
-                      const x = s.payload;
-                      download(
-                        markdown(x.draft, x.result, x.resultSettings),
-                        "7rizons-abgabe.md",
-                        "text/markdown",
+                    {label}
+                  </button>
+                ))}
+              </nav>
+            </header>
+            {adminTab === "projects" && superadmin && (
+              <Card>
+                <AdminProjectList
+                  act={act}
+                  busy={busy}
+                  openProject={openApprovedProject}
+                />
+              </Card>
+            )}
+            {adminTab === "settings" && (
+              <Card>
+                <h2>{t("Einstellungen")}</h2>
+                <p>
+                  {t(
+                    "Modelle und Auswahlgrenzen gelten für neue Aufträge. Bereits erstellte Arbeitsblätter behalten ihre Einstellungen. ",
+                  )}
+                </p>
+                <div className="field-grid">
+                  {[
+                    ["maxInhalt", t("Inhaltliche Auswahlgrenze"), 4],
+                    ["maxWiss", t("Wissenschaftliche Auswahlgrenze"), 5],
+                    ["cardsPerMechanism", t("Karten je Mechanik"), 5],
+                    ["hourlyLimit", t("KI-Aufrufe je Person / Stunde"), 30],
+                  ].map(([k, label, max]) => (
+                    <label key={k}>
+                      {t(label)}
+                      <input
+                        type="number"
+                        min="1"
+                        max={max}
+                        value={settings[k]}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            [k]: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </label>
+                  ))}
+                  {Object.entries(PROVIDERS).map(([id, label]) => (
+                    <label key={id}>
+                      {t(label)}
+                      {t(" · Modell-ID ")}
+                      <input
+                        value={settings.models[id]}
+                        maxLength={100}
+                        placeholder={t("Leer = Anbieter deaktiviert")}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            models: { ...s.models, [id]: e.target.value },
+                          }))
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    act(async () => {
+                      const s = settingsOf(settings);
+                      unwrap(
+                        await cloud
+                          .from("app_settings")
+                          .update({ value: s })
+                          .eq("id", true),
                       );
+                      setSettings(s);
+                      setMessage(t("Einstellungen veröffentlicht."));
+                    })
+                  }
+                >
+                  {t("Einstellungen veröffentlichen ")}
+                </Button>
+              </Card>
+            )}
+            {adminTab === "credentials" && (
+              <Card>
+                <h2>{t("Gespeicherte KI-Zugänge")}</h2>
+                <p>
+                  {t(
+                    "API-Keys werden serverseitig verschlüsselt gespeichert und nie wieder angezeigt. ",
+                  )}
+                </p>
+                <label>
+                  {t("Freigabe")}
+                  <select
+                    value={credentialScope}
+                    onChange={(e) => {
+                      setCredentialScope(e.target.value);
+                      setCentralKey("");
                     }}
                   >
-                    {t("Markdown ")}
-                  </Button>
+                    <option value="private">{t("Nur für mich")}</option>
+                    <option value="workshop">{t("Für einen Workshop")}</option>
+                  </select>
+                </label>
+                {credentialScope === "workshop" && (
+                  <>
+                    <label>
+                      {t("Workshop")}
+                      <select
+                        value={credentialWorkshopId}
+                        onChange={(e) => {
+                          setCredentialWorkshopId(e.target.value);
+                          setCentralKey("");
+                        }}
+                      >
+                        <option value="">{t("Workshop auswählen")}</option>
+                        {adminWorkshops.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="muted">
+                      {t(
+                        "Teilnehmende können den Zugang verwenden, sobald die Workshop-KI für diesen Workshop eingeschaltet ist.",
+                      )}
+                    </p>
+                  </>
+                )}
+                <label>
+                  {t("Anbieter ")}
+                  <select
+                    value={centralProvider}
+                    onChange={(e) => {
+                      setCentralProvider(e.target.value);
+                      setCentralKey("");
+                    }}
+                  >
+                    {Object.entries(PROVIDERS).map(([id, l]) => (
+                      <option key={id} value={id}>
+                        {t(l)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p>
+                  {t(
+                    hasSelectedCredential
+                      ? "API-Key hinterlegt."
+                      : "Für diese Auswahl ist kein API-Key hinterlegt.",
+                  )}
+                </p>
+                <label>
+                  {t("Neuer API-Key ")}
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={centralKey}
+                    onChange={(e) => setCentralKey(e.target.value)}
+                    maxLength={1000}
+                  />
+                </label>
+                <ApiKeyHelp provider={centralProvider} />
+                <div className="actions">
                   <Button
-                    secondary
+                    disabled={
+                      busy ||
+                      !centralKey.trim() ||
+                      (credentialScope === "workshop" && !credentialWorkshopId)
+                    }
                     onClick={() =>
                       act(async () => {
-                        unwrap(
-                          await cloud.rpc("review_submission", { p_id: s.id }),
-                        );
-                        setSubmissions((a) =>
-                          a.map((x) =>
-                            x.id === s.id ? { ...x, status: "gesichtet" } : x,
-                          ),
-                        );
+                        const d = await callFunction("credentials", {
+                          action: "set",
+                          ...credentialTarget,
+                          apiKey: centralKey.trim(),
+                        });
+                        setCentralKey("");
+                        setCredentials(d.credentials);
+                        setMessage(t("Zugang gespeichert."));
                       })
                     }
                   >
-                    {t("Gesichtet ")}
+                    {t("Zugang hinterlegen ")}
+                  </Button>
+                  <Button
+                    secondary
+                    disabled={busy || !hasSelectedCredential}
+                    onClick={() =>
+                      act(async () => {
+                        if (
+                          !confirm(t("Diesen gespeicherten API-Key entfernen?"))
+                        )
+                          return;
+                        const d = await callFunction("credentials", {
+                          action: "delete",
+                          ...credentialTarget,
+                        });
+                        setCredentials(d.credentials);
+                        setMessage(t("Zugang entfernt."));
+                      })
+                    }
+                  >
+                    {t("Zugang entfernen ")}
                   </Button>
                 </div>
-              ))}
-              {!submissions.length && <p>{t("Noch keine Abgaben.")}</p>}
-            </Card>
+              </Card>
+            )}
+            {adminTab === "workshops" && (
+              <Card>
+                <h2>{t("Workshops")}</h2>
+                <p className="muted">
+                  {t(
+                    "Teile den Einladungslink oder QR-Code. Nach dem Beitritt können Teilnehmende ein Projekt zuordnen und Arbeitsblätter abgeben.",
+                  )}
+                </p>
+                <form
+                  className="workshop-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    act(async () => {
+                      unwrap(
+                        await cloud.from("workshops").insert({
+                          title: workshopTitle,
+                          join_code: crypto.randomUUID().replaceAll("-", ""),
+                        }),
+                      );
+                      setWorkshopTitle("");
+                      setAdminWorkshops(
+                        unwrap(
+                          await cloud
+                            .from("workshops")
+                            .select("*")
+                            .order("created_at", { ascending: false }),
+                        ),
+                      );
+                      await refreshWorkshops();
+                      setMessage(
+                        t(
+                          "Workshop angelegt. Zentrale KI ist zunächst ausgeschaltet.",
+                        ),
+                      );
+                    });
+                  }}
+                >
+                  <label>
+                    {t("Neuer Workshop ")}
+                    <input
+                      value={workshopTitle}
+                      onChange={(e) => setWorkshopTitle(e.target.value)}
+                      required
+                      maxLength={200}
+                    />
+                  </label>
+                  <Button type="submit" disabled={busy}>
+                    {t("Workshop anlegen ")}
+                  </Button>
+                </form>
+                {adminWorkshops.map((w) => (
+                  <div className="workshop-admin" key={w.id}>
+                    <h3>{w.title}</h3>
+                    {w.active && (
+                      <WorkshopInvite
+                        workshop={w}
+                        act={act}
+                        message={setMessage}
+                      />
+                    )}
+                    <details>
+                      <summary>{t("Workshop-Einstellungen")}</summary>
+                      <div className="actions">
+                        <Button
+                          secondary
+                          onClick={() =>
+                            act(async () => {
+                              unwrap(
+                                await cloud.rpc("join_workshop", {
+                                  p_code: w.join_code,
+                                }),
+                              );
+                              await refreshWorkshops();
+                              setMessage(
+                                t("Du bist dem Workshop beigetreten."),
+                              );
+                            })
+                          }
+                        >
+                          {t("Selbst beitreten ")}
+                        </Button>
+                        <Button
+                          secondary
+                          onClick={() =>
+                            act(async () => {
+                              unwrap(
+                                await cloud
+                                  .from("workshops")
+                                  .update({ active: !w.active })
+                                  .eq("id", w.id),
+                              );
+                              await loadAdmin();
+                              await refreshWorkshops();
+                            })
+                          }
+                        >
+                          {w.active
+                            ? t("Workshop schließen")
+                            : t("Workshop öffnen")}
+                        </Button>
+                        <Button
+                          secondary
+                          onClick={() =>
+                            act(async () => {
+                              unwrap(
+                                await cloud
+                                  .from("workshops")
+                                  .update({ central_ai: !w.central_ai })
+                                  .eq("id", w.id),
+                              );
+                              await loadAdmin();
+                              await refreshWorkshops();
+                            })
+                          }
+                        >
+                          {w.central_ai
+                            ? t("Workshop-KI ausschalten")
+                            : t("Workshop-KI einschalten")}
+                        </Button>
+                      </div>
+                      <label>
+                        {t("Maximale KI-Aufrufe insgesamt ")}
+                        <input
+                          type="number"
+                          min="1"
+                          max="10000"
+                          defaultValue={w.generation_limit}
+                          onBlur={(e) =>
+                            act(async () => {
+                              const n = Number(e.target.value);
+                              if (!Number.isInteger(n) || n < 1 || n > 10000)
+                                throw new Error(
+                                  t("Limit muss zwischen 1 und 10000 liegen."),
+                                );
+                              unwrap(
+                                await cloud
+                                  .from("workshops")
+                                  .update({ generation_limit: n })
+                                  .eq("id", w.id),
+                              );
+                              setMessage(t("Workshoplimit gespeichert."));
+                            })
+                          }
+                        />
+                      </label>
+                    </details>
+                    <WorkshopManagement workshop={w} act={act} busy={busy} />
+                  </div>
+                ))}
+              </Card>
+            )}
+            {adminTab === "submissions" && (
+              <Card>
+                <h2>{t("Abgaben an die Moderation")}</h2>
+                <p>
+                  {t(
+                    "Hier erscheinen nur ausdrücklich eingereichte Stände, keine privaten Entwürfe. ",
+                  )}
+                </p>
+                <SubmissionList
+                  submissions={submissions}
+                  workshops={adminWorkshops}
+                  act={act}
+                  onReview={(id) =>
+                    setSubmissions((rows) =>
+                      rows.map((s) =>
+                        s.id === id ? { ...s, status: "gesichtet" } : s,
+                      ),
+                    )
+                  }
+                />
+              </Card>
+            )}
           </div>
         )}
         {page === "about" && (
@@ -2687,7 +3178,7 @@ export default function App() {
             )}
             <p>
               {t(
-                "Entwürfe werden automatisch in diesem Browser gespeichert. Nach Anmeldung kannst du sie zusätzlich privat online speichern und löschen. Erst eine ausdrückliche Abgabe gibt den gewählten Stand samt Kontextangaben an die Workshopmoderation weiter. Abgaben können zurückgezogen werden; bereits heruntergeladene Kopien werden dadurch nicht zurückgerufen. ",
+                "Entwürfe werden automatisch in diesem Browser gespeichert. Beim Online-Speichern sieht die Superadministration Projekttitel und Änderungsdatum. Projektinhalte erhält sie nach deiner ausdrücklichen Zustimmung. Bei einer Workshop-Zuordnung sieht die Moderation Titel und Änderungsdatum; abgegebene Arbeitsblätter sieht sie separat. Ein Freigabelink macht den gespeicherten Projektstand für Personen mit dem Link lesbar. Du kannst Freigaben widerrufen. Bereits heruntergeladene Kopien bleiben bei den Empfänger:innen.",
               )}
             </p>
             <p>
@@ -2893,5 +3384,63 @@ function WorkshopJoin({
         {t("Workshop beitreten ")}
       </Button>
     </div>
+  );
+}
+
+function SubmissionList({ submissions, workshops, act, onReview }) {
+  return (
+    <>
+      {submissions.map((s) => (
+        <div className="archive-row" key={s.id}>
+          <span>
+            <strong>{s.title}</strong>
+            <small>
+              {workshops.find((w) => w.id === s.workshop_id)?.title} ·{" "}
+              {new Date(s.created_at).toLocaleString(
+                getLanguage() === "en" ? "en-GB" : "de-AT",
+              )}{" "}
+              · {t(s.status)}
+            </small>
+          </span>
+          <Button
+            secondary
+            onClick={() =>
+              download(
+                JSON.stringify(s.payload, null, 2),
+                jsonFilename(s.payload.draft.context.thema, "abgabe"),
+                "application/json",
+              )
+            }
+          >
+            {t("JSON ")}
+          </Button>
+          <Button
+            secondary
+            onClick={() => {
+              const x = s.payload;
+              download(
+                markdown(x.draft, x.result, x.resultSettings),
+                "7rizons-abgabe.md",
+                "text/markdown",
+              );
+            }}
+          >
+            {t("Markdown ")}
+          </Button>
+          <Button
+            secondary
+            onClick={() =>
+              act(async () => {
+                unwrap(await cloud.rpc("review_submission", { p_id: s.id }));
+                onReview(s.id);
+              })
+            }
+          >
+            {t("Gesichtet ")}
+          </Button>
+        </div>
+      ))}
+      {!submissions.length && <p>{t("Noch keine Abgaben.")}</p>}
+    </>
   );
 }
