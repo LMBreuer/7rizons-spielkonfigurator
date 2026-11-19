@@ -1,4 +1,4 @@
-/* A4 worksheet stylesheet. Screen UI and theme rules do not determine print. */
+/* The dedicated print stylesheet loads before the app bundle. Scope overrides to the worksheet inside main. */
 @media print {
   @page {
     size: A4;
@@ -40,16 +40,17 @@
   .steps,
   .workspace,
   .footer,
-  .skip-link {
+  .skip-link,
+  main:has(> .worksheet) > :not(.worksheet) {
     display: none !important;
   }
-  main {
+  main#main-content {
     display: block;
     max-width: none;
     padding: 0;
     margin: 0;
   }
-  .worksheet {
+  main > .worksheet {
     display: block;
     box-shadow: none;
     border: 0;
@@ -59,88 +60,109 @@
     max-width: none;
     background: #fff;
     color: #111;
+    font:
+      10.5pt/1.45 Arial,
+      sans-serif;
   }
-  .worksheet h1 {
+  main > .worksheet h1 {
     font-size: 23pt;
     line-height: 1.15;
     margin: 4mm 0;
   }
-  .worksheet h2 {
+  main > .worksheet h2 {
     font-size: 15pt;
     line-height: 1.25;
-    margin: 6mm 0 3mm;
+    color: #111;
+    margin: 5mm 0 2mm;
     break-after: avoid-page;
   }
-  .worksheet h3,
-  .worksheet h4 {
+  main > .worksheet h3,
+  main > .worksheet h4 {
     font-size: 11pt;
     break-after: avoid-page;
   }
-  .worksheet h1,
-  .worksheet h2,
-  .worksheet h3,
-  .worksheet h4 {
+  main > .worksheet h1,
+  main > .worksheet h2,
+  main > .worksheet h3,
+  main > .worksheet h4 {
     outline: 0 !important;
   }
-  .worksheet .eyebrow {
+  main > .worksheet .eyebrow {
     font-size: 8pt;
     letter-spacing: 0.07em;
     break-after: avoid-page;
   }
-  .worksheet .metadata {
+  main > .worksheet .metadata {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 3mm 7mm;
     break-inside: avoid-page;
   }
-  .worksheet .metadata div {
+  main > .worksheet .metadata div {
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .worksheet section {
-    margin-top: 6mm;
+  main > .worksheet .metadata:empty {
+    display: none;
   }
-  .worksheet-mechanism {
-    break-before: page;
+  main > .worksheet .metadata {
+    margin: 5mm 0;
+    padding: 3mm 0;
   }
-  .worksheet .worksheet-category {
-    break-before: page;
+  main > .worksheet > section {
+    margin-top: 5mm;
+    padding-top: 3mm;
   }
-  .worksheet-category + .worksheet-mechanism {
-    break-before: auto;
+  main > .worksheet .worksheet-category + .worksheet-mechanism {
+    margin-top: 2mm;
+    border-top: 0;
+    padding-top: 0;
   }
-  .worksheet p,
-  .worksheet li {
+  main > .worksheet .worksheet-mechanism > h3 {
+    margin-bottom: 2mm;
+  }
+  main > .worksheet .worksheet-mechanism > h3 + p {
+    break-after: avoid-page;
+  }
+  main > .worksheet p,
+  main > .worksheet li {
     orphans: 3;
     widows: 3;
   }
-  .worksheet ol,
-  .worksheet ul {
+  main > .worksheet ol,
+  main > .worksheet ul {
+    margin-block: 0 3mm;
     padding-left: 5mm;
   }
-  .worksheet .writing-fields {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4mm;
+  main > .worksheet p {
+    margin-bottom: 3mm;
   }
-  .worksheet .writing-card {
+  main > .worksheet .writing-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4mm;
+    margin-top: 3mm;
+    margin-inline-end: 1mm;
+  }
+  main > .worksheet .writing-card {
     break-inside: avoid-page;
-    min-height: 35mm;
+    min-height: 30mm;
     padding: 3mm;
     border: 1px solid #aaa;
     border-radius: 0;
   }
-  .worksheet .writing-card h3,
-  .worksheet .writing-card h4 {
+  main > .worksheet .writing-card h3,
+  main > .worksheet .writing-card h4 {
     margin: 0 0 3mm;
     font-size: 9pt;
   }
-  .worksheet .writing-card div {
-    height: 6mm;
+  main > .worksheet .writing-card > div {
+    height: 5mm;
     border-bottom: 1px solid #bbb;
   }
-  .worksheet .provenance {
-    margin-top: 8mm;
+  main > .worksheet .provenance {
+    margin-top: 5mm;
+    padding-top: 3mm;
     font-size: 8pt;
     color: #555;
     break-inside: avoid-page;
@@ -151,11 +173,7 @@
   }
 }
 @media print {
-  .worksheet-overview .worksheet-category,
-  .worksheet-overview .worksheet-mechanism {
-    break-before: auto;
-  }
-  .worksheet-overview .worksheet-mechanism {
+  main > .worksheet-overview .worksheet-mechanism {
     break-inside: avoid-page;
   }
 }

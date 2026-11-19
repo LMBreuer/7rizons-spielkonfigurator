@@ -1611,9 +1611,14 @@ export default function App() {
                               )}
                             </Button>
                           )}
+                        {result && !buildingSheet && !preview && (
+                          <Button secondary onClick={() => window.print()}>
+                            {t("Drucken")}
+                          </Button>
+                        )}
                         {result && !buildingSheet && (
                           <details className="switch-menu export-menu">
-                            <summary aria-label={t("Drucken und Exportieren")}>
+                            <summary aria-label={t("Arbeitsblatt exportieren")}>
                               ···
                             </summary>
                             <div className="menu-body">
@@ -1633,9 +1638,6 @@ export default function App() {
                                 }
                               >
                                 {t("Markdown herunterladen ")}
-                              </button>
-                              <button onClick={() => window.print()}>
-                                {t("Arbeitsblatt drucken ")}
                               </button>
                             </div>
                           </details>
@@ -2638,6 +2640,11 @@ export default function App() {
                     >
                       {t("Projekt herunterladen")}
                     </Button>
+                    {activeSharedSheet && (
+                      <Button secondary onClick={() => window.print()}>
+                        {t("Drucken")}
+                      </Button>
+                    )}
                     {page === "superadmin-project" && (
                       <Button secondary onClick={() => setPage("admin")}>
                         {t("Zurück zur Projektübersicht")}

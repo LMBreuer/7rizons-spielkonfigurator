@@ -321,6 +321,14 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         /7’rizons Seminar-Hack/,
       ),
     );
+    let printCalls = 0;
+    dom.window.print = () => {
+      printCalls += 1;
+    };
+    await user.click(
+      screen.getByRole("button", { name: "Drucken", exact: true }),
+    );
+    assert.equal(printCalls, 1);
     await audit("generated worksheet");
     assert.equal(
       screen.queryByRole("checkbox", { name: "Arbeitsaufträge ergänzen" }),

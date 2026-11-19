@@ -28,7 +28,7 @@ test("dedicated A4 print CSS includes page counters and protects individual writ
   assert.match(css, /size:\s*A4/);
   assert.match(css, /counter\(page\)/);
   assert.match(css, /counter\(pages\)/);
-  assert.match(css, /\.worksheet-mechanism\s*\{\s*break-before:\s*page/);
+  assert.doesNotMatch(css, /break-before:\s*page/);
   assert.match(css, /\.writing-card\s*\{\s*break-inside:\s*avoid-page/);
   const main = await readFile(
     new URL("../index.html", import.meta.url),

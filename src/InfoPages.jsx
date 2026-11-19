@@ -147,7 +147,7 @@ function HelpInfo() {
         </li>
         <li>
           {t(
-            "Über „Projektverwaltung“ kannst du dein ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Über das Menü direkt am Arbeitsblatt kannst du das gewählte Blatt drucken oder als Markdown exportieren.",
+            "Über „Projektverwaltung“ kannst du dein ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort kannst du das Blatt auch als PDF speichern. Im Drei-Punkte-Menü findest du den Markdown-Export.",
           )}
         </li>
       </ol>

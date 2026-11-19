@@ -1,4 +1,6 @@
 {
+  "Drucken": "Print",
+  "Arbeitsblatt exportieren": "Export worksheet",
   "Hilfe & Nutzung": "Help & use",
   "Datenschutz bei der Anmeldung": "Privacy when signing in",
   "Verantwortlich für den Spielkonfigurator": "Responsible for the game configurator",
@@ -29,7 +31,7 @@
   "Vom Seminarthema zum Arbeitsblatt": "From seminar topic to worksheet",
   "Gib den Seminarkontext ein, wähle Lerntätigkeiten und Mechaniken und lege ihre Reihenfolge in der Übersicht fest.": "Enter the seminar context, choose learning activities and mechanics, and arrange them in the overview.",
   "Erstelle in Schritt 5 ein Arbeitsblatt. Mit „Ohne KI“ kannst du direkt starten. Über „Kopie ausfüllen“ schreibst du deine Kartenideen in eine Arbeitskopie.": "Create a worksheet in step 5. Choose “Without AI” to get started immediately. Select “Fill in a copy” to write your card ideas in a working copy.",
-  "Über „Projektverwaltung“ kannst du dein ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Über das Menü direkt am Arbeitsblatt kannst du das gewählte Blatt drucken oder als Markdown exportieren.": "Under “Manage projects”, download your entire project as JSON and import it again later. Use the worksheet menu to print the selected worksheet or export it as Markdown.",
+  "Über „Projektverwaltung“ kannst du dein ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort kannst du das Blatt auch als PDF speichern. Im Drei-Punkte-Menü findest du den Markdown-Export.": "Under “Manage projects”, download your entire project as JSON and import it again later. “Print” opens the browser’s A4 print preview, where you can also save the worksheet as a PDF. Use the three-dot menu to export it as Markdown.",
   "Online speichern, am Workshop teilnehmen und teilen": "Save online, join a workshop and share",
   "Melde dich über „Anmelden“ per E-Mail an, wenn du auf einem anderen Gerät weiterarbeiten möchtest. Speichere über „Online speichern“ und öffne den Stand dort unter „Mein Zugang → Meine Entwürfe“.": "Sign in by email to continue on another device. Choose “Save online”, then open your saved version under “My account → My drafts” on the other device.",
   "Öffne deinen Einladungslink oder scanne den QR-Code und bestätige den Workshopbeitritt. Einen Zugangscode kannst du unter „Mein Zugang“ eingeben. Danach kannst du in der Projektverwaltung ein Projekt zuordnen oder in Schritt 5 ein Arbeitsblatt ausdrücklich abgeben. Wenn Workshop-KI freigeschaltet ist, kannst du nach dem Beitritt diesen Zugang nutzen.": "Open your invitation link or scan the QR code and confirm that you want to join. You can enter an access code under “My account”. Then link a project in “Manage projects” or submit a worksheet in step 5. If workshop AI is enabled, you can use it once you join.",
