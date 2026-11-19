@@ -828,11 +828,17 @@ summary {
   flex-wrap: wrap;
   gap: 4px 18px;
 }
-.footer-links button {
+.footer-links button,
+.footer-links a {
   padding: 6px 0;
   font-size: 0.75rem;
 }
-.footer-links button:hover {
+.footer-links a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.footer-links button:hover,
+.footer-links a:hover {
   color: var(--ink);
   text-decoration: underline;
 }
@@ -974,7 +980,8 @@ html[data-input="keyboard"] main h2:focus {
 :root[data-theme="contrast"] .description,
 :root[data-theme="contrast"] .badges small,
 :root[data-theme="contrast"] .footer-credit p,
-:root[data-theme="contrast"] .footer-links button {
+:root[data-theme="contrast"] .footer-links button,
+:root[data-theme="contrast"] .footer-links a {
   font-size: 0.875rem;
 }
 :root[data-theme="contrast"] input::placeholder,
@@ -1922,4 +1929,28 @@ html[data-input="pointer"] :focus {
 .workshop-manual-code {
   border: 0;
   padding-block: 0.25rem;
+}
+
+.info-page {
+  max-width: 50rem;
+  margin-inline: auto;
+  line-height: 1.65;
+}
+.info-page h2 {
+  margin: 1.65rem 0 0.55rem;
+  font-size: 1.2rem;
+}
+.info-page li + li {
+  margin-top: 0.65rem;
+}
+.info-page ul,
+.info-page ol {
+  padding-inline-start: 1.25rem;
+}
+.info-address {
+  font-style: normal;
+  margin-bottom: 1.15rem;
+}
+.account-privacy {
+  margin: 0.8rem 0 0;
 }

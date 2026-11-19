@@ -1,3 +1,4 @@
+import InfoPage, { INFO_PAGES } from "./InfoPages.jsx";
 import {
   AdminProjectList,
   ProjectRequests,
@@ -246,14 +247,12 @@ export default function App() {
   const [shareToken] = useState(() =>
     new URLSearchParams(window.location.hash.slice(1)).get("projekt"),
   );
-  const [page, setPage] = useState(() =>
-    shareToken
-      ? "shared-project"
-      : inviteCode ||
-          new URLSearchParams(window.location.search).get("view") === "account"
-        ? "account"
-        : "app",
-  );
+  const [page, setPage] = useState(() => {
+    if (shareToken) return "shared-project";
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (Object.hasOwn(INFO_PAGES, view)) return view;
+    return inviteCode || view === "account" ? "account" : "app";
+  });
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [session, setSession] = useState(null);
   const [admin, setAdmin] = useState(false);
@@ -2374,6 +2373,11 @@ export default function App() {
                     {adminLogin ? t("Anmelden") : t("Magic Link senden")}
                   </Button>
                 </form>
+                <p className="muted account-privacy">
+                  <a href="?view=privacy">
+                    {t("Datenschutz bei der Anmeldung")}
+                  </a>
+                </p>
                 <button
                   className="text-button"
                   onClick={() => {
@@ -2394,7 +2398,7 @@ export default function App() {
             <h1>{t("Meine Entwürfe")}</h1>
             <p>
               {t(
-                "Privat in deinem Konto gespeichert. Laden ersetzt den aktuellen lokalen Stand. ",
+                "Deine Online-Entwürfe. Die Superadministration sieht Titel und Änderungsdatum. Laden ersetzt den aktuellen lokalen Stand.",
               )}
             </p>
             {entries.length ? (
@@ -3148,61 +3152,8 @@ export default function App() {
             </Button>
           </Card>
         )}
-        {page === "legal" && (
-          <Card>
-            <h1>{t("Impressum & Hinweise")}</h1>
-            <h2>{t("Menschen hinter dem Werkzeug")}</h2>
-            <p>
-              {t("Spielkonfigurator by Harald Eckmüller. ")}
-              <br />
-              {t("Webapp-Umsetzung unterstützt durch LMB. ")}
-            </p>
-            <h2>{t("Impressum")}</h2>
-            <p>
-              {t(
-                "Verantwortlich: Dr. Ludwig M. Breuer · Bgm.-Rohmüller-Str. 7 · 86554 Pöttmes. Kontakt: info@lmbreuer.de. ",
-              )}
-            </p>
-            <h2>{t("Datenschutz")}</h2>
-            <p>
-              {t(
-                "Diese Website wird über GitHub Pages bereitgestellt. GitHub verarbeitet dabei technische Zugriffsdaten, etwa IP-Adressen, zur Bereitstellung und Absicherung des Dienstes. Es werden keine Trackingdienste oder externen Schriftarten eingebunden. ",
-              )}
-            </p>
-            {!cloud && (
-              <p>
-                {t(
-                  "In dieser Vorschau ist noch kein Backend verbunden. Anmeldung, direkte KI-Nutzung, Online-Speicherung und Abgabe sind deshalb deaktiviert. Deine Konfiguration bleibt in diesem Browser, sofern du sie nicht selbst exportierst oder an eine KI weitergibst. ",
-                )}
-              </p>
-            )}
-            <p>
-              {t(
-                "Entwürfe werden automatisch in diesem Browser gespeichert. Beim Online-Speichern sieht die Superadministration Projekttitel und Änderungsdatum. Projektinhalte erhält sie nach deiner ausdrücklichen Zustimmung. Bei einer Workshop-Zuordnung sieht die Moderation Titel und Änderungsdatum; abgegebene Arbeitsblätter sieht sie separat. Ein Freigabelink macht den gespeicherten Projektstand für Personen mit dem Link lesbar. Du kannst Freigaben widerrufen. Bereits heruntergeladene Kopien bleiben bei den Empfänger:innen.",
-              )}
-            </p>
-            <p>
-              {t(
-                "Bei direkter KI-Nutzung werden Thema, Fach und die gewählte Spielkonfiguration über das Backend an den angezeigten Anbieter gesendet. Eigene API-Keys werden nur für die Sitzung im Speicher gehalten; zentrale Workshop-Keys werden serverseitig verschlüsselt gespeichert. E-Mail und Login werden über Supabase verarbeitet. Private Online-Entwürfe bleiben bis zu deiner Löschung gespeichert; Abgaben bis zum Zurückziehen oder einer vereinbarten Bereinigung. Beim Aktivieren des Backends werden dessen konkrete Betriebsangaben und Aufbewahrungsregeln ergänzt. ",
-              )}
-            </p>
-            <h2>{t("KI-Hinweis")}</h2>
-            <p>
-              {t(
-                "Für die Entwicklung des ursprünglichen Spielkonfigurators und seine Umsetzung als Webapp wurde generative KI eingesetzt. Konzeption, Verantwortung und Entscheidungen blieben dabei bei Menschen. Der Einsatz von KI berührt gesellschaftliche, kulturelle und politische Fragen und bedarf weiterhin offener, kritischer Diskussionen. ",
-              )}
-            </p>
-            <p>
-              {t(
-                "„Ohne KI“ verwendet feste Vorlagen und erzeugt keine neuen KI-Texte. Beim externen Weg übermittelst du den Auftrag selbst an deine KI. Direkte KI-Ausgaben und importierte Antworten sind Vorschläge: Prüfe fachliche Richtigkeit und Eignung für deine Lehrveranstaltung. ",
-              )}
-            </p>
-            <p>
-              {t(
-                "Die Herkunft des konkreten Arbeitsblatts wird am Dokument ausgewiesen. ",
-              )}
-            </p>
-          </Card>
+        {Object.hasOwn(INFO_PAGES, page) && (
+          <InfoPage page={page} online={Boolean(cloud)} />
         )}
       </main>
       <footer className="footer no-print">
@@ -3225,30 +3176,11 @@ export default function App() {
           >
             {t("Über das Tool ")}
           </button>
-          <button
-            onClick={() => {
-              setPage("legal");
-              window.scrollTo(0, 0);
-            }}
-          >
-            {t("Impressum ")}
-          </button>
-          <button
-            onClick={() => {
-              setPage("legal");
-              window.scrollTo(0, 0);
-            }}
-          >
-            {t("Datenschutz ")}
-          </button>
-          <button
-            onClick={() => {
-              setPage("legal");
-              window.scrollTo(0, 0);
-            }}
-          >
-            {t("KI transparent ")}
-          </button>
+          {Object.entries(INFO_PAGES).map(([view, label]) => (
+            <a key={view} href={`?view=${view}`}>
+              {t(label)}
+            </a>
+          ))}
         </div>
       </footer>
     </>
