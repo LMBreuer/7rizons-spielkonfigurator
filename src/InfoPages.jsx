@@ -113,7 +113,7 @@ function PrivacyInfo({ online }) {
           <h2>{t("Löschung und deine Rechte")}</h2>
           <p>
             {t(
-              "Online-Projekte bleiben bis zur Löschung unter „Mein Zugang → Meine Entwürfe“ gespeichert. Workshop-Abgaben bleiben bis zum Zurückziehen oder zur administrativen Bereinigung gespeichert. Das Konto und die Generierungszähler bleiben bis zur Kontolöschung oder administrativen Bereinigung bestehen. Für die Löschung deines Kontos wende dich an die oben genannte Adresse.",
+              "Online-Projekte bleiben bis zur Löschung unter „Konto → Meine Entwürfe“ gespeichert. Workshop-Abgaben bleiben bis zum Zurückziehen oder zur administrativen Bereinigung gespeichert. Das Konto und die Generierungszähler bleiben bis zur Kontolöschung oder administrativen Bereinigung bestehen. Für die Löschung deines Kontos wende dich an die oben genannte Adresse.",
             )}
           </p>
         </>
@@ -147,35 +147,35 @@ function HelpInfo() {
         </li>
         <li>
           {t(
-            "Über „Projektverwaltung“ kannst du dein ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort kannst du das Blatt auch als PDF speichern. Im Drei-Punkte-Menü findest du den Markdown-Export.",
+            "Unter „Projekte“ kannst du dein ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort kannst du das Blatt auch als PDF speichern. Im Drei-Punkte-Menü findest du den Markdown-Export.",
           )}
         </li>
       </ol>
       <h2>{t("Online speichern, am Workshop teilnehmen und teilen")}</h2>
       <p>
         {t(
-          "Melde dich über „Anmelden“ per E-Mail an, wenn du auf einem anderen Gerät weiterarbeiten möchtest. Speichere über „Online speichern“ und öffne den Stand dort unter „Mein Zugang → Meine Entwürfe“.",
+          "Melde dich über „Anmelden“ per E-Mail an, wenn du auf einem anderen Gerät weiterarbeiten möchtest. Speichere über „Online speichern“ und öffne den Stand dort unter „Konto → Meine Entwürfe“.",
         )}
       </p>
       <p>
         {t(
-          "Öffne deinen Einladungslink oder scanne den QR-Code und bestätige den Workshopbeitritt. Einen Zugangscode kannst du unter „Mein Zugang“ eingeben. Danach kannst du in der Projektverwaltung ein Projekt zuordnen oder in Schritt 5 ein Arbeitsblatt ausdrücklich abgeben. Wenn Workshop-KI freigeschaltet ist, kannst du nach dem Beitritt diesen Zugang nutzen.",
+          "Öffne deinen Einladungslink oder scanne den QR-Code und bestätige den Workshopbeitritt. Einen Zugangscode kannst du unter „Konto“ eingeben. Danach kannst du unter „Projekte“ ein Projekt zuordnen oder in Schritt 5 ein Arbeitsblatt ausdrücklich abgeben. Wenn Workshop-KI freigeschaltet ist, kannst du nach dem Beitritt diesen Zugang nutzen.",
         )}
       </p>
       <p>
         {t(
-          "Für die Weitergabe außerhalb eines Workshops öffne „Projektverwaltung → Projekt per Link teilen“. Der Link verweist auf den Stand beim Erstellen des Links. Du kannst ihn dort kopieren, durch einen neuen ersetzen oder widerrufen.",
+          "Öffne das gewünschte Projekt und wähle „Teilen“. Mit „Freigabelink erstellen“ gibst du diesen Stand samt Arbeitsblättern frei. Spätere Änderungen bleiben privat, bis du den Link ersetzt.",
         )}
       </p>
-      <h2 id="urheberrecht">{t("Urheberrecht und Nutzungsrechte")}</h2>
+      <h2 id="urheberrecht">{t("Eigene Karten und fremde Materialien")}</h2>
       <p>
         {t(
-          "Durch Speichern oder Teilen im Konfigurator überträgst du keine Urheberrechte an deinen eigenen Beiträgen. Prüfe bei fremden Texten, Bildern oder Vorlagen, ob eine Lizenz, eine Erlaubnis oder eine gesetzliche Ausnahme die beabsichtigte Nutzung abdeckt. Beachte dabei auch Vorgaben zur Namensnennung und Quellenangabe.",
+          "Die Rechte an deinen eigenen Kartentexten bleiben bei dir. Wer deinen Projektlink erhält, kann eine Kopie für das eigene Seminar anlegen. Wenn du deine Karten darüber hinaus zur Veröffentlichung freigeben möchtest, kannst du das direkt auf dem Arbeitsblatt vermerken.",
         )}
       </p>
       <p>
         {t(
-          "Ein Freigabelink ermöglicht den technischen Zugriff auf einen Stand. Ob du Inhalte daraus weiterveröffentlichen, bearbeiten oder weitergeben darfst, richtet sich nach den Rechten und Lizenzen an diesen Inhalten. Prüfe vor der Weitergabe auch KI-Vorschläge auf mögliche Rechte Dritter.",
+          "Übernimmst du Texte, Bilder oder Spielmaterial von anderen, gelten deren Nutzungsbedingungen auch im geteilten Arbeitsblatt. Gib Quelle und Lizenz so an, wie es das Material verlangt.",
         )}
       </p>
       <h2 id="ki">{t("KI-Hinweis")}</h2>

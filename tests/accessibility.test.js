@@ -466,10 +466,14 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     assert.equal(screen.getByLabelText("Passwort").type, "password");
     await audit("account");
-    await user.click(screen.getByRole("contentinfo").querySelector("button"));
-    assert.equal(
-      document.activeElement.textContent.trim(),
-      "Über den Spielkonfigurator",
+    const about = within(screen.getByRole("contentinfo")).getByRole("link", {
+      name: "Über das Tool",
+    });
+    cleanup();
+    dom.window.history.replaceState(null, "", about.href);
+    render(React.createElement(App));
+    assert.ok(
+      screen.getByRole("heading", { name: "Über den Spielkonfigurator" }),
     );
     await audit("about");
     await user.click(screen.getByRole("button", { name: /English/ }));
@@ -562,7 +566,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .querySelector("strong"),
     );
     const firstProject = localStorage.getItem("7rizons:active-project");
-    const projectTrigger = screen.getByText("Projektverwaltung", {
+    const projectTrigger = screen.getByText("Projekte", {
       selector: "summary",
     });
     await user.click(projectTrigger);

@@ -82,6 +82,10 @@ function initialInvite() {
     return code || "";
   }
 }
+function locationShareToken() {
+  return new URLSearchParams(window.location.hash.slice(1)).get("projekt");
+}
+
 function sharedProjectLink(token) {
   return new URL(
     window.location.pathname + "#projekt=" + token,
@@ -169,6 +173,43 @@ function Button({ children, secondary = false, type = "button", ...props }) {
     </button>
   );
 }
+function HeaderPreferences({ children }) {
+  const query = "(max-width: 640px)";
+  const [compact, setCompact] = useState(
+    () => window.matchMedia?.(query).matches ?? false,
+  );
+  useEffect(() => {
+    const media = window.matchMedia?.(query);
+    const resize = () => setCompact(media.matches);
+    media?.addEventListener("change", resize);
+    return () => media?.removeEventListener("change", resize);
+  }, []);
+  if (!compact) return children;
+  return (
+    <details className="switch-menu preferences-menu">
+      <summary
+        aria-label={t("Darstellung und Sprache")}
+        title={t("Darstellung und Sprache")}
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="19"
+          height="19"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        >
+          <path d="M3 7h7m4 0h7M3 17h11m4 0h3" />
+          <circle cx="12" cy="7" r="2" />
+          <circle cx="16" cy="17" r="2" />
+        </svg>
+      </summary>
+      <div className="menu-body">{children}</div>
+    </details>
+  );
+}
 function Card({ children, className = "" }) {
   return <section className={"panel " + className}>{children}</section>;
 }
@@ -213,9 +254,9 @@ export default function App() {
     function closeMenus(event) {
       const escape = event.type === "keydown" && event.key === "Escape";
       if (event.type === "keydown" && !escape) return;
-      for (const menu of mainRef.current?.querySelectorAll(
+      for (const menu of document.querySelectorAll(
         "details.switch-menu[open]",
-      ) || []) {
+      )) {
         if (escape || !menu.contains(event.target)) {
           menu.open = false;
           if (escape && menu.contains(event.target))
@@ -244,15 +285,25 @@ export default function App() {
     return () => window.removeEventListener("storage", refresh);
   }, []);
   const [inviteCode] = useState(initialInvite);
-  const [shareToken] = useState(() =>
-    new URLSearchParams(window.location.hash.slice(1)).get("projekt"),
-  );
+  const [shareToken, setShareToken] = useState(locationShareToken);
   const [page, setPage] = useState(() => {
     if (shareToken) return "shared-project";
-    const view = new URLSearchParams(window.location.search).get("view");
-    if (Object.hasOwn(INFO_PAGES, view)) return view;
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get("view");
+    if (Object.hasOwn(INFO_PAGES, view) || view === "about") return view;
+    if (
+      ["share", "save"].includes(view) &&
+      params.get("project") === saved.draft.id
+    )
+      return "project-" + view;
     return inviteCode || view === "account" ? "account" : "app";
   });
+  const projectAction =
+    page === "project-share"
+      ? "share"
+      : page === "project-save"
+        ? "save"
+        : null;
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [session, setSession] = useState(null);
   const [admin, setAdmin] = useState(false);
@@ -262,6 +313,10 @@ export default function App() {
   const [moderation, setModeration] = useState(null);
   const [workshopLinks, setWorkshopLinks] = useState([]);
   const [projectShare, setProjectShare] = useState(null);
+  const [shareStatus, setShareStatus] = useState("loading");
+  const [shareAttempt, setShareAttempt] = useState(0);
+  const projectTitle =
+    draft.context.thema || draft.context.name || t("Unbenanntes Projekt");
   const [sharedProject, setSharedProject] = useState(null);
   const [sharedSheetId, setSharedSheetId] = useState("");
   const [shareLoaded, setShareLoaded] = useState(false);
@@ -509,6 +564,29 @@ export default function App() {
       alive = false;
     };
   }, [session?.user.id, draft.id]);
+  useEffect(() => {
+    function followLink() {
+      const token = locationShareToken();
+      setShareToken(token);
+      if (token) {
+        setShareLoaded(false);
+        setSharedProject(null);
+        setSharedSheetId("");
+        setPage("shared-project");
+      } else {
+        setPage((current) => (current === "shared-project" ? "app" : current));
+      }
+    }
+    window.addEventListener("hashchange", followLink);
+    return () => window.removeEventListener("hashchange", followLink);
+  }, []);
+  function openConfigurator() {
+    window.history.replaceState(null, "", window.location.pathname);
+    setShareToken(null);
+    setMessage("");
+    setError("");
+    setPage("app");
+  }
   useEffect(() => {
     if (!shareToken) return;
     let alive = true;
@@ -915,12 +993,32 @@ export default function App() {
     });
     setPage("moderation");
   }
-  async function loadProjectShare() {
-    setProjectShare(
-      unwrap(await cloud.rpc("my_project_share", { p_project: draft.id }))[0] ||
-        null,
-    );
-    if (projectMenu.current) projectMenu.current.open = false;
+  useEffect(() => {
+    if (page !== "project-share" || !session) return;
+    let alive = true;
+    setShareStatus("loading");
+    setProjectShare(null);
+    cloud
+      .rpc("my_project_share", { p_project: draft.id })
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) {
+          setShareStatus("error");
+          setError(error.message);
+          return;
+        }
+        setProjectShare(data?.[0] || null);
+        setShareStatus("ready");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [page, session?.user.id, draft.id, shareAttempt]);
+  function openProjectShare() {
+    setProjectShare(null);
+    setShareStatus("loading");
+    setError("");
+    setMessage("");
     setPage("project-share");
   }
   async function publishProjectShare() {
@@ -932,6 +1030,7 @@ export default function App() {
       }),
     );
     setProjectShare({ token, shared_revision: revision });
+    setMessage(t("Freigabelink erstellt."));
   }
   function openApprovedProject(project, payload) {
     const snapshot = readSnapshot(payload);
@@ -991,50 +1090,86 @@ export default function App() {
       <header className="topbar no-print">
         <a
           className="brand"
-          href="#"
+          href={window.location.pathname}
           onClick={(e) => {
             e.preventDefault();
-            setPage("app");
+            openConfigurator();
           }}
         >
           <Logo />
           <small>{t("Spielkonfigurator · Prototyp")}</small>
         </a>
-        <nav aria-label={t("Werkzeuge")}>
+        <nav className="primary-nav" aria-label={t("Hauptnavigation")}>
           <button
+            aria-current={
+              [
+                "app",
+                "project-save",
+                "project-share",
+                "project-workshops",
+              ].includes(page)
+                ? "page"
+                : undefined
+            }
+            onClick={openConfigurator}
+          >
+            {t("Konfigurator")}
+          </button>
+          {session && admin && (
+            <button
+              disabled={busy}
+              aria-current={
+                ["admin", "superadmin-project"].includes(page)
+                  ? "page"
+                  : undefined
+              }
+              onClick={() => {
+                setAdminTab(superadmin ? "projects" : "workshops");
+                act(loadAdmin);
+              }}
+            >
+              {t("Administration")}
+            </button>
+          )}
+        </nav>
+        <nav className="header-tools" aria-label={t("Werkzeuge")}>
+          <HeaderPreferences>
+            <AppearanceSwitch value={theme} onChange={setTheme} />
+            <div
+              className="language-switch"
+              role="group"
+              aria-label={t("Sprache")}
+            >
+              {["de", "en"].map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  lang={code}
+                  disabled={busy}
+                  aria-label={code === "de" ? "Deutsch" : "English"}
+                  aria-pressed={language === code}
+                  onClick={() => {
+                    setLanguage(code);
+                    if (draft.language !== code)
+                      change((d) => ({ ...d, language: code }));
+                  }}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </HeaderPreferences>
+          <button
+            className="account-link"
+            aria-current={page === "account" ? "page" : undefined}
+            disabled={busy}
             onClick={() => {
-              setPage("about");
-              window.scrollTo(0, 0);
+              setPage("account");
+              setMessage("");
+              setError("");
             }}
           >
-            {t("Über das Tool ")}
-          </button>
-          <AppearanceSwitch value={theme} onChange={setTheme} />
-          <div
-            className="language-switch"
-            role="group"
-            aria-label={t("Sprache")}
-          >
-            {["de", "en"].map((code) => (
-              <button
-                key={code}
-                type="button"
-                lang={code}
-                disabled={busy}
-                aria-label={code === "de" ? "Deutsch" : "English"}
-                aria-pressed={language === code}
-                onClick={() => {
-                  setLanguage(code);
-                  if (draft.language !== code)
-                    change((d) => ({ ...d, language: code }));
-                }}
-              >
-                {code.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <button disabled={busy} onClick={() => setPage("account")}>
-            {session ? t("Mein Zugang") : t("Anmelden")}
+            {session ? t("Konto") : t("Anmelden")}
           </button>
         </nav>
       </header>
@@ -1099,16 +1234,21 @@ export default function App() {
                   {t("Eure Themen. ")}
                   <em>{t("Eure Welten.")}</em>
                 </h1>
-                {draft.context.thema || draft.context.name ? (
-                  <p className="project-title">
-                    {draft.context.thema || draft.context.name}
-                  </p>
-                ) : (
-                  step === 1 &&
-                  !worksheets.length && (
-                    <p>{t("Gestalte 7’rizons für deine Lehre.")}</p>
-                  )
-                )}
+                <div className="project-meta">
+                  {draft.context.thema || draft.context.name ? (
+                    <p className="project-title">{projectTitle}</p>
+                  ) : (
+                    step === 1 &&
+                    !worksheets.length && (
+                      <p>{t("Gestalte 7’rizons für deine Lehre.")}</p>
+                    )
+                  )}
+                  {savedLocally && (
+                    <span className="save-status">
+                      {t("Im Browser gespeichert")}
+                    </span>
+                  )}
+                </div>
               </div>
               <div
                 className="project-heading"
@@ -1122,7 +1262,7 @@ export default function App() {
                     if (e.currentTarget.open) setProjects(listProjects());
                   }}
                 >
-                  <summary>{t("Projektverwaltung")}</summary>
+                  <summary>{t("Projekte")}</summary>
                   <div className="menu-body">
                     {projects.map((p) => (
                       <button
@@ -1156,15 +1296,6 @@ export default function App() {
                     >
                       + {t("Neues Projekt")}
                     </button>
-                    {session && (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => act(loadProjectShare)}
-                      >
-                        {t("Projekt per Link teilen")}
-                      </button>
-                    )}
                     {session &&
                       (workshops.some((w) => w.active) ||
                         workshopLinks.length > 0) && (
@@ -1180,57 +1311,51 @@ export default function App() {
                           {t("Projekt einem Workshop zuordnen")}
                         </button>
                       )}
-                    <fieldset disabled={busy} className="save-bar">
-                      <div className="save-actions">
-                        <div
-                          className="save-file-actions"
-                          role="group"
-                          aria-label={t("Konfiguration als Datei")}
-                        >
-                          <Button secondary onClick={() => act(exportProject)}>
-                            {t("Projekt herunterladen")}
-                            <small className="project-download-format">
-                              {t("JSON-Datei")}
-                            </small>
-                          </Button>
-                          <Button
-                            secondary
-                            onClick={() => configImportRef.current?.click()}
-                          >
-                            {t("Projekt importieren")}
-                          </Button>
-                          <input
-                            ref={configImportRef}
-                            hidden
-                            type="file"
-                            accept=".json"
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              e.target.value = "";
-                              if (file) act(() => importProject(file));
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </fieldset>
+                    <hr />
+                    <button disabled={busy} onClick={() => act(exportProject)}>
+                      {t("Projekt herunterladen")}{" "}
+                      <small>{t("JSON-Datei")}</small>
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => configImportRef.current?.click()}
+                    >
+                      {t("Projekt importieren")}
+                    </button>
+                    <input
+                      ref={configImportRef}
+                      hidden
+                      type="file"
+                      accept=".json"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        e.target.value = "";
+                        if (file) act(() => importProject(file));
+                      }}
+                    />
                   </div>
                 </details>
-                <div className="project-storage">
-                  {savedLocally && (
-                    <span className="save-status">
-                      {t("Im Browser gespeichert")}
-                    </span>
-                  )}
-                  {session && (
+                {cloud && (
+                  <>
                     <Button
                       secondary
                       disabled={busy}
-                      onClick={() => act(saveOnline)}
+                      onClick={() => {
+                        if (session) act(saveOnline);
+                        else {
+                          setError("");
+                          setMessage("");
+                          setPage("project-save");
+                        }
+                      }}
                     >
-                      {t("Online speichern ")}
+                      {t("Online speichern")}
                     </Button>
-                  )}
-                </div>
+                    <Button disabled={busy} onClick={openProjectShare}>
+                      {t("Teilen")}
+                    </Button>
+                  </>
+                )}
               </div>
             </header>
             <nav
@@ -1276,7 +1401,6 @@ export default function App() {
                 {step === 1 && (
                   <Card>
                     <div className="section-title">
-                      <span className="eyebrow">{t("01 · Kontext")}</span>
                       <h2>{t("Schritt 1: Seminar-Kontext")}</h2>
                       <p>
                         {t(
@@ -1330,9 +1454,6 @@ export default function App() {
                 {step === 2 && (
                   <Card>
                     <div className="section-title">
-                      <span className="eyebrow">
-                        {t("02 · Lerntätigkeiten")}
-                      </span>
                       <h2>{t("Schritt 2: Lernerlebnisse wählen")}</h2>
                       <p>
                         {t("Wähle bis zu ")}
@@ -1427,7 +1548,6 @@ export default function App() {
                 {step === 3 && (
                   <Card>
                     <div className="section-title">
-                      <span className="eyebrow">{t("03 · Mechaniken")}</span>
                       <h2>{t("Schritt 3: Mechaniken wählen")}</h2>
                       <p>
                         {t(
@@ -1647,9 +1767,6 @@ export default function App() {
                     {(!result || buildingSheet) && (
                       <Card className="worksheet-builder">
                         <div className="section-title">
-                          <span className="eyebrow">
-                            {t("05 · Arbeitsblatt")}
-                          </span>
                           <h2 tabIndex={-1}>
                             {worksheets.length
                               ? t("Weiteres Arbeitsblatt hinzufügen")
@@ -2182,10 +2299,32 @@ export default function App() {
             )}
           </>
         )}
-        {page === "account" && (
+        {(page === "account" || (projectAction && !session)) && (
           <Card>
-            <span className="eyebrow">{t("Dein Zugang")}</span>
-            <h1>{session ? t("Dein Zugang") : t("Anmelden")}</h1>
+            <h1>
+              {projectAction === "save"
+                ? t("Online speichern")
+                : projectAction === "share"
+                  ? t("Projekt per Link teilen")
+                  : session
+                    ? t("Konto")
+                    : t("Anmelden")}
+            </h1>
+            {projectAction === "save" && (
+              <p>
+                {t("Melde dich an, um „{0}“ online zu speichern.", {
+                  0: projectTitle,
+                })}
+              </p>
+            )}
+            {projectAction === "share" && (
+              <p>
+                {t(
+                  "Melde dich an, um einen Freigabelink für „{0}“ zu erstellen.",
+                  { 0: projectTitle },
+                )}
+              </p>
+            )}
             {session ? (
               <>
                 <p>
@@ -2200,18 +2339,6 @@ export default function App() {
                   >
                     {t("Meine Entwürfe ")}
                   </Button>
-                  {admin && (
-                    <Button
-                      secondary
-                      disabled={busy}
-                      onClick={() => {
-                        setAdminTab(superadmin ? "projects" : "workshops");
-                        act(loadAdmin);
-                      }}
-                    >
-                      {t("Administration ")}
-                    </Button>
-                  )}
                 </div>
                 {admin && (
                   <details className="account-section">
@@ -2404,7 +2531,14 @@ export default function App() {
                             email,
                             options: {
                               emailRedirectTo:
-                                location.origin + location.pathname,
+                                location.origin +
+                                location.pathname +
+                                (projectAction
+                                  ? "?view=" +
+                                    projectAction +
+                                    "&project=" +
+                                    draft.id
+                                  : ""),
                             },
                           }),
                         );
@@ -2541,12 +2675,38 @@ export default function App() {
             )}
           </Card>
         )}
+        {page === "project-save" && session && (
+          <Card>
+            <h1>{t("„{0}“ online speichern", { 0: projectTitle })}</h1>
+            <div className="actions">
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    await saveOnline();
+                    setPage("app");
+                    window.history.replaceState(
+                      null,
+                      "",
+                      window.location.pathname,
+                    );
+                  })
+                }
+              >
+                {t("Online speichern")}
+              </Button>
+              <Button secondary onClick={openConfigurator}>
+                {t("Abbrechen")}
+              </Button>
+            </div>
+          </Card>
+        )}
         {page === "project-share" && session && (
           <Card>
-            <h1>{t("Projekt per Link teilen")}</h1>
+            <h1>{t("„{0}“ teilen", { 0: projectTitle })}</h1>
             <p>
               {t(
-                "Personen mit dem Link können eine Kopie des gespeicherten Stands samt Arbeitsblättern lesen und übernehmen. Du kannst den Link widerrufen.",
+                "Alle mit dem Link können diesen Projektstand samt Arbeitsblättern ohne Anmeldung lesen und als Kopie übernehmen. Spätere Änderungen werden erst sichtbar, wenn du einen neuen Link erstellst.",
               )}
             </p>
             {projectShare && (
@@ -2565,49 +2725,66 @@ export default function App() {
               </>
             )}
             <div className="actions">
-              <Button disabled={busy} onClick={() => act(publishProjectShare)}>
-                {t(
-                  projectShare
-                    ? "Link für den aktuellen Stand ersetzen"
-                    : "Freigabelink erstellen",
-                )}
-              </Button>
               {projectShare && (
-                <>
-                  <Button
-                    secondary
-                    disabled={busy}
-                    onClick={() =>
-                      act(async () => {
-                        await navigator.clipboard.writeText(
-                          sharedProjectLink(projectShare.token),
-                        );
-                        setMessage(t("Freigabelink kopiert."));
-                      })
-                    }
-                  >
-                    {t("Freigabelink kopieren")}
-                  </Button>
-                  <Button
-                    secondary
-                    disabled={busy}
-                    onClick={() =>
-                      act(async () => {
-                        unwrap(
-                          await cloud.rpc("revoke_project_share", {
-                            p_project: draft.id,
-                          }),
-                        );
-                        setProjectShare(null);
-                        setMessage(t("Freigabelink widerrufen."));
-                      })
-                    }
-                  >
-                    {t("Freigabelink widerrufen")}
-                  </Button>
-                </>
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    act(async () => {
+                      await navigator.clipboard.writeText(
+                        sharedProjectLink(projectShare.token),
+                      );
+                      setMessage(t("Freigabelink kopiert."));
+                    })
+                  }
+                >
+                  {t("Freigabelink kopieren")}
+                </Button>
               )}
-              <Button secondary onClick={() => setPage("app")}>
+              {shareStatus === "ready" ? (
+                <Button
+                  secondary={Boolean(projectShare)}
+                  disabled={busy}
+                  onClick={() => act(publishProjectShare)}
+                >
+                  {t(
+                    projectShare
+                      ? "Link für den aktuellen Stand ersetzen"
+                      : "Freigabelink erstellen",
+                  )}
+                </Button>
+              ) : shareStatus === "error" ? (
+                <Button
+                  secondary
+                  onClick={() => {
+                    setError("");
+                    setShareAttempt((n) => n + 1);
+                  }}
+                >
+                  {t("Erneut versuchen")}
+                </Button>
+              ) : (
+                <span role="status">{t("Projekt wird geladen …")}</span>
+              )}
+              {projectShare && (
+                <Button
+                  secondary
+                  disabled={busy}
+                  onClick={() =>
+                    act(async () => {
+                      unwrap(
+                        await cloud.rpc("revoke_project_share", {
+                          p_project: draft.id,
+                        }),
+                      );
+                      setProjectShare(null);
+                      setMessage(t("Freigabelink widerrufen."));
+                    })
+                  }
+                >
+                  {t("Freigabelink widerrufen")}
+                </Button>
+              )}
+              <Button secondary onClick={openConfigurator}>
                 {t("Zum Konfigurator")}
               </Button>
             </div>
@@ -2686,11 +2863,7 @@ export default function App() {
                               null,
                               true,
                             );
-                            window.history.replaceState(
-                              null,
-                              "",
-                              window.location.pathname,
-                            );
+                            openConfigurator();
                           })
                         }
                       >
@@ -2765,7 +2938,7 @@ export default function App() {
                   </div>
                 );
               })}
-            <Button secondary onClick={() => setPage("app")}>
+            <Button secondary onClick={openConfigurator}>
               {t("Zum Konfigurator")}
             </Button>
           </Card>
@@ -3222,7 +3395,7 @@ export default function App() {
                 )}
               </a>
             </p>
-            <Button secondary onClick={() => setPage("app")}>
+            <Button secondary onClick={openConfigurator}>
               {t("Zum Spielkonfigurator → ")}
             </Button>
           </Card>
@@ -3243,14 +3416,7 @@ export default function App() {
           </p>
         </div>
         <div className="footer-links">
-          <button
-            onClick={() => {
-              setPage("about");
-              window.scrollTo(0, 0);
-            }}
-          >
-            {t("Über das Tool ")}
-          </button>
+          <a href="?view=about">{t("Über das Tool ")}</a>
           {Object.entries(INFO_PAGES).map(([view, label]) => (
             <a key={view} href={`?view=${view}`}>
               {t(label)}
