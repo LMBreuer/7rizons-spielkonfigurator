@@ -62,7 +62,7 @@ Der eingebaute Supabase-Mailversand ist für Workshopteilnehmende nicht ausreich
 
 ## 4. Zwei Admins einrichten
 
-1. Unter **Authentication → Users** die beiden Adminpersonen anlegen/einladen. Jede Person verwendet ein eigenes Passwort und Konto. Passwörter über den vorgesehenen Supabase-Prozess vergeben, nicht im Code ablegen.
+1. Unter **Authentication → Users** die beiden Adminpersonen anlegen/einladen. Jede Person verwendet ein eigenes Konto. Nach der Rollenzuweisung meldet sie sich mit einem Magic Link an und setzt optional unter **Mein Zugang → Passwort für den Adminzugang setzen oder ändern** ihr Passwort selbst.
 2. Die jeweilige User-ID (UUID) kopieren.
 3. Im **SQL Editor** folgende Anweisung mit den beiden tatsächlichen IDs ausführen:
 

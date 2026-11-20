@@ -2213,6 +2213,74 @@ export default function App() {
                     </Button>
                   )}
                 </div>
+                {admin && (
+                  <details className="account-section">
+                    <summary>
+                      {t("Passwort für den Adminzugang setzen oder ändern")}
+                    </summary>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        const fields = new FormData(form);
+                        act(async () => {
+                          const nextPassword = fields.get("new-password");
+                          if (nextPassword !== fields.get("confirm-password")) {
+                            throw new Error(
+                              t("Die Passwörter stimmen nicht überein."),
+                            );
+                          }
+                          const { error } = await cloud.auth.updateUser({
+                            password: nextPassword,
+                          });
+                          if (error?.code === "reauthentication_needed") {
+                            throw new Error(
+                              t(
+                                "Melde dich mit einem neuen Magic Link an und versuche es erneut.",
+                              ),
+                            );
+                          }
+                          if (error) throw error;
+                          form.reset();
+                          setMessage(
+                            t(
+                              "Passwort gespeichert. Du kannst dich jetzt per E-Mail und Passwort anmelden.",
+                            ),
+                          );
+                        });
+                      }}
+                    >
+                      <p className="muted">
+                        {t(
+                          "Das Passwort gehört zu deinem bestehenden Konto. Du kannst dich auch weiterhin per Magic Link anmelden.",
+                        )}
+                      </p>
+                      <label>
+                        {t("Neues Passwort")}
+                        <input
+                          name="new-password"
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                          disabled={busy}
+                        />
+                      </label>
+                      <label>
+                        {t("Passwort wiederholen")}
+                        <input
+                          name="confirm-password"
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                          disabled={busy}
+                        />
+                      </label>
+                      <Button type="submit" disabled={busy}>
+                        {t("Passwort speichern")}
+                      </Button>
+                    </form>
+                  </details>
+                )}
                 {moderatedWorkshops.length > 0 && (
                   <section className="account-section">
                     <h2>{t("Meine moderierten Workshops")}</h2>

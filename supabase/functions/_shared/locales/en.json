@@ -1,4 +1,12 @@
 {
+  "Passwort für den Adminzugang setzen oder ändern": "Set or change your admin password",
+  "Die Passwörter stimmen nicht überein.": "The passwords do not match.",
+  "Melde dich mit einem neuen Magic Link an und versuche es erneut.": "Sign in with a new magic link and try again.",
+  "Passwort gespeichert. Du kannst dich jetzt per E-Mail und Passwort anmelden.": "Password saved. You can now sign in with your email and password.",
+  "Das Passwort gehört zu deinem bestehenden Konto. Du kannst dich auch weiterhin per Magic Link anmelden.": "This password is for your existing account. You can still sign in with a magic link.",
+  "Neues Passwort": "New password",
+  "Passwort wiederholen": "Repeat password",
+  "Passwort speichern": "Save password",
   "Drucken": "Print",
   "Arbeitsblatt exportieren": "Export worksheet",
   "Hilfe & Nutzung": "Help & use",
