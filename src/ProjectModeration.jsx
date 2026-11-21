@@ -53,7 +53,7 @@ export function AdminProjectList({ act, busy, openProject }) {
               {project.status && " · " + t(accessLabels[project.status])}
               {project.shared_revision != null &&
                 ` (${t("Stand {0}", { 0: project.shared_revision })})`}
-              {project.is_owner && " · " + t("Dein Projekt")}
+              {project.is_owner && " · " + t("Ihr Projekt")}
             </small>
           </span>
           {project.status === "approved" ? (
@@ -88,12 +88,12 @@ export function AdminProjectList({ act, busy, openProject }) {
                     const subject = t("Projektfreigabe für 7’rizons");
                     const body =
                       t(
-                        "Kannst du den gespeicherten Stand von „{0}“ in 7’rizons für mich freigeben?",
+                        "Können Sie den gespeicherten Stand von „{0}“ in 7’rizons für mich freigeben?",
                         { 0: project.title },
                       ) +
                       "\n\n" +
                       t(
-                        "Öffne in deinem Konto die Freigabeanfragen. Dort kannst du zustimmen oder ablehnen.",
+                        "Öffnen Sie in Ihrem Konto die Freigabeanfragen. Dort können Sie zustimmen oder ablehnen.",
                       ) +
                       "\n" +
                       appUrl({ view: "account" });
@@ -159,7 +159,7 @@ export function ProjectRequests({ act, busy, message }) {
       <h2>{t("Freigabeanfragen")}</h2>
       <p className="muted">
         {t(
-          "Wenn du zustimmst, erhält die Superadministration eine Kopie des aktuell online gespeicherten Projektstands samt Arbeitsblättern.",
+          "Wenn Sie zustimmen, erhält die Superadministration eine Kopie des aktuell online gespeicherten Projektstands samt Arbeitsblättern.",
         )}
       </p>
       {requests.map((request) => (

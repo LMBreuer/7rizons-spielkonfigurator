@@ -111,11 +111,11 @@ test("conflicting final selections cannot be generated", () => {
   assert.throws(() => requestFor(d));
   assert.throws(() => requestFor({ ...draft(), mechanisms: ["m91", "m62"] }));
 });
-test("mandatory safety, known IDs, duplicates and group limits validated", () => {
+test("mandatory safety, known IDs, duplicates validated while all learning experiences may be selected", () => {
   assert.throws(() => validateDraft({ ...draft(), mechanisms: ["m72"] }));
   assert.throws(() => validateDraft({ ...draft(), learning: ["unknown"] }));
   assert.throws(() => validateDraft({ ...draft(), learning: ["per", "per"] }));
-  assert.throws(() =>
+  assert.doesNotThrow(() =>
     validateDraft({ ...draft(), learning: ["erl", "per", "dur", "ver"] }),
   );
   assert.doesNotThrow(() =>
@@ -303,4 +303,68 @@ test("formatted cards restore and export bold, italic and paragraphs", () => {
   );
   answer.content[0].content[0].marks[0].type = "unknown";
   assert.throws(() => readSnapshot(snapshot), /Arbeitsblattantworten/);
+});
+
+test("published content travels with a project, its worksheet responses and English output", () => {
+  const edition = {
+    learning: {
+      "l-field": {
+        label: "Quellen prüfen",
+        desc: "Quellen beurteilen",
+        en: { label: "Assess sources" },
+      },
+    },
+    mechanics: {
+      "m-field": {
+        label: "Quellenkarte",
+        desc: "Eine Quelle zuordnen",
+        questions: "Wer hat die Quelle verfasst?",
+        example: "Eine Inschrift",
+        w: { "l-field": "P" },
+        en: { label: "Source card", questions: "Who wrote it?" },
+      },
+    },
+    blocks: { playtest: "Welche Quelle blieb unklar?" },
+  };
+  const d = {
+    ...newDraft(edition),
+    learning: ["l-field"],
+    mechanisms: ["m91", "m-field"],
+  };
+  const result = templateResult(d, undefined, "guided");
+  const filled = {
+    ...result,
+    answers: { "m-field-0": "Mein Eintrag", playtest: "Die Datierung prüfen" },
+  };
+  const restored = readSnapshot(
+    JSON.parse(
+      JSON.stringify({
+        draft: d,
+        result: filled,
+        source: { kind: "template" },
+      }),
+    ),
+  );
+  assert.equal(
+    restored.result.mechanisms[0].guide.questions,
+    "Wer hat die Quelle verfasst?",
+  );
+  assert.equal(restored.result.nextSteps[0], "Welche Quelle blieb unklar?");
+  assert.equal(restored.result.answers.playtest, filled.answers.playtest);
+  assert.match(markdown(restored.draft, restored.result), /Mein Eintrag/);
+  assert.match(
+    markdown(restored.draft, restored.result),
+    /Die Datierung prüfen/,
+  );
+  assert.match(
+    markdown(
+      { ...d, language: "en" },
+      templateResult({ ...d, language: "en" }, undefined, "guided"),
+    ),
+    /Who wrote it\?/,
+  );
+  assert.throws(() => newDraft({ mechanics: { m91: { archived: true } } }));
+  assert.throws(() =>
+    newDraft({ mechanics: { "m-field": { label: "X", w: { missing: "P" } } } }),
+  );
 });

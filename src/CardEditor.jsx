@@ -25,7 +25,13 @@ const schema = new Schema({
     em: { parseDOM: [{ tag: "em" }, { tag: "i" }], toDOM: () => ["em", 0] },
   },
 });
-export default function CardEditor({ value, onChange, label, t }) {
+export default function CardEditor({
+  value,
+  onChange,
+  label,
+  t,
+  autoFocus = true,
+}) {
   const host = useRef(null),
     view = useRef(null),
     callback = useRef(onChange);
@@ -86,7 +92,7 @@ export default function CardEditor({ value, onChange, label, t }) {
       },
     });
     view.current = editor;
-    editor.focus();
+    if (autoFocus) editor.focus();
     return () => editor.destroy();
   }, []);
   return (

@@ -81,6 +81,19 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     await assert.rejects(() =>
       db.query("insert into public.admins values($1)", [owner]),
     );
+    const publish = async (revision) =>
+      db.query(
+        "update public.app_settings set content=$1, content_revision=gen_random_uuid() where id and content_revision=$2 returning content_revision",
+        [{ blocks: { closing: "Test" } }, revision],
+      );
+    const edition = (
+      await db.query("select content_revision from public.app_settings")
+    ).rows[0].content_revision;
+    assert.equal((await publish(edition)).rows.length, 0);
+    await identity(admin);
+    assert.equal((await publish(edition)).rows.length, 1);
+    assert.equal((await publish(edition)).rows.length, 0);
+    await identity(owner);
     const save = async (rev) =>
       (
         await db.query(

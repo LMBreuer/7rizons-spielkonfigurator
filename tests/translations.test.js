@@ -64,6 +64,7 @@ test("all explicitly translated literal UI strings have an English entry", async
   for (const file of [
     "src/App.jsx",
     "src/InfoPages.jsx",
+    "src/ContentEditor.jsx",
     "src/ProjectModeration.jsx",
     "src/Priority.jsx",
     "src/AppearanceSwitch.jsx",

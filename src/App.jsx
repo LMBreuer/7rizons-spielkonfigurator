@@ -1,3 +1,8 @@
+import ContentEditor from "./ContentEditor.jsx";
+import {
+  catalogFor,
+  validateContent,
+} from "../supabase/functions/_shared/content.js";
 import InfoPage, { INFO_PAGES } from "./InfoPages.jsx";
 import {
   AdminProjectList,
@@ -17,8 +22,6 @@ import { t, useLanguage, getLanguage } from "./i18n.js";
 import React, { useEffect, useRef, useState } from "react";
 import { cloud, unwrap, callFunction } from "./cloud.js";
 import {
-  LE,
-  MK,
   PROVIDERS,
   DEFAULT_SETTINGS,
   newDraft,
@@ -95,8 +98,8 @@ function sharedProjectLink(token) {
 
 const STORAGE = "7rizons:draft:v1";
 const steps = [
-  "Kontext",
-  "Lerntätigkeiten",
+  "Organisatorisches",
+  "Lernerlebnisse",
   "Mechaniken",
   "Übersicht",
   "Arbeitsblatt",
@@ -142,7 +145,8 @@ function stored() {
     }
   } catch {}
   return {
-    draft: newDraft(),
+    fresh: true,
+    draft: newDraft({}),
     worksheets: [],
     activeWorksheetId: null,
     pendingRequest: null,
@@ -226,6 +230,11 @@ export default function App() {
     ...saved.draft,
     language: saved.worksheets?.length ? saved.draft.language : language,
   }));
+  const selfStudy =
+    new URLSearchParams(window.location.search).get("modus") ===
+    "selbststudium";
+  const { LE, MK } = catalogFor(draft);
+  const [published, setPublished] = useState(null);
   const [worksheets, setWorksheets] = useState(saved.worksheets || []);
   const [activeWorksheetId, setActiveWorksheetId] = useState(
     saved.activeWorksheetId,
@@ -240,9 +249,13 @@ export default function App() {
   const resultSettings = activeWorksheet?.resultSettings || DEFAULT_SETTINGS;
   const resultDraft = activeWorksheet?.draft || draft;
   const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
-  const [step, setStep] = useState(saved.step || 1);
+  const [step, setStep] = useState(
+    !selfStudy && saved.step === 5 && !saved.worksheets.length
+      ? 4
+      : saved.step || 1,
+  );
   const [buildingSheet, setBuildingSheet] = useState(
-    saved.buildingSheet === true,
+    selfStudy && saved.buildingSheet === true,
   );
   const lastConfigStep = useRef(
     saved.configStep || (saved.step < 5 ? saved.step : 1),
@@ -489,13 +502,22 @@ export default function App() {
     });
     cloud
       .from("app_settings")
-      .select("value")
+      .select("value,content,content_revision")
       .eq("id", true)
       .single()
       .then(({ data, error }) => {
         if (alive) {
-          if (data) setSettings(settingsOf(data.value));
-          else if (error)
+          if (data) {
+            setSettings(settingsOf(data.value));
+            const content = validateContent(data.content || {});
+            setPublished({ content, revision: data.content_revision });
+            if (saved.fresh)
+              setDraft((d) =>
+                d.id === saved.draft.id && !d.learning.length
+                  ? { ...d, edition: content }
+                  : d,
+              );
+          } else if (error)
             setError(
               t(
                 "Online-Einstellungen konnten nicht geladen werden. Lokales Arbeiten bleibt möglich.",
@@ -581,7 +603,11 @@ export default function App() {
     return () => window.removeEventListener("hashchange", followLink);
   }, []);
   function openConfigurator() {
-    window.history.replaceState(null, "", window.location.pathname);
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + (selfStudy ? "?modus=selbststudium" : ""),
+    );
     setShareToken(null);
     setMessage("");
     setError("");
@@ -624,20 +650,21 @@ export default function App() {
     setError("");
   }
   function toggleLearning(id) {
-    const le = LE.find((x) => x.id === id);
-    if (draft.learning.includes(id))
-      change((d) => ({ ...d, learning: d.learning.filter((x) => x !== id) }));
-    else if (
-      draft.learning.filter(
-        (x) => LE.find((l) => l.id === x).group === le.group,
-      ).length < (le.group === "inhalt" ? settings.maxInhalt : settings.maxWiss)
-    )
-      change((d) => ({ ...d, learning: [...d.learning, id] }));
-  }
-  function toggleMechanism(id) {
-    if (id === "m91") return;
     change((d) => ({
       ...d,
+      learning: d.learning.includes(id)
+        ? d.learning.filter((x) => x !== id)
+        : [...d.learning, id],
+    }));
+  }
+  function toggleMechanism(id) {
+    if (MK.find((m) => m.id === id)?.kern && draft.mechanisms.includes(id))
+      return;
+    change((d) => ({
+      ...d,
+      mechanisms: d.mechanisms.includes(id)
+        ? d.mechanisms.filter((x) => x !== id)
+        : [...d.mechanisms, id],
       ...(d.priority && !d.mechanisms.includes(id)
         ? {
             priority: {
@@ -646,9 +673,25 @@ export default function App() {
             },
           }
         : {}),
-      mechanisms: d.mechanisms.includes(id)
-        ? d.mechanisms.filter((x) => x !== id)
-        : [...d.mechanisms, id],
+    }));
+  }
+  function selectBaseGame() {
+    const base = MK.filter((m) => !m.archived && (m.basis || m.kern)).map(
+      (m) => m.id,
+    );
+    change((d) => ({
+      ...d,
+      mechanisms: [...new Set([...d.mechanisms, ...base])],
+      ...(d.priority
+        ? {
+            priority: {
+              ...d.priority,
+              finalSelection: [
+                ...new Set([...d.priority.finalSelection, ...base]),
+              ],
+            },
+          }
+        : {}),
     }));
   }
   async function refreshWorkshops() {
@@ -666,7 +709,7 @@ export default function App() {
     try {
       sessionStorage.removeItem(invitationKey);
     } catch {}
-    setMessage(t("Du bist dem Workshop beigetreten."));
+    setMessage(t("Sie sind dem Workshop beigetreten."));
   }
   async function saveOnline() {
     if (!session) throw new Error(t("Bitte zuerst anmelden."));
@@ -674,7 +717,11 @@ export default function App() {
       await cloud.rpc("save_configuration", {
         p_id: draft.id,
         p_revision: cloudRevision,
-        p_title: draft.context.thema || draft.context.name || "Seminar-Hack",
+        p_title: (
+          draft.context.thema ||
+          draft.context.name ||
+          "Seminar-Hack"
+        ).slice(0, 300),
         p_payload: payload(),
       }),
     );
@@ -698,6 +745,52 @@ export default function App() {
     setWorksheets((items) => [...items, worksheet]);
     setActiveWorksheetId(worksheet.id);
     setBuildingSheet(false);
+  }
+  function workshopSheet(forceNew = false) {
+    const match =
+      !forceNew &&
+      [activeWorksheet, ...worksheets].find(
+        (w) =>
+          w &&
+          w.draft.revision === draft.revision &&
+          w.result.templateVariant === "guided" &&
+          w.result.answers,
+      );
+    if (match) setActiveWorksheetId(match.id);
+    else {
+      const result = templateResult(draft, settings, "guided");
+      addWorksheet({ ...result, answers: {} }, { kind: "template" }, settings);
+    }
+    setBuildingSheet(false);
+    setPreview(null);
+    setActiveCard(null);
+  }
+  function goStep(next) {
+    setMessage("");
+    setError("");
+    if (next > 1 && !draft.context.thema?.trim()) {
+      setStep(1);
+      setError(t("Bitte geben Sie das Seminarthema ein."));
+      window.requestAnimationFrame(() =>
+        document.getElementById("context-thema")?.focus(),
+      );
+      return;
+    }
+    if (next > 2 && !draft.learning.length) {
+      setStep(2);
+      setError(t("Bitte wählen Sie mindestens ein Lernerlebnis."));
+      return;
+    }
+    if (next === 5 && !selfStudy) {
+      try {
+        workshopSheet();
+      } catch (error) {
+        setStep(4);
+        setError(t(error.message));
+        return;
+      }
+    }
+    setStep(next);
   }
   function focusWorksheetBuilder() {
     setBuildingSheet(true);
@@ -723,6 +816,7 @@ export default function App() {
       id === activeWorksheetId
         ? remaining.at(-1)?.id || null
         : activeWorksheetId;
+    if (!selfStudy && !remaining.length) setStep(4);
     setWorksheets(remaining);
     setActiveWorksheetId(nextActive);
     setMessage(t("Arbeitsblatt gelöscht."));
@@ -742,7 +836,7 @@ export default function App() {
         withInstructions ? "guided" : "overview",
       );
       addWorksheet(r, { kind: "template" }, settings);
-      setMessage(t("Dein Arbeitsblatt ist fertig – ohne KI erstellt."));
+      setMessage(t("Ihr Arbeitsblatt ist fertig – ohne KI erstellt."));
       return;
     }
     if (mode === "external") {
@@ -752,16 +846,18 @@ export default function App() {
       setPreview(null);
       setMessage(
         t(
-          "Dein KI-Auftrag ist vorbereitet. Kopiere ihn oder lade ihn herunter.",
+          "Ihr KI-Auftrag ist vorbereitet. Kopieren Sie ihn oder laden Sie ihn herunter.",
         ),
       );
       return;
     }
     if (!session) throw new Error(t("Für direkte KI-Nutzung bitte anmelden."));
     if (mode === "personal" && !apiKey.trim())
-      throw new Error(t("Trage deinen eigenen API-Key ein."));
+      throw new Error(t("Tragen Sie Ihren eigenen API-Key ein."));
     if (mode === "workshop" && !workshopId)
-      throw new Error(t("Tritt zuerst mit deinem Code einem Workshop bei."));
+      throw new Error(
+        t("Treten Sie zuerst mit Ihrem Code einem Workshop bei."),
+      );
     const revision = draft.revision;
     const data = await callFunction("generate", {
       draft,
@@ -781,7 +877,7 @@ export default function App() {
     );
     setMessage(
       t(
-        "Dein KI-Arbeitsblatt ist fertig. Bitte prüfe die fachlichen Beispiele.",
+        "Ihr KI-Arbeitsblatt ist fertig. Prüfen Sie bitte die fachlichen Beispiele.",
       ),
     );
   }
@@ -814,11 +910,15 @@ export default function App() {
     setWorksheets(x.worksheets);
     setActiveWorksheetId(x.activeWorksheetId);
     setRequest(x.pendingRequest);
-    setBuildingSheet(builderWasOpen);
+    setBuildingSheet(selfStudy && builderWasOpen);
     lastConfigStep.current = previousStep;
     if (projectMenu.current) projectMenu.current.open = false;
     setCloudRevision(revision);
-    setStep(resumeStep || (x.worksheets.length ? 5 : 1));
+    setStep(
+      !selfStudy && !x.worksheets.length && resumeStep === 5
+        ? 4
+        : resumeStep || (x.worksheets.length ? 5 : 1),
+    );
     setPage("app");
     setPreview(null);
   }
@@ -917,8 +1017,25 @@ export default function App() {
     if (importConflict && !importDialog.current.open)
       importDialog.current.showModal();
   }, [importConflict]);
-  function newConfiguration() {
-    applySnapshot({ draft: { ...newDraft(), language } });
+  async function newConfiguration() {
+    let edition = published?.content || {};
+    if (cloud) {
+      const { data: row } = await cloud
+        .from("app_settings")
+        .select("content,content_revision")
+        .eq("id", true)
+        .single();
+      if (row) {
+        edition = validateContent(row.content || {});
+        setPublished({ content: edition, revision: row.content_revision });
+      } else
+        setMessage(
+          t(
+            "Offline angelegt. Dieses Projekt verwendet die zuletzt im Browser verfügbare Inhaltsfassung.",
+          ),
+        );
+    }
+    applySnapshot({ draft: { ...newDraft(edition), language } });
   }
   async function loadArchive() {
     setEntries(
@@ -1058,18 +1175,33 @@ export default function App() {
     ["workshops", t("Workshops")],
     ["submissions", t("Abgaben")],
     ["credentials", t("KI-Zugänge")],
+    ["content", t("Inhalte")],
     ["settings", t("Einstellungen")],
   ];
   const notices = (
     <>
       {error && (
         <div className="notice error" role="alert">
-          {t(error)}
+          {t(error)}{" "}
+          <button
+            className="notice-close"
+            onClick={() => setError("")}
+            aria-label={t("Meldung schließen")}
+          >
+            ×
+          </button>
         </div>
       )}
       {message && (
         <div className="notice success" role="status">
-          {t(message)}
+          {t(message)}{" "}
+          <button
+            className="notice-close"
+            onClick={() => setMessage("")}
+            aria-label={t("Meldung schließen")}
+          >
+            ×
+          </button>
         </div>
       )}
     </>
@@ -1193,7 +1325,7 @@ export default function App() {
             <h2 id="project-import-title">{t("Anderer Projektstand")}</h2>
             <p>
               {t(
-                "Zu diesem Projekt gibt es bereits einen anderen Stand. Möchtest du ihn überschreiben oder die Datei als neues Projekt laden?",
+                "Zu diesem Projekt gibt es bereits einen anderen Stand. Möchten Sie ihn überschreiben oder die Datei als neues Projekt laden?",
               )}
             </p>
             <div className="actions">
@@ -1230,18 +1362,11 @@ export default function App() {
           <>
             <header className="project-head no-print">
               <div className="project-identity">
-                <h1>
-                  {t("Eure Themen. ")}
-                  <em>{t("Eure Welten.")}</em>
-                </h1>
+                <h1>{t("Gestalten Sie 7’rizons für Ihre Lehre.")}</h1>
+                <p>{t("Von der Spielidee zum Seminar")}</p>
                 <div className="project-meta">
-                  {draft.context.thema || draft.context.name ? (
+                  {(draft.context.thema || draft.context.name) && (
                     <p className="project-title">{projectTitle}</p>
-                  ) : (
-                    step === 1 &&
-                    !worksheets.length && (
-                      <p>{t("Gestalte 7’rizons für deine Lehre.")}</p>
-                    )
                   )}
                   {savedLocally && (
                     <span className="save-status">
@@ -1368,7 +1493,7 @@ export default function App() {
                   disabled={busy}
                   className={step === i + 1 ? "active" : ""}
                   aria-current={step === i + 1 ? "step" : undefined}
-                  onClick={() => setStep(i + 1)}
+                  onClick={() => goStep(i + 1)}
                 >
                   <span>{i + 1}</span>
                   {i === 4 && worksheets.length
@@ -1383,7 +1508,7 @@ export default function App() {
               </span>
               <select
                 value={step}
-                onChange={(e) => setStep(Number(e.target.value))}
+                onChange={(e) => goStep(Number(e.target.value))}
               >
                 {steps.map((label, index) => (
                   <option key={t(label)} value={index + 1}>
@@ -1401,18 +1526,13 @@ export default function App() {
                 {step === 1 && (
                   <Card>
                     <div className="section-title">
-                      <h2>{t("Schritt 1: Seminar-Kontext")}</h2>
-                      <p>
-                        {t(
-                          "Optional — je mehr du angibst, desto konkreter werden die Beispiele im Arbeitsblatt. ",
-                        )}
-                      </p>
+                      <h2>{t("Schritt 1: Organisatorisches")}</h2>
                     </div>
                     <div className="field-grid context-grid">
                       {[
                         [
                           "thema",
-                          t("Thema des Seminars ★"),
+                          t("Thema des Seminars (Pflichtfeld)"),
                           t(
                             "z.B. Heinrichs VII. Italienzug, Gravitationsfelder, Reliquienwerdung",
                           ),
@@ -1455,12 +1575,6 @@ export default function App() {
                   <Card>
                     <div className="section-title">
                       <h2>{t("Schritt 2: Lernerlebnisse wählen")}</h2>
-                      <p>
-                        {t("Wähle bis zu ")}
-                        {settings.maxInhalt}
-                        {t(" inhaltliche und bis zu")} {settings.maxWiss}
-                        {t(" wissenschaftliche Lernerlebnisse. ")}
-                      </p>
                     </div>
                     {["inhalt", "wiss"].map((group) => (
                       <section
@@ -1472,28 +1586,11 @@ export default function App() {
                           {group === "inhalt"
                             ? t("Inhaltlich")
                             : t("Wissenschaftlich")}{" "}
-                          <small>
-                            {
-                              draft.learning.filter(
-                                (id) =>
-                                  LE.find((l) => l.id === id).group === group,
-                              ).length
-                            }
-                            /
-                            {group === "inhalt"
-                              ? settings.maxInhalt
-                              : settings.maxWiss}
-                          </small>
                         </h3>
-                        {group === "wiss" && (
-                          <p className="muted">
-                            {t(
-                              "Diese fünf Lernerlebnisse bilden die wissenschaftliche Methode ab und sind im Hochschulkontext immer relevant. ",
-                            )}
-                          </p>
-                        )}
                         <div className="option-grid">
-                          {LE.filter((l) => l.group === group).map((l) => (
+                          {LE.filter(
+                            (l) => l.group === group && !l.archived,
+                          ).map((l) => (
                             <button
                               className={
                                 "option " +
@@ -1506,20 +1603,7 @@ export default function App() {
                               aria-describedby={`learning-${l.id}-description learning-${l.id}-bloom`}
                               aria-pressed={draft.learning.includes(l.id)}
                               onClick={() => toggleLearning(l.id)}
-                              disabled={
-                                !draft.learning.includes(l.id) &&
-                                draft.learning.filter(
-                                  (id) =>
-                                    LE.find((x) => x.id === id).group === group,
-                                ).length >=
-                                  (group === "inhalt"
-                                    ? settings.maxInhalt
-                                    : settings.maxWiss)
-                              }
                             >
-                              <span className="option-icon" aria-hidden="true">
-                                {l.icon}
-                              </span>
                               {draft.learning.includes(l.id) && (
                                 <span
                                   className="selection-indicator"
@@ -1537,6 +1621,7 @@ export default function App() {
                               <small id={`learning-${l.id}-bloom`}>
                                 {t(l.bloom)}
                               </small>
+                              {l.fuer && <small>{t(l.fuer)}</small>}
                               {l.hinweis && <small>{t(l.hinweis)}</small>}
                             </button>
                           ))}
@@ -1551,19 +1636,25 @@ export default function App() {
                       <h2>{t("Schritt 3: Mechaniken wählen")}</h2>
                       <p>
                         {t(
-                          "Wähle alles was interessant klingt — erst im nächsten Schritt reduzierst du dann auf das Minimum. Im oberen Abschnitt findest du Mechaniken sortiert nach Relevanz für deine Lerntätigkeiten. Im unteren Abschnitt alle anderen Mechaniken, falls du noch etwas vermisst und dazunehmen willst. ",
+                          "Wählen Sie zunächst alle Mechaniken aus, die für Ihr Seminar interessant sind. Oben stehen die Mechaniken mit einem primären Beitrag zu Ihren Lernerlebnissen und die Kernelemente. Weitere Mechaniken finden Sie darunter. In der Übersicht legen Sie die endgültige Auswahl fest. ",
                         )}
                       </p>
                       <p>
-                        <strong>{t("P")}</strong>
-                        {t(" primär trägt · ")}
-                        <strong>{t("S")}</strong> {t("sekundär unterstützt · ")}
-                        <strong>~</strong>
-                        {t(" erzeugt Reibung ")}
+                        {t(
+                          "P = primärer Beitrag, S = unterstützender Beitrag. IMMER kennzeichnet den verbindlichen Safety-Rahmen, KERN die festen Spielmechaniken und BASIS weitere Elemente des Basisspiels.",
+                        )}
                       </p>
+                      <p>
+                        {t(
+                          "Falls der Safety-Rahmen für Ihr Fach ungeeignet erscheint, können Sie mit Luca Voges und Harald Eckmüller in einem Workshop Alternativen besprechen.",
+                        )}
+                      </p>
+                      <Button secondary onClick={selectBaseGame}>
+                        {t("Basisspiel auswählen")}
+                      </Button>
                     </div>
                     <MechanismChoices
-                      mechanisms={MK.filter(
+                      mechanisms={MK.filter((m) => !m.archived).filter(
                         (m) =>
                           m.pflicht ||
                           m.kern ||
@@ -1576,11 +1667,11 @@ export default function App() {
                       <summary>{t("Weitere Mechaniken entdecken")}</summary>
                       <p className="muted">
                         {t(
-                          "Diese Mechaniken dienen anderen Lernerlebnissen als den von dir gewählten. ",
+                          "Hier finden Sie weitere Mechaniken für Ihr Seminar. ",
                         )}
                       </p>
                       <MechanismChoices
-                        mechanisms={MK.filter(
+                        mechanisms={MK.filter((m) => !m.archived).filter(
                           (m) =>
                             !m.pflicht &&
                             !m.kern &&
@@ -1687,6 +1778,10 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => {
+                            if (!selfStudy) {
+                              act(() => workshopSheet(true));
+                              return;
+                            }
                             if (buildingSheet) {
                               setPreview(null);
                               setBuildingSheet(false);
@@ -1697,7 +1792,8 @@ export default function App() {
                             ? t("Zurück zum Blatt")
                             : "+ " + t("Neues Blatt")}
                         </button>
-                        {!buildingSheet &&
+                        {selfStudy &&
+                          !buildingSheet &&
                           result.templateVariant !== "overview" && (
                             <Button
                               secondary
@@ -1764,17 +1860,22 @@ export default function App() {
                         )}
                       </div>
                     )}
-                    {(!result || buildingSheet) && (
+                    {!selfStudy && !result && (
+                      <Button onClick={() => goStep(5)}>
+                        {t("Arbeitsblatt öffnen")}
+                      </Button>
+                    )}
+                    {selfStudy && (!result || buildingSheet) && (
                       <Card className="worksheet-builder">
                         <div className="section-title">
                           <h2 tabIndex={-1}>
                             {worksheets.length
                               ? t("Weiteres Arbeitsblatt hinzufügen")
-                              : t("Wähle deinen Weg.")}
+                              : t("Wählen Sie Ihren Weg.")}
                           </h2>
                           <p>
                             {t(
-                              "Alle Wege führen zum gleichen übersichtlichen Arbeitsblatt. Du entscheidest, ob und wie KI mitarbeitet. ",
+                              "Wählen Sie eine Vorlage oder lassen Sie Vorschläge für Ihr Seminarthema ausarbeiten. ",
                             )}
                           </p>
                         </div>
@@ -1789,13 +1890,13 @@ export default function App() {
                               "01",
                               t("Ohne KI"),
                               t(
-                                "Deine Auswahl, feste Anleitungen und Platz für eigene Karten.",
+                                "Ihre Auswahl, feste Anleitungen und Platz für eigene Karten.",
                               ),
                             ],
                             [
                               "external",
                               "02",
-                              t("Mit deiner KI-App"),
+                              t("Mit Ihrer KI-App"),
                               t(
                                 "Auftrag mitnehmen, JSON-Antwort hier wieder einfügen.",
                               ),
@@ -1811,7 +1912,7 @@ export default function App() {
                               "04",
                               t("Mit gespeichertem Zugang"),
                               t(
-                                "Verwende deinen privaten API-Key aus der Administration.",
+                                "Verwenden Sie Ihren privaten API-Key aus der Administration.",
                               ),
                             ],
                             [
@@ -1874,7 +1975,7 @@ export default function App() {
                             </label>
                             <small id="template-choice-note">
                               {t(
-                                "Ohne Häkchen erhältst du die Übersicht deiner Auswahl.",
+                                "Ohne Häkchen erhalten Sie die Übersicht Ihrer Auswahl.",
                               )}
                             </small>
                           </div>
@@ -1914,7 +2015,7 @@ export default function App() {
                             {mode === "personal" ? (
                               <>
                                 <label>
-                                  {t("Dein API-Key ")}
+                                  {t("Ihr API-Key ")}
                                   <input
                                     type="password"
                                     autoComplete="off"
@@ -1927,7 +2028,7 @@ export default function App() {
                                 <ApiKeyHelp provider={provider} />
                                 <p className="muted">
                                   {t(
-                                    "Der Key wird nur im Arbeitsspeicher gehalten und für den Aufruf verschlüsselt an unser Backend übertragen. Er wird nicht in Entwürfen oder Downloads gespeichert. Der Anbieter rechnet die Nutzung mit deinem API-Konto ab. ",
+                                    "Der Key wird nur im Arbeitsspeicher gehalten und für den Aufruf verschlüsselt an unser Backend übertragen. Er wird nicht in Entwürfen oder Downloads gespeichert. Der Anbieter rechnet die Nutzung mit Ihrem API-Konto ab. ",
                                   )}
                                 </p>
                               </>
@@ -1945,7 +2046,7 @@ export default function App() {
                                   />
                                   <p className="muted">
                                     {t(
-                                      "Die Workshop-KI verwendet einen zentralen Zugang. Du benötigst keinen eigenen API-Key. Nur für freigeschaltete Workshops und innerhalb ihres Limits verfügbar. ",
+                                      "Die Workshop-KI verwendet einen zentralen Zugang. Sie benötigen keinen eigenen API-Key. Nur für freigeschaltete Workshops und innerhalb ihres Limits verfügbar. ",
                                     )}
                                   </p>
                                 </>
@@ -1988,12 +2089,10 @@ export default function App() {
                           request.configurationId === draft.id &&
                           request.configurationRevision === draft.revision && (
                             <div className="external-flow">
-                              <h3>
-                                {t("Dein Auftrag für eine KI deiner Wahl")}
-                              </h3>
+                              <h3>{t("Ihr Auftrag für eine KI Ihrer Wahl")}</h3>
                               <p>
                                 {t(
-                                  "Er enthält Thema und Fach, Mechaniken und ein festes JSON-Antwortformat. Füge ihn selbst bei deiner KI ein. Andere Kontextangaben werden nicht mitgegeben. ",
+                                  "Der Auftrag enthält Thema, Fach, Mechaniken und ein JSON-Antwortformat. Fügen Sie ihn in Ihrer KI-App ein. ",
                                 )}
                               </p>
                               <textarea
@@ -2029,7 +2128,7 @@ export default function App() {
                                 </Button>
                               </div>
                               <label>
-                                {t("JSON-Antwort deiner KI ")}
+                                {t("JSON-Antwort Ihrer KI ")}
                                 <textarea
                                   rows={6}
                                   value={importText}
@@ -2068,7 +2167,7 @@ export default function App() {
                                     );
                                     setMessage(
                                       t(
-                                        "Antwort geprüft. Kontrolliere die Vorschau und übernimm sie anschließend.",
+                                        "Antwort geprüft. Kontrollieren Sie die Vorschau und übernehmen Sie sie anschließend.",
                                       ),
                                     );
                                   })
@@ -2087,7 +2186,7 @@ export default function App() {
                     <Button
                       secondary
                       disabled={step === 1}
-                      onClick={() => setStep((s) => s - 1)}
+                      onClick={() => goStep(step - 1)}
                     >
                       {t("← Zurück ")}
                     </Button>
@@ -2096,7 +2195,7 @@ export default function App() {
                       disabled={
                         step === 5 || (step === 2 && !draft.learning.length)
                       }
-                      onClick={() => setStep((s) => s + 1)}
+                      onClick={() => goStep(step + 1)}
                     >
                       {step === 1
                         ? t("Weiter zu den Lernerlebnissen →")
@@ -2157,24 +2256,35 @@ export default function App() {
                 {!isCurrent && (
                   <div className="notice error no-print">
                     {t(
-                      "Dieses Arbeitsblatt gehört zu einer früheren Konfiguration. Es bleibt erhalten. Für deine aktuelle Auswahl kannst du ein weiteres Arbeitsblatt hinzufügen. ",
+                      "Dieses Arbeitsblatt gehört zu einer früheren Konfiguration. Für Ihre aktuelle Auswahl können Sie ein weiteres Arbeitsblatt hinzufügen. ",
                     )}
                   </div>
                 )}
                 <>
                   <Worksheet
                     key={activeWorksheetId}
+                    inlineEdit={!selfStudy && Boolean(result.answers)}
                     activeCard={activeCard}
                     onStartEditing={
-                      result.answers
+                      (result.answers || !selfStudy) &&
+                      result.templateVariant !== "overview"
                         ? (key) => {
-                            setEditingId(activeWorksheetId);
+                            if (!result.answers) {
+                              const copy = createWorksheet({
+                                ...activeWorksheet,
+                                result: { ...result, answers: {} },
+                              });
+                              setWorksheets((items) => [...items, copy]);
+                              setActiveWorksheetId(copy.id);
+                              setEditingId(copy.id);
+                            } else setEditingId(activeWorksheetId);
                             setActiveCard(key);
                           }
                         : undefined
                     }
                     onAnswer={
-                      editingId === activeWorksheetId
+                      editingId === activeWorksheetId ||
+                      (!selfStudy && result.answers)
                         ? (key, value) => {
                             setWorksheets((items) =>
                               items.map((w) =>
@@ -2200,6 +2310,25 @@ export default function App() {
                     settings={resultSettings}
                     source={source}
                   />
+                  {cloud && (
+                    <div className="worksheet-save no-print">
+                      <p>
+                        {t(
+                          "Ihre Eingaben werden in diesem Browser gesichert. Online gespeicherte Arbeitsblätter finden Sie unter „Konto → Meine Entwürfe“.",
+                        )}
+                      </p>
+                      <Button
+                        disabled={busy}
+                        onClick={() =>
+                          session ? act(saveOnline) : setPage("project-save")
+                        }
+                      >
+                        {t("Online speichern")}
+                      </Button>
+                      {message && <small>{t(message)}</small>}
+                      {error && <small>{t(error)}</small>}
+                    </div>
+                  )}
                   {session && isCurrent && (
                     <Card className="no-print">
                       <h2>{t("Mit der Workshopmoderation teilen")}</h2>
@@ -2312,7 +2441,7 @@ export default function App() {
             </h1>
             {projectAction === "save" && (
               <p>
-                {t("Melde dich an, um „{0}“ online zu speichern.", {
+                {t("Melden Sie sich an, um „{0}“ online zu speichern.", {
                   0: projectTitle,
                 })}
               </p>
@@ -2320,7 +2449,7 @@ export default function App() {
             {projectAction === "share" && (
               <p>
                 {t(
-                  "Melde dich an, um einen Freigabelink für „{0}“ zu erstellen.",
+                  "Melden Sie sich an, um einen Freigabelink für „{0}“ zu erstellen.",
                   { 0: projectTitle },
                 )}
               </p>
@@ -2363,7 +2492,7 @@ export default function App() {
                           if (error?.code === "reauthentication_needed") {
                             throw new Error(
                               t(
-                                "Melde dich mit einem neuen Magic Link an und versuche es erneut.",
+                                "Melden Sie sich mit einem neuen Magic Link an und versuchen Sie es erneut.",
                               ),
                             );
                           }
@@ -2371,7 +2500,7 @@ export default function App() {
                           form.reset();
                           setMessage(
                             t(
-                              "Passwort gespeichert. Du kannst dich jetzt per E-Mail und Passwort anmelden.",
+                              "Passwort gespeichert. Sie können sich jetzt per E-Mail und Passwort anmelden.",
                             ),
                           );
                         });
@@ -2379,7 +2508,7 @@ export default function App() {
                     >
                       <p className="muted">
                         {t(
-                          "Das Passwort gehört zu deinem bestehenden Konto. Du kannst dich auch weiterhin per Magic Link anmelden.",
+                          "Das Passwort gehört zu Ihrem bestehenden Konto. Sie können sich auch weiterhin per Magic Link anmelden.",
                         )}
                       </p>
                       <label>
@@ -2489,7 +2618,7 @@ export default function App() {
                       setCloudRevision(0);
                       setMessage(
                         t(
-                          "Abgemeldet. Dein lokaler Entwurf bleibt in diesem Browser.",
+                          "Abgemeldet. Ihr lokaler Entwurf bleibt in diesem Browser.",
                         ),
                       );
                     })
@@ -2506,7 +2635,7 @@ export default function App() {
                         "Administrationszugang mit E-Mail und Passwort. Die Rolle wird separat im Backend vergeben.",
                       )
                     : t(
-                        "Du erhältst einen Anmeldelink per E-Mail. Ein Passwort brauchst du nicht.",
+                        "Sie erhalten einen Anmeldelink per E-Mail. Ein Passwort brauchen Sie nicht.",
                       )}
                 </p>
                 <form
@@ -2544,7 +2673,7 @@ export default function App() {
                         );
                         setMessage(
                           t(
-                            "Anmeldelink angefordert. Prüfe dein E-Mail-Postfach.",
+                            "Anmeldelink angefordert. Prüfen Sie Ihr E-Mail-Postfach.",
                           ),
                         );
                       }
@@ -2602,7 +2731,7 @@ export default function App() {
             <h1>{t("Meine Entwürfe")}</h1>
             <p>
               {t(
-                "Deine Online-Entwürfe. Die Superadministration sieht Titel und Änderungsdatum. Laden ersetzt den aktuellen lokalen Stand.",
+                "Ihre Online-Entwürfe. Die Superadministration sieht Titel und Änderungsdatum. Laden ersetzt den aktuellen lokalen Stand.",
               )}
             </p>
             {entries.length ? (
@@ -2706,7 +2835,7 @@ export default function App() {
             <h1>{t("„{0}“ teilen", { 0: projectTitle })}</h1>
             <p>
               {t(
-                "Alle mit dem Link können diesen Projektstand samt Arbeitsblättern ohne Anmeldung lesen und als Kopie übernehmen. Spätere Änderungen werden erst sichtbar, wenn du einen neuen Link erstellst.",
+                "Alle mit dem Link können diesen Projektstand samt Arbeitsblättern ohne Anmeldung lesen und als Kopie übernehmen. Spätere Änderungen werden erst sichtbar, wenn Sie einen neuen Link erstellen.",
               )}
             </p>
             {projectShare && (
@@ -2910,7 +3039,7 @@ export default function App() {
             <h1>{t("Projekt einem Workshop zuordnen")}</h1>
             <p>
               {t(
-                "Die Moderation sieht Titel und Änderungsdatum. Arbeitsblätter kannst du gesondert abgeben.",
+                "Die Moderation sieht Titel und Änderungsdatum. Arbeitsblätter können Sie gesondert abgeben.",
               )}
             </p>
             {workshops
@@ -3000,18 +3129,51 @@ export default function App() {
                 />
               </Card>
             )}
+            {adminTab === "content" &&
+              (published?.revision ? (
+                <ContentEditor
+                  key={published.revision}
+                  published={published}
+                  busy={busy}
+                  act={act}
+                  onPublish={async (content) => {
+                    const revision = crypto.randomUUID();
+                    const row = unwrap(
+                      await cloud
+                        .from("app_settings")
+                        .update({ content, content_revision: revision })
+                        .eq("id", true)
+                        .eq("content_revision", published.revision)
+                        .select("content_revision")
+                        .maybeSingle(),
+                    );
+                    if (!row)
+                      throw new Error(
+                        t(
+                          "Eine neuere Inhaltsfassung liegt vor. Laden Sie die Seite neu und prüfen Sie Ihre Änderungen.",
+                        ),
+                      );
+                    setPublished({ content, revision });
+                    setMessage(t("Inhalte veröffentlicht."));
+                  }}
+                />
+              ) : (
+                <p>
+                  {t(
+                    "Die Inhaltsverwaltung benötigt eine Verbindung zum Backend.",
+                  )}
+                </p>
+              ))}
             {adminTab === "settings" && (
               <Card>
                 <h2>{t("Einstellungen")}</h2>
                 <p>
                   {t(
-                    "Modelle und Auswahlgrenzen gelten für neue Aufträge. Bereits erstellte Arbeitsblätter behalten ihre Einstellungen. ",
+                    "Diese Einstellungen gelten für neue Arbeitsblätter und KI-Aufträge. ",
                   )}
                 </p>
                 <div className="field-grid">
                   {[
-                    ["maxInhalt", t("Inhaltliche Auswahlgrenze"), 4],
-                    ["maxWiss", t("Wissenschaftliche Auswahlgrenze"), 5],
                     ["cardsPerMechanism", t("Karten je Mechanik"), 5],
                     ["hourlyLimit", t("KI-Aufrufe je Person / Stunde"), 30],
                   ].map(([k, label, max]) => (
@@ -3200,7 +3362,7 @@ export default function App() {
                 <h2>{t("Workshops")}</h2>
                 <p className="muted">
                   {t(
-                    "Teile den Einladungslink oder QR-Code. Nach dem Beitritt können Teilnehmende ein Projekt zuordnen und Arbeitsblätter abgeben.",
+                    "Teilen Sie den Einladungslink oder QR-Code. Nach dem Beitritt können Teilnehmende ein Projekt zuordnen und Arbeitsblätter abgeben.",
                   )}
                 </p>
                 <form
@@ -3269,7 +3431,7 @@ export default function App() {
                               );
                               await refreshWorkshops();
                               setMessage(
-                                t("Du bist dem Workshop beigetreten."),
+                                t("Sie sind dem Workshop beigetreten."),
                               );
                             })
                           }
@@ -3379,7 +3541,7 @@ export default function App() {
             <h2>{t("Vom Lernziel zum Spiel")}</h2>
             <p>
               {t(
-                "Der Spielkonfigurator hilft dir, 7’rizons für dein eigenes Hochschulseminar anzupassen. Aus deinem Thema, den gewünschten Lerntätigkeiten und passenden Spielmechaniken entsteht ein Arbeitsblatt mit Anleitungen und Platz für eigene Kartentexte. Du kannst mit festen Vorlagen arbeiten oder dir von einer KI thematische Vorschläge ausarbeiten lassen. ",
+                "Mit dem Spielkonfigurator passen Sie 7’rizons für Ihr Hochschulseminar an. Aus Ihrem Thema, den gewünschten Lernerlebnissen und den Spielmechaniken entsteht ein ausfüllbares Arbeitsblatt. In der separaten Variante können Sie zusätzlich KI-Vorschläge anfordern. ",
               )}
             </p>
             <h2>{t("7’rizons: Create a playful university!")}</h2>
@@ -3416,6 +3578,11 @@ export default function App() {
           </p>
         </div>
         <div className="footer-links">
+          <a
+            href={`mailto:info@lmbreuer.de?subject=${encodeURIComponent("7’rizons · Feedback" + (page === "app" ? " · " + t(steps[step - 1]) : ""))}`}
+          >
+            {t("Feedback per E-Mail")}
+          </a>
           <a href="?view=about">{t("Über das Tool ")}</a>
           {Object.entries(INFO_PAGES).map(([view, label]) => (
             <a key={view} href={`?view=${view}`}>
@@ -3433,6 +3600,7 @@ function MechanismChoices({
   onToggle,
   groupByLearning = false,
 }) {
+  const { LE } = catalogFor(draft);
   const groupOf = (m) =>
     groupByLearning
       ? (LE.find((l) => m.w[l.id] === "P") || LE.find((l) => m.w[l.id] === "S"))
@@ -3479,7 +3647,9 @@ function MechanismChoices({
               aria-describedby={`mechanism-${m.id}-description mechanism-${m.id}-relevance`}
               onClick={() => onToggle(m.id)}
               aria-pressed={draft.mechanisms.includes(m.id)}
-              aria-disabled={m.pflicht || undefined}
+              aria-disabled={
+                (m.kern && draft.mechanisms.includes(m.id)) || undefined
+              }
             >
               <span className="check" aria-hidden="true">
                 {draft.mechanisms.includes(m.id) ? "✓" : "+"}
@@ -3491,7 +3661,7 @@ function MechanismChoices({
                   {m.kern && <small>{t("KERN")}</small>}
                   {m.basis && !m.pflicht && <small>{t("BASIS")}</small>}
                   {draft.learning
-                    .filter((id) => m.w[id])
+                    .filter((id) => ["P", "S"].includes(m.w[id]))
                     .map((id) => (
                       <small
                         className={m.w[id] === "~" ? "friction" : "relevance"}
@@ -3550,7 +3720,7 @@ function WorkshopJoin({
           onChange={(e) => setCode(e.target.value)}
           autoComplete="off"
           maxLength={80}
-          placeholder={t("Code von deiner Moderation")}
+          placeholder={t("Code von Ihrer Moderation")}
         />
       </label>
       <Button secondary disabled={!session || !code.trim()} onClick={join}>

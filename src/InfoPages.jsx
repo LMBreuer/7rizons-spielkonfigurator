@@ -29,7 +29,7 @@ function PrivacyInfo({ online }) {
         <li>
           <strong>{t("Im Browser.")}</strong>{" "}
           {t(
-            "Deine eingegebenen Seminardaten, Spielauswahl, Arbeitsblätter und Kartentexte werden automatisch in diesem Browser gespeichert. Dazu kommen die Darstellungs- und Spracheinstellungen, bei Anmeldung die Sitzung und bei einer offenen Workshop-Einladung der Code. Browserdaten kannst du in den Einstellungen des Browsers löschen. Eine heruntergeladene JSON-Datei bleibt bei dir.",
+            "Ihre eingegebenen Seminardaten, Spielauswahl, Arbeitsblätter und Kartentexte werden automatisch in diesem Browser gespeichert. Dazu kommen die Darstellungs- und Spracheinstellungen, bei Anmeldung die Sitzung und bei einer offenen Workshop-Einladung der Code. Browserdaten können Sie in den Einstellungen des Browsers löschen. Eine heruntergeladene JSON-Datei bleibt bei Ihnen.",
           )}
         </li>
         <li>
@@ -51,13 +51,13 @@ function PrivacyInfo({ online }) {
             <li>
               <strong>{t("Bei der Anmeldung.")}</strong>{" "}
               {t(
-                "Supabase verarbeitet deine E-Mail-Adresse, eine Konto-ID und technische Anmeldedaten, damit du dich anmelden und auf deine Online-Projekte zugreifen kannst. Der Mailversanddienst erhält die Adresse für den Versand des Magic Links. Die Hauptdatenbank des Projekts liegt in Irland.",
+                "Supabase verarbeitet Ihre E-Mail-Adresse, eine Konto-ID und technische Anmeldedaten, damit Sie sich anmelden und auf Ihre Online-Projekte zugreifen können. Der Mailversanddienst erhält die Adresse für den Versand des Magic Links. Die Hauptdatenbank des Projekts liegt in Irland.",
               )}
             </li>
             <li>
               <strong>{t("Beim Online-Speichern.")}</strong>{" "}
               {t(
-                "Der gespeicherte Stand umfasst deine Eingaben, Auswahl, Arbeitsblätter und Kartentexte, gegebenenfalls einen vorbereiteten KI-Auftrag sowie Projekt-ID, Version und Änderungszeitpunkt. Der Stand ist deinem Konto zugeordnet. Die Superadministration sieht Projekttitel und Änderungsdatum. Für eine Freigabeanfrage kann sie einen Mailentwurf an deine Konto-Adresse öffnen. Eine Kopie der Inhalte erhält sie nach bestätigter Freigabe.",
+                "Der gespeicherte Stand umfasst Ihre Eingaben, Auswahl, Arbeitsblätter und Kartentexte, gegebenenfalls einen vorbereiteten KI-Auftrag sowie Projekt-ID, Version und Änderungszeitpunkt. Der Stand ist Ihrem Konto zugeordnet. Die Superadministration sieht Projekttitel und Änderungsdatum. Für eine Freigabeanfrage kann sie einen Mailentwurf an Ihre Konto-Adresse öffnen. Eine Kopie der Inhalte erhält sie nach bestätigter Freigabe.",
               )}
             </li>
           </>
@@ -76,18 +76,18 @@ function PrivacyInfo({ online }) {
           <ul>
             <li>
               {t(
-                "Wenn du ein Projekt einem Workshop zuordnest, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie zusätzlich eine Kopie des ausgewählten Arbeitsblatts samt Kontextangaben.",
+                "Wenn Sie ein Projekt einem Workshop zuordnen, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie zusätzlich eine Kopie des ausgewählten Arbeitsblatts samt Kontextangaben.",
               )}
             </li>
             <li>
               {t(
-                "Wer einen von dir erstellten Freigabelink hat, kann den freigegebenen Projektstand samt Arbeitsblättern ohne Anmeldung ansehen, herunterladen oder als eigenes Projekt übernehmen.",
+                "Wer einen von Ihnen erstellten Freigabelink hat, kann den freigegebenen Projektstand samt Arbeitsblättern ohne Anmeldung ansehen, herunterladen oder als eigenes Projekt übernehmen.",
               )}
             </li>
           </ul>
           <p>
             {t(
-              "Du kannst Freigaben widerrufen und Abgaben zurückziehen. Bereits heruntergeladene oder übernommene Kopien bleiben bei den Empfänger:innen.",
+              "Sie können Freigaben widerrufen und Abgaben zurückziehen. Bereits heruntergeladene oder übernommene Kopien bleiben bei den Empfänger:innen.",
             )}
           </p>
         </>
@@ -95,32 +95,32 @@ function PrivacyInfo({ online }) {
       <h2>{t("Was wird an KI-Anbieter übermittelt?")}</h2>
       <p>
         {t(
-          "Bei einem direkten KI-Aufruf bekommt der ausgewählte Anbieter OpenAI, Anthropic (Claude) oder Google (Gemini) den Auftrag mit Thema, Fach, Lerntätigkeiten und gewählten Spielmechaniken. Die Felder für Name der Lehrveranstaltung, Dozent:in, Semester und Datum sowie deine vorhandenen Kartentexte gehen nicht in den Auftrag ein. Verwende auch in Thema und Fach keine vertraulichen oder personenbezogenen Angaben, die der Anbieter nicht erhalten soll.",
+          "Bei einem direkten KI-Aufruf bekommt der ausgewählte Anbieter OpenAI, Anthropic (Claude) oder Google (Gemini) den Auftrag mit Thema, Fach, Lerntätigkeiten und gewählten Spielmechaniken. Die Felder für Name der Lehrveranstaltung, Dozent:in, Semester und Datum sowie Ihre vorhandenen Kartentexte gehen nicht in den Auftrag ein. Verwenden Sie auch in Thema und Fach keine vertraulichen oder personenbezogenen Angaben, die der Anbieter nicht erhalten soll.",
         )}
       </p>
       <p>
         {t(
-          "Deinen für eine Sitzung eingegebenen API-Key verwendet das Backend für den Aufruf. In der Administration hinterlegte Keys werden verschlüsselt gespeichert. Zur Durchsetzung der Kontingente erfasst der Konfigurator Zeitpunkt, Konto-ID und gegebenenfalls die Workshop-ID eines Generierungsversuchs. Welche Daten der Anbieter weiterverarbeitet und wie lange er sie aufbewahrt, hängt vom Anbieter und den Kontoeinstellungen ab.",
+          "Ihren für eine Sitzung eingegebenen API-Key verwendet das Backend für den Aufruf. In der Administration hinterlegte Keys werden verschlüsselt gespeichert. Zur Durchsetzung der Kontingente erfasst der Konfigurator Zeitpunkt, Konto-ID und gegebenenfalls die Workshop-ID eines Generierungsversuchs. Welche Daten der Anbieter weiterverarbeitet und wie lange er sie aufbewahrt, hängt vom Anbieter und den Kontoeinstellungen ab.",
         )}
       </p>
       <p>
         {t(
-          "Bei „Mit deiner KI-App“ kopierst oder lädst du den Auftrag selbst herunter und entscheidest, wem du ihn sendest. „Ohne KI“ erstellt das Arbeitsblatt aus Vorlagen, ohne einen KI-Anbieter aufzurufen.",
+          "Bei „Mit Ihrer KI-App“ kopieren Sie den Auftrag oder laden ihn herunter und entscheiden selbst, wem Sie ihn senden. „Ohne KI“ erstellt das Arbeitsblatt aus Vorlagen, ohne einen KI-Anbieter aufzurufen.",
         )}
       </p>
       {online && (
         <>
-          <h2>{t("Löschung und deine Rechte")}</h2>
+          <h2>{t("Löschung und Ihre Rechte")}</h2>
           <p>
             {t(
-              "Online-Projekte bleiben bis zur Löschung unter „Konto → Meine Entwürfe“ gespeichert. Workshop-Abgaben bleiben bis zum Zurückziehen oder zur administrativen Bereinigung gespeichert. Das Konto und die Generierungszähler bleiben bis zur Kontolöschung oder administrativen Bereinigung bestehen. Für die Löschung deines Kontos wende dich an die oben genannte Adresse.",
+              "Online-Projekte bleiben bis zur Löschung unter „Konto → Meine Entwürfe“ gespeichert. Workshop-Abgaben bleiben bis zum Zurückziehen oder zur administrativen Bereinigung gespeichert. Das Konto und die Generierungszähler bleiben bis zur Kontolöschung oder administrativen Bereinigung bestehen. Für die Löschung Ihres Kontos wenden Sie sich an die oben genannte Adresse.",
             )}
           </p>
         </>
       )}
       <p>
         {t(
-          "Du kannst dich für Auskunft, Berichtigung und Löschung an die oben genannte Adresse wenden. Je nach Voraussetzungen kannst du die Verarbeitung einschränken lassen, ihr widersprechen oder deine Daten übertragen lassen. Du kannst dich bei einer Datenschutzaufsichtsbehörde beschweren.",
+          "Sie können sich für Auskunft, Berichtigung und Löschung an die oben genannte Adresse wenden. Je nach Voraussetzungen können Sie die Verarbeitung einschränken lassen, ihr widersprechen oder Ihre Daten übertragen lassen. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren.",
         )}{" "}
         <a href="https://www.lda.bayern.de/de/beschwerde.html">
           {t("Datenschutzbeschwerde (BayLDA)")}
@@ -137,46 +137,51 @@ function HelpInfo() {
       <ol>
         <li>
           {t(
-            "Gib den Seminarkontext ein, wähle Lerntätigkeiten und Mechaniken und lege ihre Reihenfolge in der Übersicht fest.",
+            "Geben Sie den Seminarkontext ein, wählen Sie Lerntätigkeiten und Mechaniken und legen Sie ihre Reihenfolge in der Übersicht fest.",
           )}
         </li>
         <li>
           {t(
-            "Erstelle in Schritt 5 ein Arbeitsblatt. Mit „Ohne KI“ kannst du direkt starten. Über „Kopie ausfüllen“ schreibst du deine Kartenideen in eine Arbeitskopie.",
+            "Schritt 5 öffnet das Arbeitsblatt zu Ihrer Auswahl. Tragen Sie Ihre Kartentexte direkt in die Felder ein. Am Ende des Blatts ist Platz für Notizen zum Probelauf.",
           )}
         </li>
         <li>
           {t(
-            "Unter „Projekte“ kannst du dein ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort kannst du das Blatt auch als PDF speichern. Im Drei-Punkte-Menü findest du den Markdown-Export.",
+            "Unter „Projekte“ können Sie Ihr ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort können Sie das Blatt auch als PDF speichern. Im Drei-Punkte-Menü finden Sie den Markdown-Export.",
           )}
         </li>
       </ol>
       <h2>{t("Online speichern, am Workshop teilnehmen und teilen")}</h2>
       <p>
         {t(
-          "Melde dich über „Anmelden“ per E-Mail an, wenn du auf einem anderen Gerät weiterarbeiten möchtest. Speichere über „Online speichern“ und öffne den Stand dort unter „Konto → Meine Entwürfe“.",
+          "Melden Sie sich über „Anmelden“ per E-Mail an, wenn Sie auf einem anderen Gerät weiterarbeiten möchten. Speichern Sie über „Online speichern“ und öffnen Sie den Stand dort unter „Konto → Meine Entwürfe“.",
         )}
       </p>
       <p>
         {t(
-          "Öffne deinen Einladungslink oder scanne den QR-Code und bestätige den Workshopbeitritt. Einen Zugangscode kannst du unter „Konto“ eingeben. Danach kannst du unter „Projekte“ ein Projekt zuordnen oder in Schritt 5 ein Arbeitsblatt ausdrücklich abgeben. Wenn Workshop-KI freigeschaltet ist, kannst du nach dem Beitritt diesen Zugang nutzen.",
+          "Öffnen Sie Ihren Einladungslink oder scannen Sie den QR-Code und bestätigen Sie den Workshopbeitritt. Einen Zugangscode können Sie unter „Konto“ eingeben. Danach können Sie unter „Projekte“ ein Projekt zuordnen oder in Schritt 5 ein Arbeitsblatt ausdrücklich abgeben. Wenn Workshop-KI freigeschaltet ist, können Sie nach dem Beitritt diesen Zugang nutzen.",
         )}
       </p>
       <p>
         {t(
-          "Öffne das gewünschte Projekt und wähle „Teilen“. Mit „Freigabelink erstellen“ gibst du diesen Stand samt Arbeitsblättern frei. Spätere Änderungen bleiben privat, bis du den Link ersetzt.",
+          "Öffnen Sie das gewünschte Projekt und wählen Sie „Teilen“. Mit „Freigabelink erstellen“ geben Sie diesen Stand samt Arbeitsblättern frei. Spätere Änderungen bleiben privat, bis Sie den Link ersetzen.",
         )}
       </p>
       <h2 id="urheberrecht">{t("Eigene Karten und fremde Materialien")}</h2>
       <p>
         {t(
-          "Die Rechte an deinen eigenen Kartentexten bleiben bei dir. Wer deinen Projektlink erhält, kann eine Kopie für das eigene Seminar anlegen. Wenn du deine Karten darüber hinaus zur Veröffentlichung freigeben möchtest, kannst du das direkt auf dem Arbeitsblatt vermerken.",
+          "Die Rechte an Ihren eigenen Kartentexten bleiben bei Ihnen. Wer Ihren Projektlink erhält, kann eine Kopie für das eigene Seminar anlegen. Wenn Sie Ihre Karten darüber hinaus zur Veröffentlichung freigeben möchten, können Sie das direkt auf dem Arbeitsblatt vermerken.",
         )}
       </p>
       <p>
         {t(
-          "Übernimmst du Texte, Bilder oder Spielmaterial von anderen, gelten deren Nutzungsbedingungen auch im geteilten Arbeitsblatt. Gib Quelle und Lizenz so an, wie es das Material verlangt.",
+          "Übernehmen Sie Texte, Bilder oder Spielmaterial von anderen, gelten deren Nutzungsbedingungen auch im geteilten Arbeitsblatt. Geben Sie Quelle und Lizenz so an, wie es das Material verlangt.",
         )}
+      </p>
+      <p>
+        <a href="?modus=selbststudium">
+          {t("Separate Variante mit KI-Optionen öffnen")}
+        </a>
       </p>
       <h2 id="ki">{t("KI-Hinweis")}</h2>
       <p>
@@ -186,7 +191,7 @@ function HelpInfo() {
       </p>
       <p>
         {t(
-          "„Ohne KI“ verwendet feste Vorlagen und erzeugt keine neuen KI-Texte. Beim externen Weg übermittelst du den Auftrag selbst an deine KI. Direkte KI-Ausgaben und importierte Antworten sind Vorschläge: Prüfe fachliche Richtigkeit und Eignung für deine Lehrveranstaltung. ",
+          "„Ohne KI“ verwendet feste Vorlagen und erzeugt keine neuen KI-Texte. Beim externen Weg übermitteln Sie den Auftrag selbst an Ihre KI. Direkte KI-Ausgaben und importierte Antworten sind Vorschläge: Prüfen Sie fachliche Richtigkeit und Eignung für Ihre Lehrveranstaltung. ",
         )}
       </p>
       <p>

@@ -36,7 +36,16 @@ export default function ContextField({
               }
             }}
           >
-            <option value="">{t("Bitte wählen (optional)")}</option>
+            <option value="">
+              {t("z. B. {0}", {
+                0:
+                  getLanguage() === "en"
+                    ? options[1]
+                        .replace("WS ", "Winter semester ")
+                        .replace("SoSe ", "Summer semester ")
+                    : options[1],
+              })}
+            </option>
             {options.map((s, i) => (
               <option key={s} value={s}>
                 {getLanguage() === "en"
@@ -83,7 +92,7 @@ export default function ContextField({
           <p className="muted" id={`${id}-legacy`}>
             {t("Gespeicherte Angabe: ")}
             {value}
-            {t(". Wähle ein Datum, um sie zu ersetzen. ")}
+            {t(". Wählen Sie ein Datum, um sie zu ersetzen. ")}
           </p>
         )}
       </div>
@@ -94,6 +103,7 @@ export default function ContextField({
       {t(label)}
       <input
         id={id}
+        required={name === "thema"}
         maxLength={1500}
         value={value}
         placeholder={t(placeholder)}

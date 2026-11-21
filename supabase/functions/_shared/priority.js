@@ -1,6 +1,7 @@
-import { LE, MK } from "./catalog.js";
+import { catalogFor } from "./content.js";
 // Same primary > supporting > catalogue-primary fallback as the original artifact.
-export function assignToLearning(id, learning) {
+export function assignToLearning(id, learning, catalog = catalogFor()) {
+  const { LE, MK } = catalog;
   const m = MK.find((x) => x.id === id);
   return (
     learning.find((l) => m?.w[l] === "P") ||
@@ -11,6 +12,8 @@ export function assignToLearning(id, learning) {
   );
 }
 export function priorityOf(d) {
+  const catalog = catalogFor(d);
+  const { MK } = catalog;
   const selected = d.mechanisms;
   const p = d.priority || {};
   const keep = (a, ids) => [
@@ -30,7 +33,7 @@ export function priorityOf(d) {
   const mechanismOrder = keep(p.mechanismOrder, main);
   const groups = keep(p.learningOrder, [
     ...d.learning,
-    ...main.map((id) => assignToLearning(id, d.learning)),
+    ...main.map((id) => assignToLearning(id, d.learning, catalog)),
   ]);
   const finalSelection = p.finalSelection
     ? p.finalSelection.filter((id) => selected.includes(id))
@@ -43,9 +46,12 @@ export function priorityOf(d) {
   };
 }
 export function orderedMechanisms(d) {
+  const catalog = catalogFor(d);
   const p = priorityOf(d);
   const main = p.learningOrder.flatMap((l) =>
-    p.mechanismOrder.filter((id) => assignToLearning(id, d.learning) === l),
+    p.mechanismOrder.filter(
+      (id) => assignToLearning(id, d.learning, catalog) === l,
+    ),
   );
   return [
     "m91",

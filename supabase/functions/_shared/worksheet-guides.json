@@ -1,28 +1,28 @@
 {
   "m11": {
     "questions": "Welche Handlung eröffnet die Szene? Wie bekommt eine zweite Person Einfluss auf ihren Verlauf?",
-    "frame": "Erzähle, wie ___ passiert. Bitte eine andere Figur zu entscheiden, was ___ daran ändert.",
-    "example": "Beschreibe die Ankunft des Briefs. Die Person links von dir liest den ersten Satz vor."
+    "frame": "Erzählen Sie, wie ___ passiert. Bitten Sie eine andere Figur zu entscheiden, was ___ daran ändert.",
+    "example": "Beschreiben Sie die Ankunft des Briefs. Die Person links von Ihnen liest den ersten Satz vor."
   },
   "m12": {
-    "questions": "Welchen Ort sollen die Spielenden gemeinsam erschaffen? Welches Detail lässt du offen?",
-    "frame": "Beschreibe ___ aus der Nähe. Bitte jemanden, ein Detail zu ergänzen, das erst beim zweiten Blick auffällt.",
-    "example": "Beschreibe den Lesesaal kurz vor der Öffnung. Eine andere Figur ergänzt ein Geräusch hinter der Tür."
+    "questions": "Welchen Ort sollen die Spielenden gemeinsam erschaffen? Welches Detail lassen Sie offen?",
+    "frame": "Beschreiben Sie ___ aus der Nähe. Bitten Sie jemanden, ein Detail zu ergänzen, das erst beim zweiten Blick auffällt.",
+    "example": "Beschreiben Sie den Lesesaal kurz vor der Öffnung. Eine andere Figur ergänzt ein Geräusch hinter der Tür."
   },
   "m13": {
-    "questions": "Welche Beziehung ist für dein Thema wichtig? Woran wird sie in einer Begegnung sichtbar?",
-    "frame": "Erzähle von einem Moment zwischen ___ und ___. Lass dein Gegenüber aus der anderen Sicht antworten.",
-    "example": "Erzähle, wann du der Übersetzerin zum ersten Mal vertraut hast. Wie erinnert sie sich daran?"
+    "questions": "Welche Beziehung ist für Ihr Thema wichtig? Woran wird sie in einer Begegnung sichtbar?",
+    "frame": "Erzählen Sie von einem Moment zwischen ___ und ___. Lassen Sie Ihr Gegenüber aus der anderen Sicht antworten.",
+    "example": "Erzählen Sie, wann Sie der Übersetzerin zum ersten Mal vertraut haben. Wie erinnert sie sich daran?"
   },
   "m14": {
     "questions": "Welche Absichten geraten aneinander? Welche Entscheidung hält den Ausgang der Szene offen?",
-    "frame": "Zeige, wie du ___ erreichen willst. Eine andere Figur widerspricht dir, weil ___.",
-    "example": "Zeige, wie du den letzten freien Platz im Archiv beanspruchst. Eine andere Figur braucht ihn ebenfalls."
+    "frame": "Zeigen Sie, wie Sie ___ erreichen wollen. Eine andere Figur widerspricht Ihnen, weil ___.",
+    "example": "Zeigen Sie, wie Sie den letzten freien Platz im Archiv beanspruchen. Eine andere Figur braucht ihn ebenfalls."
   },
   "m15": {
     "questions": "Welcher fachliche Vorgang lässt sich spielen? Mit welchem Verb beginnt die Handlung?",
-    "frame": "___ den Gegenstand ___. Bitte jemanden zu zeigen, was sich dadurch verändert.",
-    "example": "Ordne die Fundstücke nach Material. Bitte eine andere Figur, eines anders einzuordnen und zu erklären, warum."
+    "frame": "___ den Gegenstand ___. Bitten Sie jemanden zu zeigen, was sich dadurch verändert.",
+    "example": "Ordnen Sie die Fundstücke nach Material. Bitten Sie eine andere Figur, eines anders einzuordnen und zu erklären, warum."
   },
   "m16": {
     "questions": "Welche Denkhandlung soll im Spiel vorkommen? Welches Signalverb löst sie aus?",
@@ -30,34 +30,34 @@
     "example": "Kategorie Gegenprobe. Beginne mit „Widerlege“. Eine andere Person entscheidet, welche Annahme noch trägt."
   },
   "m21": {
-    "questions": "Welche Wörter aus deinem Seminar können eine Szene anstoßen? Welche lassen unterschiedliche Deutungen zu?",
-    "frame": "Wortsammlung für ___: ___ · ___ · ___. Wählt ein Wort für den Beginn der Szene.",
+    "questions": "Welche Wörter aus Ihrem Seminar können eine Szene anstoßen? Welche lassen unterschiedliche Deutungen zu?",
+    "frame": "Wortsammlung für ___: ___ · ___ · ___. Wählen Sie ein Wort für den Beginn der Szene.",
     "example": "Für eine Szene im Sprachlabor: Pause · Echo · Versprecher · Flüstern."
   },
   "m22": {
     "questions": "Welche Sinneseindrücke passen zur Spielwelt? Welcher Eindruck lässt den Ort erkennbar werden?",
     "frame": "Am Ort ___ ist ___ zu hören, zu sehen oder zu spüren. Wer nimmt es anders wahr?",
-    "example": "Die Luft im Lesesaal riecht nach feuchtem Papier. Was hört deine Sitznachbarin?"
+    "example": "Die Luft im Lesesaal riecht nach feuchtem Papier. Was hört Ihre Sitznachbarin?"
   },
   "m23": {
-    "questions": "Welchen Erzählbogen möchtest du anbieten? Welche Einzelheiten sollen die Spielenden selbst finden?",
+    "questions": "Welchen Erzählbogen möchten Sie anbieten? Welche Einzelheiten sollen die Spielenden selbst finden?",
     "frame": "Zu Beginn ___. Dann kehrt ___ in veränderter Form zurück. Wer bemerkt es zuerst?",
     "example": "Ein Gerücht wandert durch drei Gespräche. In der letzten Szene hört es die Person, von der es stammt."
   },
   "m31": {
     "questions": "Was setzt den Aufbruch in Gang? An welchem Ereignis wird der Bruchpunkt erkennbar?",
-    "frame": "Aufbruch ___. Bruchpunkt ___. Danach ___. Erzählt den Übergang aus zwei Perspektiven.",
+    "frame": "Aufbruch ___. Bruchpunkt ___. Danach ___. Erzählen Sie den Übergang aus zwei Perspektiven.",
     "example": "Ein Archiv öffnet. Ein Dokument fehlt. Danach erzählen zwei Zeugen unterschiedliche Geschichten."
   },
   "m32": {
-    "questions": "Welche Phasen kennt dein Fach? Woran erkennen die Spielenden den Wechsel zur nächsten?",
+    "questions": "Welche Phasen kennt Ihr Fach? Woran erkennen die Spielenden den Wechsel zur nächsten?",
     "frame": "Phasenfolge ___ → ___ → ___. Der Übergang beginnt, sobald ___.",
     "example": "Beobachtung → Deutung → Gegenprobe. Die Gegenprobe beginnt, sobald zwei Deutungen vorliegen."
   },
   "m33": {
     "questions": "An welchem Phasenende lohnt sich eine Pause? Welchen Moment sollen die Spielenden vergleichen, bewerten oder einordnen?",
-    "frame": "Denkt an einen Moment aus dieser Phase, in dem ___. Woran habt ihr ___ bemerkt?",
-    "example": "Denkt an einen Satz, den zwei Figuren unterschiedlich verstanden haben. Woran habt ihr das in ihren Antworten bemerkt?"
+    "frame": "Denken Sie an einen Moment aus dieser Phase, in dem ___. Woran haben Sie ___ bemerkt?",
+    "example": "Denken Sie an einen Satz, den zwei Figuren unterschiedlich verstanden haben. Woran haben Sie das in ihren Antworten bemerkt?"
   },
   "m41": {
     "questions": "Was müssen alle zu Beginn wissen? Welche Entscheidung eröffnet die erste Szene?",
@@ -67,10 +67,10 @@
   "m42": {
     "questions": "Zu welcher Ausgangsfrage soll die Gruppe zurückkehren? Welche Szene liefert Material für eine Antwort?",
     "frame": "Am Anfang dachten wir ___. In der Szene ___ änderte sich ___. Was bleibt offen?",
-    "example": "Welche eurer ersten Vermutungen über den Brief hat sich verändert? Nennt die Szene, die den Ausschlag gab."
+    "example": "Welche Ihrer ersten Vermutungen über den Brief hat sich verändert? Nennen Sie die Szene, die den Ausschlag gab."
   },
   "m51": {
-    "questions": "Wann sammelt ihr die liebsten Momente? In welcher kurzen Wendung könnte ein Moment später wieder auftauchen?",
+    "questions": "Wann sammeln Sie die liebsten Momente? In welcher kurzen Wendung könnte ein Moment später wieder auftauchen?",
     "frame": "Mein liebster Moment war ___. Als kurze Wendung nehme ich „___“ mit.",
     "example": "Als alle gleichzeitig schwiegen. Meine Wendung für die nächste Phase lautet „die laute Pause“."
   },
@@ -81,37 +81,37 @@
   },
   "m62": {
     "questions": "Wann darf jemand eine Karte anbieten? Was können die Beteiligten über den Fortgang der Szene aushandeln?",
-    "frame": "Ich biete dir ___ an. Dafür möchte ich ___. Was schlägst du vor?",
-    "example": "Ich gebe dir „Widersprich“, wenn du mir „Frag nach“ gibst. Wollen wir die Szene so fortsetzen?"
+    "frame": "Ich biete Ihnen ___ an. Dafür möchte ich ___. Was schlagen Sie vor?",
+    "example": "Ich gebe Ihnen „Widersprich“, wenn Sie mir „Frag nach“ geben. Wollen wir die Szene so fortsetzen?"
   },
   "m63": {
     "questions": "Welche Impulse funktionieren unabhängig von der Reihenfolge? Wie knüpft eine zufällig gezogene Karte an die laufende Szene an?",
-    "frame": "Ziehe verdeckt. Greife ___ aus der Szene auf und verbinde es mit dem gezogenen Impuls ___.",
-    "example": "Du ziehst „Echo“. Wiederhole ein Wort aus dem letzten Satz. Eine andere Figur erklärt, was sie darin hört."
+    "frame": "Ziehen Sie verdeckt. Greifen Sie ___ aus der Szene auf und verbinden Sie es mit dem gezogenen Impuls ___.",
+    "example": "Sie ziehen „Echo“. Wiederholen Sie ein Wort aus dem letzten Satz. Eine andere Figur erklärt, was sie darin hört."
   },
   "m71": {
-    "questions": "Wer ist die Figur in deiner Spielwelt? Welches Ziel gibt ihr einen Grund, jetzt zu handeln?",
-    "frame": "Du bist ___. Du möchtest ___. Wende dich an ___, um ___.",
-    "example": "Du leitest das Stadtarchiv. Heute möchtest du einen umstrittenen Brief ausstellen. Bitte die Eigentümerin um Erlaubnis."
+    "questions": "Wer ist die Figur in Ihrer Spielwelt? Welches Ziel gibt ihr einen Grund, jetzt zu handeln?",
+    "frame": "Sie sind ___. Sie möchten ___. Wenden Sie sich an ___, um ___.",
+    "example": "Sie leiten das Stadtarchiv. Heute möchten Sie einen umstrittenen Brief ausstellen. Bitten Sie die Eigentümerin um Erlaubnis."
   },
   "m72": {
     "questions": "Welche Haltung lässt unterschiedliche Reaktionen zu? In welcher Begegnung kann sie sichtbar werden?",
-    "frame": "Deine Haltung ist ___. Du hörst „___“. Antworte aus dieser Haltung und frage eine andere Figur, wie sie den Satz versteht.",
-    "example": "Deine Haltung ist Skepsis. Jemand sagt zur Schlagzeile „Das ist ja mutig.“ Antworte und frage eine andere Figur, was sie darin hört."
+    "frame": "Ihre Haltung ist ___. Sie hören „___“. Antworten Sie aus dieser Haltung und fragen Sie eine andere Figur, wie sie den Satz versteht.",
+    "example": "Ihre Haltung ist Skepsis. Jemand sagt zur Schlagzeile „Das ist ja mutig.“ Antworten Sie und fragen Sie eine andere Figur, was sie darin hört."
   },
   "m81": {
     "questions": "Welche Moderationsaufgabe lässt sich abgeben? Wann soll die zuständige Person eingreifen?",
-    "frame": "Aufgabe ___. Sobald ___, bitte die Gruppe um ___.",
-    "example": "Du führst die Chronik. Am Phasenende liest du zwei Ereignisse vor. Die Gruppe ergänzt eine fehlende Verbindung."
+    "frame": "Aufgabe ___. Sobald ___, bitten Sie die Gruppe um ___.",
+    "example": "Sie führen die Chronik. Am Phasenende lesen Sie zwei Ereignisse vor. Die Gruppe ergänzt eine fehlende Verbindung."
   },
   "m82": {
     "questions": "Wann darf eine Figur die Szene spielerisch unterbrechen? Wer führt sie nach der Reaktion weiter?",
-    "frame": "Wenn ___ geschieht, spiele diese Karte und frage ___. Danach erzählt ___ weiter.",
-    "example": "Sobald zwei Figuren dieselbe Behauptung aufstellen, frage nach ihren Gründen. Danach erzählt die zuerst befragte Figur weiter."
+    "frame": "Wenn ___ geschieht, spielen Sie diese Karte und fragen Sie ___. Danach erzählt ___ weiter.",
+    "example": "Sobald zwei Figuren dieselbe Behauptung aufstellen, fragen Sie nach ihren Gründen. Danach erzählt die zuerst befragte Figur weiter."
   },
   "m83": {
-    "questions": "Was stellt eine knappe Ressource in deiner Spielwelt dar? Zwischen welchen Handlungen müssen Spielende wählen?",
-    "frame": "Ressource ___. Einen Marker erhältst du für ___. Du kannst ihn ausgeben, um ___.",
+    "questions": "Was stellt eine knappe Ressource in Ihrer Spielwelt dar? Zwischen welchen Handlungen müssen Spielende wählen?",
+    "frame": "Ressource ___. Einen Marker erhalten Sie für ___. Sie können ihn ausgeben, um ___.",
     "example": "Zeit ist knapp. Für jede vertagte Frage erhält die Gruppe einen Zeitmarker. Ein Marker erlaubt eine zusätzliche Befragung."
   }
 }

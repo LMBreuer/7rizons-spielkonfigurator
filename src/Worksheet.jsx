@@ -1,13 +1,9 @@
 import React from "react";
 import { displayDate } from "../supabase/functions/_shared/fields.js";
-import {
-  MK,
-  LE,
-  SAFETY,
-  NEXT,
-  settingsOf,
-} from "../supabase/functions/_shared/domain.js";
+import { settingsOf } from "../supabase/functions/_shared/domain.js";
 import { translate } from "../supabase/functions/_shared/translations.js";
+
+import { catalogFor } from "../supabase/functions/_shared/content.js";
 
 const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
 function CardAnswer({ value }) {
@@ -31,9 +27,11 @@ export default function Worksheet({
   settings,
   source,
   onAnswer,
+  inlineEdit = false,
   activeCard,
   onStartEditing,
 }) {
+  const { LE, MK, blocks } = catalogFor(draft);
   const language = draft.language || "de",
     t = (text) => translate(text, language);
   const overview = result.templateVariant === "overview";
@@ -49,7 +47,7 @@ export default function Worksheet({
       id="worksheet"
       lang={language}
     >
-      <div className="eyebrow">{t("7’rizons · Dein Seminar-Hack")}</div>
+      <div className="eyebrow">{t("7’rizons · Ihr Seminar-Hack")}</div>
       <h1 tabIndex={-1}>{result.title}</h1>
       {result.introduction && <p className="intro">{result.introduction}</p>}
       <dl className="metadata">
@@ -73,7 +71,7 @@ export default function Worksheet({
             </div>
           ))}
       </dl>
-      <h2>{t("Lerntätigkeiten")}</h2>
+      <h2>{t("Lernerlebnisse")}</h2>
       <p>
         {draft.learning
           .map((id) => t(LE.find((l) => l.id === id)?.label))
@@ -96,12 +94,12 @@ export default function Worksheet({
                 {!overview && (
                   <>
                     <p>
-                      <strong>{t("Beitrag zu deinen Lerntätigkeiten:")}</strong>{" "}
+                      <strong>{t("Beitrag zu Ihren Lerntätigkeiten:")}</strong>{" "}
                       {m.learningContribution}
                     </p>
                     {!!m.cardExamples.length && (
                       <>
-                        <h4>{t("Ideen für deine Karten")}</h4>
+                        <h4>{t("Ideen für Ihre Karten")}</h4>
                         <ol>
                           {m.cardExamples.map((text, i) => (
                             <li key={i}>{text}</li>
@@ -109,36 +107,47 @@ export default function Worksheet({
                         </ol>
                       </>
                     )}
-                    {m.guide && (
-                      <div className="mechanism-guide">
-                        <h4>{t("Arbeitsauftrag")}</h4>
-                        <p>{m.guide.questions}</p>
-                        <p>{m.guide.frame}</p>
-                        <details className="no-print" key={result.requestId}>
-                          <summary>
-                            {t("Ausgefülltes Beispiel anzeigen")}
-                          </summary>
-                          <p>{m.guide.example}</p>
-                        </details>
-                      </div>
-                    )}
+                    {m.guide &&
+                      (m.guide.questions ||
+                        m.guide.frame ||
+                        m.guide.example) && (
+                        <div className="mechanism-guide">
+                          <h4>{t("Arbeitsauftrag")}</h4>
+                          <p>{m.guide.questions}</p>
+                          <p>{m.guide.frame}</p>
+                          {m.guide.example && (
+                            <details
+                              className="no-print"
+                              key={result.requestId}
+                            >
+                              <summary>
+                                {t("Ausgefülltes Beispiel anzeigen")}
+                              </summary>
+                              <p>{m.guide.example}</p>
+                            </details>
+                          )}
+                        </div>
+                      )}
                     <div className="writing-fields">
                       {Array.from(
                         { length: settingsOf(settings).cardsPerMechanism },
                         (_, i) => (
                           <div
                             className={
-                              onAnswer && activeCard === m.mechanismId + "-" + i
+                              onAnswer &&
+                              (inlineEdit ||
+                                activeCard === m.mechanismId + "-" + i)
                                 ? "writing-card editing-card"
                                 : "writing-card"
                             }
                             key={i}
                           >
                             <h4>
-                              {t(m.guide ? "Dein Entwurf" : "Eigene Karte")}{" "}
+                              {t(m.guide ? "Ihr Entwurf" : "Eigene Karte")}{" "}
                               {i + 1}
                             </h4>
                             {onStartEditing &&
+                              !inlineEdit &&
                               !(
                                 onAnswer &&
                                 activeCard === m.mechanismId + "-" + i
@@ -159,14 +168,18 @@ export default function Worksheet({
                                     onStartEditing(m.mechanismId + "-" + i)
                                   }
                                 >
-                                  ✎
+                                  {result.answers?.[m.mechanismId + "-" + i]
+                                    ? t("Bearbeiten")
+                                    : t("Karte ausfüllen")}
                                 </button>
                               )}
                             {onAnswer &&
-                              activeCard === m.mechanismId + "-" + i && (
+                              (inlineEdit ||
+                                activeCard === m.mechanismId + "-" + i) && (
                                 <React.Suspense fallback={null}>
                                   <CardEditor
                                     key={result.requestId}
+                                    autoFocus={!inlineEdit}
                                     t={t}
                                     label={
                                       t(
@@ -174,7 +187,7 @@ export default function Worksheet({
                                           .label,
                                       ) +
                                       " · " +
-                                      t("Dein Entwurf") +
+                                      t("Ihr Entwurf") +
                                       " " +
                                       (i + 1)
                                     }
@@ -218,7 +231,9 @@ export default function Worksheet({
       })}
       <section>
         <h2>{t("Safety-Rahmen")}</h2>
-        <p>{overview ? t(MK.find((m) => m.id === "m91").kurz) : t(SAFETY)}</p>
+        <p>
+          {overview ? t(MK.find((m) => m.id === "m91").kurz) : t(blocks.safety)}
+        </p>
       </section>
       {!overview && (
         <section>
@@ -228,13 +243,34 @@ export default function Worksheet({
               <li key={i}>{text}</li>
             ))}
           </ul>
-          <p>{t(NEXT)}</p>
+          {guided && result.answers && (
+            <section className="playtest-notes">
+              <h3>{t("Notizen zum Probelauf")}</h3>
+              {onAnswer && (
+                <label className="no-print">
+                  <span className="sr-only">{t("Notizen zum Probelauf")}</span>
+                  <textarea
+                    rows={3}
+                    maxLength={4000}
+                    value={result.answers.playtest || ""}
+                    onChange={(e) => onAnswer("playtest", e.target.value)}
+                  />
+                </label>
+              )}
+              {result.answers.playtest && (
+                <p className={onAnswer ? "print-notes" : ""}>
+                  {result.answers.playtest}
+                </p>
+              )}
+            </section>
+          )}
+          <p>{t(blocks.closing)}</p>
         </section>
       )}
       <p className="provenance">
         {t(
           source?.kind === "template"
-            ? "Aus deiner Auswahl mit festen Vorlagen erstellt."
+            ? "Aus Ihrer Auswahl mit festen Vorlagen erstellt."
             : "Mit KI ausgearbeitet · fachlich noch zu prüfen.",
         )}{" "}
         {source?.provider &&

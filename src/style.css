@@ -519,12 +519,13 @@ summary {
 }
 .mechanism {
   display: flex;
-  gap: 15px;
+  align-items: flex-start;
+  gap: 0.65rem;
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 11px;
-  padding: 18px;
+  padding: 0.85rem 1rem;
   width: 100%;
 }
 .mechanism.selected {
@@ -1961,4 +1962,60 @@ html[data-input="pointer"] :focus {
 }
 .account-privacy {
   margin: 0.8rem 0 0;
+}
+
+.notice-close {
+  float: right;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.worksheet-save {
+  max-width: 54rem;
+  margin: 1rem auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+.worksheet-save p {
+  flex: 1 1 18rem;
+  margin: 0;
+  color: var(--muted);
+}
+.worksheet-save small {
+  flex-basis: 100%;
+}
+.worksheet .edit-slot {
+  position: static;
+  min-height: 44px;
+  align-items: center;
+  justify-content: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.playtest-notes p {
+  white-space: pre-wrap;
+}
+@media screen {
+  .print-notes {
+    display: none;
+  }
+}
+.mechanism > span:nth-child(2) {
+  min-width: 0;
+}
+
+@media screen {
+  .editing-card .card-editor:not(:focus-within) > [role="group"] {
+    display: none;
+  }
+  .worksheet .ProseMirror {
+    background: var(--surface);
+    font-size: 1rem;
+  }
 }

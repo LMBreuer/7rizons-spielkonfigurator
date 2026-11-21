@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
-import { LE, MK, conflicts } from "../supabase/functions/_shared/domain.js";
+import { catalogFor } from "../supabase/functions/_shared/content.js";
+import { conflicts } from "../supabase/functions/_shared/domain.js";
 import {
   priorityOf,
   assignToLearning,
@@ -13,6 +14,8 @@ export default function Priority({
   language = "de",
 }) {
   const t = (s) => translate(s, language);
+  const catalog = catalogFor(draft);
+  const { LE, MK } = catalog;
   const p = priorityOf(draft),
     [drag, setDrag] = useState(null),
     [dropTarget, setDropTarget] = useState(null),
@@ -52,13 +55,13 @@ export default function Priority({
       kind === "learning"
         ? p.learningOrder.filter((l) =>
             p.mechanismOrder.some(
-              (m) => assignToLearning(m, draft.learning) === l,
+              (m) => assignToLearning(m, draft.learning, catalog) === l,
             ),
           )
         : p.mechanismOrder.filter(
             (m) =>
-              assignToLearning(m, draft.learning) ===
-              assignToLearning(id, draft.learning),
+              assignToLearning(m, draft.learning, catalog) ===
+              assignToLearning(id, draft.learning, catalog),
           );
     const target = a[a.indexOf(id) + delta];
     if (target) move(kind, id, target, delta > 0);
@@ -99,8 +102,8 @@ export default function Priority({
           drag?.kind === kind &&
           drag.id !== id &&
           (kind === "learning" ||
-            assignToLearning(drag.id, draft.learning) ===
-              assignToLearning(id, draft.learning))
+            assignToLearning(drag.id, draft.learning, catalog) ===
+              assignToLearning(id, draft.learning, catalog))
         ) {
           e.preventDefault();
           e.stopPropagation();
@@ -118,8 +121,8 @@ export default function Priority({
         e.stopPropagation();
         if (
           kind === "mechanism" &&
-          assignToLearning(drag.id, draft.learning) !==
-            assignToLearning(id, draft.learning)
+          assignToLearning(drag.id, draft.learning, catalog) !==
+            assignToLearning(id, draft.learning, catalog)
         )
           return;
         const r = e.currentTarget.getBoundingClientRect();
@@ -135,9 +138,10 @@ export default function Priority({
       checked = p.finalSelection.includes(id);
     update({
       ...p,
-      finalSelection: checked
-        ? p.finalSelection.filter((x) => x !== id)
-        : [...p.finalSelection, id],
+      finalSelection:
+        checked && !m.kern
+          ? p.finalSelection.filter((x) => x !== id)
+          : [...p.finalSelection, id],
       promoted:
         checked && m.basis ? p.promoted.filter((x) => x !== id) : p.promoted,
     });
@@ -151,7 +155,7 @@ export default function Priority({
         <h2>{t("Schritt 4: Übersicht")}</h2>
         <p>
           {t(
-            "Sortiere Mechaniken nach Priorität (Ziehen) und hake ab was in den Hack soll.",
+            "Sortieren Sie die Mechaniken nach Priorität und entfernen Sie, was außer den Kernelementen entfallen soll. Ziehen Sie am Griff ⠿ oder verwenden Sie die Pfeil-Buttons. Der Safety-Rahmen bleibt immer enthalten.",
           )}
         </p>
       </div>
@@ -167,7 +171,7 @@ export default function Priority({
       <h3 className="section-divider">{t("Im Basisspiel vorhanden")}</h3>
       <p className="muted">
         {t(
-          "Diese Mechaniken werden im Standardspiel bereits verwendet und müssen nicht oder nur minimal angepasst werden. Hake ab welche du für dein Seminar bewusst ansprechen oder anpassen willst. Aktivierte Mechaniken wandern in die Hauptanpassungen unten.",
+          "Diese Mechaniken gehören bereits zum Basisspiel. Markieren Sie die Elemente, die Sie für Ihr Seminar anpassen möchten. Sie erscheinen dann unter den Hauptanpassungen.",
         )}
       </p>
       <div className="base-mechanics">
@@ -177,7 +181,7 @@ export default function Priority({
           </span>
           <span className="base-copy">
             <strong>{t("Safety-Rahmen")}</strong>
-            <span>{t("CATS, X-Karte, Open Door")}</span>
+            <span>{t(MK.find((m) => m.id === "m91").kurz)}</span>
           </span>
           <span className="priority-badge always">{t("IMMER")}</span>
         </div>
@@ -214,13 +218,13 @@ export default function Priority({
       <h3 className="section-divider">{t("Hauptanpassungen ↕ sortierbar")}</h3>
       <p className="muted">
         {t(
-          "Ziehe Lernerlebnisse und Mechaniken um ihre Priorität zu ändern. Hake ab was in den Hack soll.",
+          "Verschieben Sie Gruppen und Mechaniken, um ihre Priorität zu ändern. Mit dem Häkchen bestimmen Sie, was ins Spiel kommt.",
         )}
       </p>
       {!p.mechanismOrder.length && (
         <p className="notice">
           {t(
-            "Keine Hauptanpassungen. Aktiviere Basisspiel-Elemente oben oder gehe zurück zu Schritt 3.",
+            "Keine Hauptanpassungen. Aktivieren Sie Basisspiel-Elemente oben oder gehen Sie zurück zu Schritt 3.",
           )}
         </p>
       )}
@@ -228,7 +232,7 @@ export default function Priority({
         {p.learningOrder.map((leId) => {
           const le = LE.find((l) => l.id === leId);
           const ids = p.mechanismOrder.filter(
-            (id) => assignToLearning(id, draft.learning) === leId,
+            (id) => assignToLearning(id, draft.learning, catalog) === leId,
           );
           if (!ids.length) return null;
           return (
@@ -240,16 +244,15 @@ export default function Priority({
             >
               <div className="priority-group-heading">
                 {handle("learning", leId, le?.label || leId)}
-                <h4>
-                  {le?.icon} {t(le?.label || leId)}
-                </h4>
+                <h4>{t(le?.label || leId)}</h4>
                 <small>{t(le?.bloom || "")}</small>
                 <div className="rank-buttons">
                   <button
                     disabled={
                       p.learningOrder.filter((l) =>
                         p.mechanismOrder.some(
-                          (m) => assignToLearning(m, draft.learning) === l,
+                          (m) =>
+                            assignToLearning(m, draft.learning, catalog) === l,
                         ),
                       )[0] === leId
                     }
@@ -263,7 +266,9 @@ export default function Priority({
                       p.learningOrder
                         .filter((l) =>
                           p.mechanismOrder.some(
-                            (m) => assignToLearning(m, draft.learning) === l,
+                            (m) =>
+                              assignToLearning(m, draft.learning, catalog) ===
+                              l,
                           ),
                         )
                         .at(-1) === leId

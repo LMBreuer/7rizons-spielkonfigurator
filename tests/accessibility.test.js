@@ -91,7 +91,10 @@ test("text palette pairs meet 4.5:1, and high contrast pairs meet 7:1", async ()
 test("semantic audit, keyboard navigation, live sorting feedback and forms across all three appearances", async () => {
   const dom = new JSDOM(
     '<!doctype html><html lang="de"><head><title>Test</title><meta name="theme-color" content="#fff"></head><body></body></html>',
-    { url: "https://example.test/", pretendToBeVisual: true },
+    {
+      url: "https://example.test/?modus=selbststudium",
+      pretendToBeVisual: true,
+    },
   );
   for (const [key, value] of Object.entries({
     window: dom.window,
@@ -211,7 +214,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
           screen.getByRole("navigation", { name: "Konfigurationsschritte" }),
         ).getByRole("button", { name: new RegExp(name) }),
       );
-    await step("Lerntätigkeiten");
+    await step("Lernerlebnisse");
     assert.equal(
       document.activeElement.textContent.trim(),
       "Schritt 2: Lernerlebnisse wählen",
@@ -385,7 +388,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(
       screen.getByRole("checkbox", { name: "Arbeitsaufträge ergänzen" }),
     );
-    await user.click(screen.getByRole("button", { name: /Mit deiner KI-App/ }));
+    await user.click(screen.getByRole("button", { name: /Mit Ihrer KI-App/ }));
     assert.equal(
       screen.queryByRole("checkbox", { name: "Arbeitsaufträge ergänzen" }),
       null,
@@ -415,7 +418,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       })),
       nextSteps: ["Erproben"],
     };
-    await user.click(screen.getByLabelText("JSON-Antwort deiner KI"));
+    await user.click(screen.getByLabelText("JSON-Antwort Ihrer KI"));
     await user.paste(JSON.stringify(answer));
     await user.click(screen.getByRole("button", { name: "Antwort prüfen" }));
     await user.click(
@@ -470,7 +473,11 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       name: "Über das Tool",
     });
     cleanup();
-    dom.window.history.replaceState(null, "", about.href);
+    dom.window.history.replaceState(
+      null,
+      "",
+      about.href + "&modus=selbststudium",
+    );
     render(React.createElement(App));
     assert.ok(
       screen.getByRole("heading", { name: "Über den Spielkonfigurator" }),
@@ -482,12 +489,12 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(
       screen.getByRole("button", { name: /Go to the game configurator/ }),
     );
-    await user.click(screen.getByRole("button", { name: /Context/ }));
+    await user.click(screen.getByRole("button", { name: /Seminar details/ }));
     await user.selectOptions(
       screen.getByLabelText("Go directly to a step"),
       "1",
     );
-    assert.ok(screen.getByRole("heading", { name: "Step 1: Seminar context" }));
+    assert.ok(screen.getByRole("heading", { name: "Step 1: Seminar details" }));
     assert.equal(document.title, "7’rizons · Game configurator");
     await user.selectOptions(
       screen.getByLabelText("Go directly to a step"),
@@ -535,7 +542,9 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     assert.ok(screen.getByRole("article"));
     await user.click(screen.getByRole("button", { name: "Kopie ausfüllen" }));
     const answerField = (
-      await within(screen.getByRole("article")).findAllByRole("textbox")
+      await within(screen.getByRole("article")).findAllByRole("textbox", {
+        name: /Ihr Entwurf/,
+      })
     )[0];
     answerField.focus();
     await user.paste("Unsere erste Karte");
@@ -556,13 +565,14 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     await user.click(screen.getByRole("button", { name: "Weiterbearbeiten" }));
     assert.equal(
-      within(screen.getByRole("article")).getAllByRole("textbox")[0]
-        .textContent,
+      within(screen.getByRole("article")).getAllByRole("textbox", {
+        name: /Ihr Entwurf/,
+      })[0].textContent,
       "Unsere erste Karte",
     );
     assert.ok(
       within(screen.getByRole("article"))
-        .getAllByRole("textbox")[0]
+        .getAllByRole("textbox", { name: /Ihr Entwurf/ })[0]
         .querySelector("strong"),
     );
     const firstProject = localStorage.getItem("7rizons:active-project");
@@ -608,6 +618,49 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .worksheets.length,
       0,
     );
+    cleanup();
+    localStorage.clear();
+    dom.window.history.replaceState(null, "", "/");
+    render(React.createElement(App));
+    await step("Arbeitsblatt");
+    assert.ok(screen.getByRole("alert").textContent.includes("Seminarthema"));
+    await user.type(screen.getByLabelText(/Thema des Seminars/), "Workshop");
+    await step("Lernerlebnisse");
+    await user.click(
+      screen.getByRole("button", { name: "Erleben", exact: true }),
+    );
+    await step("Arbeitsblatt");
+    assert.equal(
+      screen.queryByRole("group", { name: "Weg zum Arbeitsblatt" }),
+      null,
+    );
+    const editors = await within(screen.getByRole("article")).findAllByRole(
+      "textbox",
+      { name: /Ihr Entwurf/ },
+    );
+    await user.click(editors[0]);
+    await user.paste("Workshopkarte");
+    await user.type(
+      screen.getByRole("textbox", { name: "Notizen zum Probelauf" }),
+      "Beobachtung",
+    );
+    await step("Übersicht");
+    await step("Arbeitsblätter");
+    assert.equal(
+      screen.getByRole("textbox", { name: "Notizen zum Probelauf" }).value,
+      "Beobachtung",
+    );
+    const workshopProject = JSON.parse(
+      localStorage.getItem(
+        "7rizons:project:v1:" + localStorage.getItem("7rizons:active-project"),
+      ),
+    );
+    assert.equal(workshopProject.worksheets.length, 1);
+    assert.match(
+      JSON.stringify(workshopProject.worksheets[0].result.answers),
+      /Workshopkarte/,
+    );
+    await audit("interactive workshop form");
   } finally {
     cleanup?.();
     await unlink(temp).catch(() => {});

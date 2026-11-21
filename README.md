@@ -4,7 +4,16 @@ Ein Workshopwerkzeug für Hochschullehrende: Seminarkontext festlegen, Lerntäti
 
 Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LMB.
 
-## Vier Wege zum Arbeitsblatt
+## Präsenzworkshop und Inhaltsverwaltung
+
+Schritt 5 öffnet das beschreibbare Arbeitsblatt zur aktuellen Auswahl. Kartentexte und Probelaufnotizen werden im Browser gesichert. „Online speichern“ legt den Projektstand im angemeldeten Konto ab. Beim erneuten Öffnen desselben Konfigurationsstands werden die bisherigen Eingaben angezeigt.
+
+Unter **Administration → Inhalte** können Berechtigte Lernerlebnisse und Mechaniken hinzufügen, bearbeiten und für neue Projekte ausblenden. Dort bearbeiten sie Zuordnungen, deutsche und englische Texte, Arbeitsaufträge, Beispiele und die allgemeinen Blattabschnitte. „Inhalte veröffentlichen“ gilt für neue Projekte. Bestehende Projekte führen ihre Inhaltsfassung beim Speichern, Teilen und Exportieren mit.
+
+## Separate Variante mit KI-Optionen
+
+Über **Hilfe & Nutzung** oder `?modus=selbststudium` lässt sich die Variante mit Auswahl des Erstellungswegs öffnen.
+
 
 1. **Ohne KI:** feste Anleitungen, ausgewählte Mechaniken, Schreibfelder und Safety-Rahmen.
 2. **Externe KI-App:** vollständigen Arbeitsauftrag kopieren/herunterladen und die JSON-Antwort nach Prüfung importieren.
@@ -58,7 +67,7 @@ Automatisierte Prüfungen decken die zentralen Schritte, Arbeitsblatt, Anmeldung
 
 ## Weitere Grenzen
 
-Die erste Version verwendet einen festen, versionierten Mechanikkatalog. Auswahlgrenzen, Kartenzahl, Anbieter-/Modellfreigaben und Workshoplimits sind administrierbar. Ein Katalogeditor und gemeinsame Livebearbeitung sind nicht enthalten.
+Teilnehmende können beliebig viele der verfügbaren Lernerlebnisse auswählen. Projektlinks teilen einen Stand zur Übernahme als eigene Kopie.
 
 Neue KI-Aufträge berücksichtigen aktuelle Einstellungen; bereits erstellte Arbeitsblätter behalten ihre Kartenzahl. KI-Ausgaben müssen fachlich geprüft werden. Eine abgeschnittene oder nicht zum Auftrag passende Antwort wird nicht als fertiges Arbeitsblatt übernommen. Keine automatische kostenpflichtige Wiederholung; fehlgeschlagene Versuche verbrauchen vorsorglich ebenfalls ein Aufrufkontingent. Aufruf-/Tokenlimits sind keine exakte Euro-Budgetgrenze – zusätzlich Budgetlimits beim API-Anbieter setzen.
 
@@ -78,4 +87,4 @@ DE/EN lässt sich in der Kopfzeile umschalten. Die leicht anpassbare Übersetzun
 
 `src/print.css` wird als eigene CSS-Datei mit `media="print"` eingebunden. Sie enthält A4-Ränder, Mechanik-Umbrüche, ungeteilte Schreibkarten und Seitenzähler über CSS-Seitenrandboxen. [Aktuelle Chromium-Browser unterstützen diese Zähler](https://developer.chrome.com/blog/print-margins?hl=en); Browser ohne Unterstützung zeigen sie nicht. Für alternative Browser können die Kopf-/Fußzeilen des Druckdialogs als Ersatz verwendet werden. Die visuelle Druckabnahme steht noch aus.
 
-Für die erste Backendbereitstellung gibt es [SUPABASE-SCHRITT-FUER-SCHRITT.md](SUPABASE-SCHRITT-FUER-SCHRITT.md). Die Backendverbindung wurde noch nicht hergestellt.
+Für die erste Backendbereitstellung gibt es [SUPABASE-SCHRITT-FUER-SCHRITT.md](SUPABASE-SCHRITT-FUER-SCHRITT.md).
