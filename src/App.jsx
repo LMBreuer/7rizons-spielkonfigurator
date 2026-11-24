@@ -1,4 +1,5 @@
-import ContentEditor from "./ContentEditor.jsx";
+import ContentLibrary from "./ContentLibrary.jsx";
+import Members, { WorkshopRoster } from "./Members.jsx";
 import {
   catalogFor,
   validateContent,
@@ -299,7 +300,7 @@ export default function App() {
   }, []);
   const [inviteCode] = useState(initialInvite);
   const [shareToken, setShareToken] = useState(locationShareToken);
-  const [page, setPage] = useState(() => {
+  const [page, navigate] = useState(() => {
     if (shareToken) return "shared-project";
     const params = new URLSearchParams(window.location.search);
     const view = params.get("view");
@@ -311,6 +312,17 @@ export default function App() {
       return "project-" + view;
     return inviteCode || view === "account" ? "account" : "app";
   });
+  const editorDirty = useRef(false);
+  function setPage(next) {
+    if (
+      page === "content" &&
+      next !== "content" &&
+      editorDirty.current &&
+      !window.confirm(t("Unveröffentlichte Änderungen verwerfen?"))
+    )
+      return;
+    navigate(next);
+  }
   const projectAction =
     page === "project-share"
       ? "share"
@@ -360,6 +372,7 @@ export default function App() {
   const [submissions, setSubmissions] = useState([]);
   const [mySubmissions, setMySubmissions] = useState([]);
   const [adminWorkshops, setAdminWorkshops] = useState([]);
+  const [editionOptions, setEditionOptions] = useState([]);
   const [workshopTitle, setWorkshopTitle] = useState("");
   const [credentials, setCredentials] = useState([]);
   const [centralProvider, setCentralProvider] = useState("openai");
@@ -513,7 +526,10 @@ export default function App() {
             setPublished({ content, revision: data.content_revision });
             if (saved.fresh)
               setDraft((d) =>
-                d.id === saved.draft.id && !d.learning.length
+                d.id === saved.draft.id &&
+                d.edition === saved.draft.edition &&
+                d.revision === 1 &&
+                !d.learning.length
                   ? { ...d, edition: content }
                   : d,
               );
@@ -705,6 +721,19 @@ export default function App() {
     );
     await refreshWorkshops();
     setWorkshopId(id);
+    const content = validateContent(
+      unwrap(await cloud.rpc("workshop_content", { p_workshop: id })),
+    );
+    if (!worksheets.length && !cloudRevision && !exchange)
+      setDraft((d) =>
+        d.id === draft.id &&
+        d.revision === 1 &&
+        !d.learning.length &&
+        !Object.values(d.context).some(Boolean)
+          ? { ...d, edition: content }
+          : d,
+      );
+
     setCode("");
     try {
       sessionStorage.removeItem(invitationKey);
@@ -1017,9 +1046,15 @@ export default function App() {
     if (importConflict && !importDialog.current.open)
       importDialog.current.showModal();
   }, [importConflict]);
-  async function newConfiguration() {
+  async function newConfiguration(forWorkshop = "") {
     let edition = published?.content || {};
-    if (cloud) {
+    if (forWorkshop) {
+      edition = validateContent(
+        unwrap(
+          await cloud.rpc("workshop_content", { p_workshop: forWorkshop }),
+        ),
+      );
+    } else if (cloud) {
       const { data: row } = await cloud
         .from("app_settings")
         .select("content,content_revision")
@@ -1035,6 +1070,7 @@ export default function App() {
           ),
         );
     }
+    setWorkshopId(forWorkshop);
     applySnapshot({ draft: { ...newDraft(edition), language } });
   }
   async function loadArchive() {
@@ -1057,15 +1093,26 @@ export default function App() {
           .order("created_at", { ascending: false }),
       ),
     );
-    setSubmissions(
+    setEditionOptions(
       unwrap(
-        await cloud
-          .from("submissions")
-          .select("id,title,status,created_at,workshop_id,payload")
-          .order("created_at", { ascending: false }),
+        await cloud.from("content_editions").select("id,title").order("title"),
       ),
     );
     setPage("admin");
+  }
+  async function openAdminSection(id) {
+    setAdminTab(id);
+    if (id === "submissions") {
+      setSubmissions(
+        unwrap(
+          await cloud
+            .from("submissions")
+            .select("id,title,status,created_at,workshop_id,payload")
+            .order("created_at", { ascending: false }),
+        ),
+      );
+    }
+    if (id !== "credentials") return;
     const data = await callFunction("credentials", {
       action: "status",
       provider: "openai",
@@ -1175,7 +1222,7 @@ export default function App() {
     ["workshops", t("Workshops")],
     ["submissions", t("Abgaben")],
     ["credentials", t("KI-Zugänge")],
-    ["content", t("Inhalte")],
+    ["members", t("Mitglieder")],
     ["settings", t("Einstellungen")],
   ];
   const notices = (
@@ -1247,6 +1294,15 @@ export default function App() {
           >
             {t("Konfigurator")}
           </button>
+          {session && admin && (
+            <button
+              disabled={busy}
+              aria-current={page === "content" ? "page" : undefined}
+              onClick={() => setPage("content")}
+            >
+              {t("Inhalte")}
+            </button>
+          )}
           {session && admin && (
             <button
               disabled={busy}
@@ -1417,10 +1473,21 @@ export default function App() {
                     ))}
                     <button
                       disabled={busy}
-                      onClick={() => act(newConfiguration)}
+                      onClick={() => act(() => newConfiguration())}
                     >
                       + {t("Neues Projekt")}
                     </button>
+                    {workshops
+                      .filter((w) => w.id === workshopId && w.active)
+                      .map((w) => (
+                        <button
+                          key={w.id}
+                          disabled={busy}
+                          onClick={() => act(() => newConfiguration(w.id))}
+                        >
+                          + {t("Neues Projekt für {0}", { 0: w.title })}
+                        </button>
+                      ))}
                     {session &&
                       (workshops.some((w) => w.active) ||
                         workshopLinks.length > 0) && (
@@ -2566,6 +2633,15 @@ export default function App() {
                   }}
                   join={() => act(join)}
                 />
+                {workshopId && (
+                  <Button
+                    secondary
+                    disabled={busy}
+                    onClick={() => act(() => newConfiguration(workshopId))}
+                  >
+                    {t("Neues Projekt mit Workshop-Inhalten starten")}
+                  </Button>
+                )}
                 <h2>{t("Meine Abgaben")}</h2>
                 {mySubmissions.length ? (
                   mySubmissions.map((s) => (
@@ -3084,6 +3160,13 @@ export default function App() {
             )}
             <h2>{t("Zugeordnete Projekte")}</h2>
             <WorkshopProjectList projects={moderation.projects} />
+            <h2>{t("Mitglieder")}</h2>
+            <WorkshopRoster
+              key={moderation.workshop.id}
+              workshop={moderation.workshop}
+              act={act}
+              busy={busy}
+            />
             <h2>{t("Abgaben")}</h2>
             <SubmissionList
               submissions={moderation.submissions}
@@ -3100,6 +3183,15 @@ export default function App() {
             />
           </Card>
         )}
+        {page === "content" && session && admin && (
+          <ContentLibrary
+            key={session.user.id}
+            act={act}
+            busy={busy}
+            message={setMessage}
+            dirtyRef={editorDirty}
+          />
+        )}
         {page === "admin" && admin && (
           <div className="admin-grid">
             <header className="admin-heading">
@@ -3113,7 +3205,8 @@ export default function App() {
                     key={id}
                     type="button"
                     aria-current={adminTab === id ? "page" : undefined}
-                    onClick={() => setAdminTab(id)}
+                    disabled={busy}
+                    onClick={() => act(() => openAdminSection(id))}
                   >
                     {label}
                   </button>
@@ -3129,41 +3222,14 @@ export default function App() {
                 />
               </Card>
             )}
-            {adminTab === "content" &&
-              (published?.revision ? (
-                <ContentEditor
-                  key={published.revision}
-                  published={published}
-                  busy={busy}
-                  act={act}
-                  onPublish={async (content) => {
-                    const revision = crypto.randomUUID();
-                    const row = unwrap(
-                      await cloud
-                        .from("app_settings")
-                        .update({ content, content_revision: revision })
-                        .eq("id", true)
-                        .eq("content_revision", published.revision)
-                        .select("content_revision")
-                        .maybeSingle(),
-                    );
-                    if (!row)
-                      throw new Error(
-                        t(
-                          "Eine neuere Inhaltsfassung liegt vor. Laden Sie die Seite neu und prüfen Sie Ihre Änderungen.",
-                        ),
-                      );
-                    setPublished({ content, revision });
-                    setMessage(t("Inhalte veröffentlicht."));
-                  }}
-                />
-              ) : (
-                <p>
-                  {t(
-                    "Die Inhaltsverwaltung benötigt eine Verbindung zum Backend.",
-                  )}
-                </p>
-              ))}
+            {adminTab === "members" && (
+              <Members
+                act={act}
+                busy={busy}
+                superadmin={superadmin}
+                workshops={adminWorkshops}
+              />
+            )}
             {adminTab === "settings" && (
               <Card>
                 <h2>{t("Einstellungen")}</h2>
@@ -3410,6 +3476,41 @@ export default function App() {
                 {adminWorkshops.map((w) => (
                   <div className="workshop-admin" key={w.id}>
                     <h3>{w.title}</h3>
+                    <label className="member-scope">
+                      {t("Inhaltsfassung für neue Projekte")}
+                      <select
+                        value={w.edition_id || ""}
+                        disabled={busy}
+                        onChange={(e) => {
+                          const edition_id = e.target.value || null;
+                          act(async () => {
+                            const saved = unwrap(
+                              await cloud
+                                .from("workshops")
+                                .update({ edition_id })
+                                .eq("id", w.id)
+                                .select("edition_id")
+                                .single(),
+                            );
+                            setAdminWorkshops((previous) =>
+                              previous.map((row) =>
+                                row.id === w.id ? { ...row, ...saved } : row,
+                              ),
+                            );
+                            setMessage(t("Inhaltsfassung zugewiesen."));
+                          });
+                        }}
+                      >
+                        <option value="">
+                          {t("Aktuellen Standard verwenden")}
+                        </option>
+                        {editionOptions.map((ed) => (
+                          <option key={ed.id} value={ed.id}>
+                            {ed.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     {w.active && (
                       <WorkshopInvite
                         workshop={w}

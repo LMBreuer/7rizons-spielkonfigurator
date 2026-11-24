@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { translate } from "../supabase/functions/_shared/translations.js";
 
 import {
@@ -28,11 +28,36 @@ const labels = {
   closing: "Abschluss",
 };
 
-export default function ContentEditor({ published, onPublish, busy, act }) {
+export default function ContentEditor({
+  published,
+  onPublish,
+  onBack,
+  busy,
+  act,
+  dirtyRef,
+}) {
   const [edition, setEdition] = useState(published.content);
   const [section, setSection] = useState("learning");
   const [selected, setSelected] = useState("");
   const [lang, setLang] = useState("de");
+  const [title, setTitle] = useState(published.title);
+  const [query, setQuery] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const dirty =
+    edition !== published.content || title.trim() !== published.title;
+  useEffect(() => {
+    dirtyRef.current = dirty;
+    if (!dirty) return;
+    const warn = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      dirtyRef.current = false;
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [dirty]);
   // Empty form fields are allowed while editing; validate the complete edition on publication.
   const catalog = catalogFor({ edition: published.content });
   const items = section === "mechanics" ? catalog.MK : catalog.LE;
@@ -90,146 +115,259 @@ export default function ContentEditor({ published, onPublish, busy, act }) {
       ...Object.keys(edition.learning || {}),
     ]),
   ];
-  return (
-    <section className="panel">
-      <h2>{t("Inhalte")}</h2>
-      <p>
-        {t(
-          "Veröffentlichte Änderungen gelten für neue Projekte. Bestehende Projekte und Arbeitsblätter behalten ihre Inhaltsfassung.",
+  const sections = {
+    learning: "Lernerlebnisse",
+    mechanics: "Mechaniken",
+    blocks: "Arbeitsblatttexte",
+  };
+  const nameOf = (key) =>
+    (lang === "en" ? patches[key]?.en?.label : undefined) ??
+    translate(
+      patches[key]?.label ?? items.find((x) => x.id === key)?.label ?? key,
+      lang,
+    );
+  const matches = ids.filter((key) =>
+    nameOf(key).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  );
+  const blockKey = Object.hasOwn(blockDefaults, selected)
+    ? selected
+    : "introduction";
+  function textField(key) {
+    const props = {
+      maxLength: 4000,
+      value:
+        lang === "de"
+          ? value[key] || ""
+          : (patch.en?.[key] ?? translate(value[key] || "", "en")),
+      onChange: (e) => textChange(key, e.target.value),
+    };
+    return (
+      <label key={key}>
+        {t(labels[key])}
+        {["label", "kat", "bloom"].includes(key) &&
+        !props.value.includes("\n") ? (
+          <input {...props} />
+        ) : (
+          <textarea {...props} rows={section === "blocks" ? 5 : 3} />
         )}
-      </p>
-      <div className="field-grid">
-        <label>
-          {t("Bereich")}
-          <select
-            value={section}
-            onChange={(e) => {
-              setSection(e.target.value);
-              setSelected("");
-            }}
-          >
-            <option value="learning">{t("Lernerlebnisse")}</option>
-            <option value="mechanics">{t("Mechaniken")}</option>
-            <option value="blocks">{t("Arbeitsblatttexte")}</option>
-          </select>
-        </label>
-        <label>
-          {t("Textsprache")}
-          <select value={lang} onChange={(e) => setLang(e.target.value)}>
-            <option value="de">Deutsch</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-      </div>
-      {section !== "blocks" && (
-        <>
-          <label>
-            {t("Eintrag")}
-            <select value={id} onChange={(e) => setSelected(e.target.value)}>
-              {ids.map((key) => (
-                <option key={key} value={key}>
-                  {patches[key]?.label ??
-                    items.find((x) => x.id === key)?.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className="button secondary" onClick={add}>
-            {t(
-              section === "learning"
-                ? "Lernerlebnis hinzufügen"
-                : "Mechanik hinzufügen",
-            )}
-          </button>
-        </>
-      )}
-      <div className="field-grid">
-        {fields.map((key) => (
-          <label key={key}>
-            {t(labels[key])}
-            <textarea
-              rows={["label", "kat", "kurz", "bloom"].includes(key) ? 1 : 3}
-              maxLength={4000}
-              value={
-                lang === "de"
-                  ? value[key] || ""
-                  : (patch.en?.[key] ?? translate(value[key] || "", "en"))
-              }
-              onChange={(e) => textChange(key, e.target.value)}
-            />
-          </label>
-        ))}
-      </div>
-      {section === "learning" && (
-        <label>
-          {t("Gruppe")}
-          <select
-            value={value.group || "inhalt"}
-            onChange={(e) => replace({ ...patch, group: e.target.value })}
-          >
-            <option value="inhalt">{t("Inhaltlich")}</option>
-            <option value="wiss">{t("Wissenschaftlich")}</option>
-          </select>
-        </label>
-      )}
-      {section === "mechanics" && (
-        <>
-          <label>
-            <input
-              type="checkbox"
-              disabled={original.kern}
-              checked={!!value.basis}
-              onChange={(e) => replace({ ...patch, basis: e.target.checked })}
-            />{" "}
-            {t("Im Basisspiel vorhanden")}
-          </label>
-          <fieldset>
-            <legend>{t("Zuordnung zu Lernerlebnissen")}</legend>
-            <div className="field-grid">
-              {goals.map((goal) => (
-                <label key={goal}>
-                  {edition.learning?.[goal]?.label ??
-                    catalog.LE.find((l) => l.id === goal)?.label}
-                  <select
-                    value={value.w?.[goal] || ""}
-                    onChange={(e) => {
-                      const w = { ...value.w };
-                      if (e.target.value) w[goal] = e.target.value;
-                      else delete w[goal];
-                      replace({ ...patch, w });
-                    }}
-                  >
-                    <option value="">{t("Keine Zuordnung")}</option>
-                    <option value="P">{t("Primär")}</option>
-                    <option value="S">{t("Unterstützend")}</option>
-                    {value.w?.[goal] === "~" && (
-                      <option value="~">{t("Reibung")}</option>
-                    )}
-                  </select>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        </>
-      )}
-      {section !== "blocks" && !original.kern && (
-        <label>
-          <input
-            type="checkbox"
-            checked={!!patch.archived}
-            onChange={(e) => replace({ ...patch, archived: e.target.checked })}
-          />{" "}
-          {t("In neuen Projekten ausblenden")}
-        </label>
-      )}
+      </label>
+    );
+  }
+  return (
+    <section className="edition-editor">
       <button
         type="button"
-        className="button"
-        disabled={busy || edition === published.content}
-        onClick={() => act(() => onPublish(validateContent(edition)))}
+        className="text-button"
+        onClick={() => {
+          if (
+            !dirty ||
+            window.confirm(t("Unveröffentlichte Änderungen verwerfen?"))
+          )
+            onBack();
+        }}
       >
-        {t("Inhalte veröffentlichen")}
+        ← {t("Inhaltsfassungen")}
       </button>
+      <div className="editor-heading">
+        <div className="editor-title">
+          <h1>{published.title}</h1>
+          <button
+            type="button"
+            className="text-button"
+            aria-expanded={renaming}
+            onClick={() => setRenaming(!renaming)}
+          >
+            {t("Umbenennen")}
+          </button>
+          {renaming && (
+            <label>
+              {t("Name der Fassung")}
+              <input
+                autoFocus
+                value={title}
+                maxLength={100}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+          )}
+        </div>
+        <button
+          type="button"
+          className="button"
+          disabled={busy || !dirty || !title.trim()}
+          onClick={() =>
+            act(() => onPublish(validateContent(edition), title.trim()))
+          }
+        >
+          {t("Inhalte veröffentlichen")}
+        </button>
+      </div>
+      <nav className="admin-tabs" aria-label={t("Inhaltsbereiche")}>
+        {Object.entries(sections).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            aria-current={section === key ? "page" : undefined}
+            onClick={() => {
+              setSection(key);
+              setSelected("");
+              setQuery("");
+            }}
+          >
+            {t(label)}
+          </button>
+        ))}
+      </nav>
+      <div className="editor-workspace">
+        <aside className="editor-index">
+          {section !== "blocks" && (
+            <label>
+              {t("Einträge suchen")}
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          )}
+          <div className="editor-items" role="group" aria-label={t("Eintrag")}>
+            {(section === "blocks" ? Object.keys(blockDefaults) : matches).map(
+              (key) => (
+                <button
+                  type="button"
+                  key={key}
+                  aria-current={
+                    key === (section === "blocks" ? blockKey : id)
+                      ? "true"
+                      : undefined
+                  }
+                  onClick={() => setSelected(key)}
+                >
+                  {section === "blocks" ? t(labels[key]) : nameOf(key)}
+                  {patches[key]?.archived && " · " + t("Ausgeblendet")}
+                </button>
+              ),
+            )}
+            {section !== "blocks" && !matches.length && (
+              <p>{t("Keine passenden Einträge.")}</p>
+            )}
+          </div>
+          {section !== "blocks" && (
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => {
+                setQuery("");
+                add();
+              }}
+            >
+              +{" "}
+              {t(
+                section === "learning"
+                  ? "Lernerlebnis hinzufügen"
+                  : "Mechanik hinzufügen",
+              )}
+            </button>
+          )}
+        </aside>
+        <section className="panel editor-detail">
+          <div className="editor-heading">
+            <h2>{section === "blocks" ? t(labels[blockKey]) : nameOf(id)}</h2>
+            <label>
+              {t("Textsprache")}
+              <select value={lang} onChange={(e) => setLang(e.target.value)}>
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+          </div>
+          <div className="editor-fields">
+            {(section === "blocks"
+              ? [blockKey]
+              : fields.filter(
+                  (key) => !["frame", "example", "questions"].includes(key),
+                )
+            ).map(textField)}
+          </div>
+          {section === "learning" && (
+            <label>
+              {t("Gruppe")}
+              <select
+                value={value.group || "inhalt"}
+                onChange={(e) => replace({ ...patch, group: e.target.value })}
+              >
+                <option value="inhalt">{t("Inhaltlich")}</option>
+                <option value="wiss">{t("Wissenschaftlich")}</option>
+              </select>
+            </label>
+          )}
+          {section === "mechanics" && (
+            <>
+              <label>
+                <input
+                  type="checkbox"
+                  disabled={original.kern}
+                  checked={!!value.basis}
+                  onChange={(e) =>
+                    replace({ ...patch, basis: e.target.checked })
+                  }
+                />{" "}
+                {t("Im Basisspiel vorhanden")}
+              </label>
+              <details className="edition-options">
+                <summary>{t("Arbeitsaufträge und Beispiele")}</summary>
+                <div className="editor-fields">
+                  {["questions", "frame", "example"].map(textField)}
+                </div>
+              </details>
+              <details className="edition-options">
+                <summary>{t("Zuordnung zu Lernerlebnissen")}</summary>
+                <fieldset>
+                  <legend className="sr-only">
+                    {t("Zuordnung zu Lernerlebnissen")}
+                  </legend>
+                  <div className="field-grid">
+                    {goals.map((goal) => (
+                      <label key={goal}>
+                        {edition.learning?.[goal]?.label ??
+                          catalog.LE.find((l) => l.id === goal)?.label}
+                        <select
+                          value={value.w?.[goal] || ""}
+                          onChange={(e) => {
+                            const w = { ...value.w };
+                            if (e.target.value) w[goal] = e.target.value;
+                            else delete w[goal];
+                            replace({ ...patch, w });
+                          }}
+                        >
+                          <option value="">{t("Keine Zuordnung")}</option>
+                          <option value="P">{t("Primär")}</option>
+                          <option value="S">{t("Unterstützend")}</option>
+                          {value.w?.[goal] === "~" && (
+                            <option value="~">{t("Reibung")}</option>
+                          )}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </details>
+            </>
+          )}
+          {section !== "blocks" && !original.kern && (
+            <label>
+              <input
+                type="checkbox"
+                checked={!!patch.archived}
+                onChange={(e) =>
+                  replace({ ...patch, archived: e.target.checked })
+                }
+              />{" "}
+              {t("In neuen Projekten ausblenden")}
+            </label>
+          )}
+        </section>
+      </div>
     </section>
   );
 }

@@ -8,7 +8,11 @@ Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LM
 
 Schritt 5 öffnet das beschreibbare Arbeitsblatt zur aktuellen Auswahl. Kartentexte und Probelaufnotizen werden im Browser gesichert. „Online speichern“ legt den Projektstand im angemeldeten Konto ab. Beim erneuten Öffnen desselben Konfigurationsstands werden die bisherigen Eingaben angezeigt.
 
-Unter **Administration → Inhalte** können Berechtigte Lernerlebnisse und Mechaniken hinzufügen, bearbeiten und für neue Projekte ausblenden. Dort bearbeiten sie Zuordnungen, deutsche und englische Texte, Arbeitsaufträge, Beispiele und die allgemeinen Blattabschnitte. „Inhalte veröffentlichen“ gilt für neue Projekte. Bestehende Projekte führen ihre Inhaltsfassung beim Speichern, Teilen und Exportieren mit.
+Unter **Inhalte** können Berechtigte Lernerlebnisse und Mechaniken hinzufügen, bearbeiten und für neue Projekte ausblenden. Dort bearbeiten sie Zuordnungen, deutsche und englische Texte, Arbeitsaufträge, Beispiele und die allgemeinen Blattabschnitte. „Inhalte veröffentlichen“ gilt für neue Projekte. Bestehende Projekte führen ihre Inhaltsfassung beim Speichern, Teilen und Exportieren mit.
+
+Über **Inhalte → Neue Fassung** eine vorhandene Fassung kopieren und unter einem eigenen Namen bearbeiten. **Als Standard setzen** bestimmt die Fassung für allgemeine Projekte. Unter **Administration → Workshops** lässt sich je Workshop eine Fassung fest zuweisen oder der jeweils aktuelle Standard verwenden. Teilnehmende wählen ihren Workshop im Konto und starten dort ein Projekt mit seinen Inhalten.
+
+Unter **Administration → Mitglieder** lassen sich bestätigte Konten einem Workshop zuordnen, zur Moderation ernennen oder aus dem Workshop entfernen. Die Superadministration kann zudem alle bestätigten Konten durchsuchen und Administrationsrechte vergeben oder entziehen.
 
 ## Separate Variante mit KI-Optionen
 

@@ -337,6 +337,140 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       (await db.query("select * from public.submissions")).rows.length,
       0,
     );
+    // A workshop can pin its own edition while another follows the public default.
+    const sql = async (query, args = []) => (await db.query(query, args)).rows;
+    const first = async (query, args) => (await sql(query, args))[0];
+    await identity(admin);
+    const base = await first("select * from public.content_editions");
+    const { id: copy } = await first(
+      "select public.copy_content_edition($1,$2,'Seminar') id",
+      [base.id, base.revision],
+    );
+    const { revision } = await first(
+      "select revision from public.content_editions where id=$1",
+      [copy],
+    );
+    const content = { blocks: { closing: "Seminar B" } };
+    await sql("select public.publish_content_edition($1,$2,'Seminar B',$3)", [
+      copy,
+      revision,
+      content,
+    ]);
+    await assert.rejects(
+      () =>
+        sql("select public.publish_content_edition($1,$2,'Alt',$3)", [
+          copy,
+          revision,
+          {},
+        ]),
+      /inzwischen geändert/,
+    );
+    await sql("update public.workshops set edition_id=$1 where id=$2", [
+      copy,
+      w,
+    ]);
+    const { id: follows } = await first(
+      "insert into public.workshops(title,join_code) values('Standard','abcdefghijklmnop') returning id",
+    );
+    await sql("select public.set_roster_role($1,'owner@example.test','add')", [
+      follows,
+    ]);
+    await identity(owner);
+    assert.deepEqual(
+      (await first("select public.workshop_content($1) content", [w])).content,
+      content,
+    );
+    assert.deepEqual(
+      (await first("select public.workshop_content($1) content", [follows]))
+        .content,
+      base.content,
+    );
+    assert.equal(
+      (await sql("select * from public.content_editions")).length,
+      0,
+    );
+    for (const [query, args] of [
+      ["select public.account_directory('',0)", []],
+      ["select public.set_account_admin($1,true)", [owner]],
+      ["select public.workshop_roster($1)", [w]],
+      ["select public.choose_default_edition($1)", [copy]],
+      [
+        "select public.copy_content_edition($1,$2,'Other')",
+        [base.id, base.revision],
+      ],
+      [
+        "select public.set_roster_role($1,'owner@example.test','moderator')",
+        [w],
+      ],
+    ])
+      await assert.rejects(() => sql(query, args), /Nur /);
+    await identity(admin);
+    await sql("select public.choose_default_edition($1)", [copy]);
+    assert.deepEqual(
+      (await first("select content from public.app_settings")).content,
+      content,
+    );
+    assert.deepEqual(
+      (await first("select public.workshop_content($1) content", [follows]))
+        .content,
+      content,
+    );
+    await sql(
+      "select public.set_roster_role($1,'moderator@example.test','moderator')",
+      [w],
+    );
+    await sql(
+      "select public.set_roster_role($1,'moderator@example.test','add')",
+      [w],
+    );
+    await identity(other);
+    assert.equal(
+      (await sql("select * from public.workshop_roster($1)", [w])).some(
+        (r) => r.moderator && r.email === "moderator@example.test",
+      ),
+      true,
+    );
+    await assert.rejects(
+      () => sql("select public.workshop_roster($1)", [follows]),
+      /Moderation/,
+    );
+    await identity(admin);
+    await sql(
+      "select public.set_roster_role($1,'moderator@example.test','remove')",
+      [w],
+    );
+    await sql("select public.set_account_admin($1,true)", [other]);
+    assert.equal(
+      (await first("select * from public.account_directory('moderator',0)"))
+        .account_role,
+      "admin",
+    );
+    await identity(other);
+    assert.equal((await first("select public.is_admin() yes")).yes, true);
+    await assert.rejects(
+      () => sql("select public.set_account_admin($1,true)", [owner]),
+      /Superadministration/,
+    );
+    await identity(admin);
+    await sql("select public.set_account_admin($1,false)", [other]);
+    await identity(other);
+    await assert.rejects(
+      () => sql("select public.workshop_content($1)", [w]),
+      /Mitgliedschaft/,
+    );
+    await assert.rejects(
+      () => sql("select public.workshop_roster($1)", [w]),
+      /Moderation/,
+    );
+    await identity("", "anon");
+    await assert.rejects(
+      () => sql("select public.account_directory('',0)"),
+      /permission denied/,
+    );
+    assert.deepEqual(
+      (await first("select content from public.app_settings")).content,
+      content,
+    );
   } finally {
     await db.close();
   }

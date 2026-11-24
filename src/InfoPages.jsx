@@ -55,6 +55,11 @@ function PrivacyInfo({ online }) {
               )}
             </li>
             <li>
+              {t(
+                "Die Superadministration sieht die E-Mail-Adressen bestätigter Konten und verwaltet Administrationsrechte. Die Administration und die jeweilige Workshopmoderation sehen E-Mail-Adresse und Rolle der Mitglieder des Workshops.",
+              )}
+            </li>
+            <li>
               <strong>{t("Beim Online-Speichern.")}</strong>{" "}
               {t(
                 "Der gespeicherte Stand umfasst Ihre Eingaben, Auswahl, Arbeitsblätter und Kartentexte, gegebenenfalls einen vorbereiteten KI-Auftrag sowie Projekt-ID, Version und Änderungszeitpunkt. Der Stand ist Ihrem Konto zugeordnet. Die Superadministration sieht Projekttitel und Änderungsdatum. Für eine Freigabeanfrage kann sie einen Mailentwurf an Ihre Konto-Adresse öffnen. Eine Kopie der Inhalte erhält sie nach bestätigter Freigabe.",

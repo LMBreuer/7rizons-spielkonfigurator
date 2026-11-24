@@ -290,78 +290,25 @@ export function WorkshopProjectList({ projects }) {
   );
 }
 
-export function WorkshopManagement({ workshop, act, busy }) {
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [moderators, setModerators] = useState([]);
-  const [projects, setProjects] = useState([]);
-  async function reload() {
-    const [people, entries] = await Promise.all([
-      cloud.rpc("list_workshop_moderators", { p_workshop: workshop.id }),
-      cloud.rpc("list_workshop_projects", { p_workshop: workshop.id }),
-    ]);
-    setModerators(unwrap(people));
-    setProjects(unwrap(entries));
-  }
-  const setModerator = (address, add) =>
-    act(async () => {
-      unwrap(
-        await cloud.rpc("set_workshop_moderator", {
-          p_workshop: workshop.id,
-          p_email: address,
-          p_add: add,
-        }),
-      );
-      setEmail("");
-      await reload();
-    });
+export function WorkshopManagement({ workshop, act }) {
+  const [projects, setProjects] = useState(null);
   return (
-    <>
-      <details
-        onToggle={(e) => {
-          if (e.currentTarget.open && !open)
-            act(async () => {
-              await reload();
-              setOpen(true);
-            });
-        }}
-      >
-        <summary>{t("Projekte und Moderation")}</summary>
-        <WorkshopProjectList projects={projects} />
-        <h4>{t("Workshopmoderation")}</h4>
-        {moderators.map((person) => (
-          <div className="archive-row" key={person.user_id}>
-            <span>{person.email}</span>
-            <button
-              type="button"
-              className="button secondary"
-              disabled={busy}
-              onClick={() => setModerator(person.email, false)}
-            >
-              {t("Moderationsrolle entfernen")}
-            </button>
-          </div>
-        ))}
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            setModerator(email, true);
-          }}
-        >
-          <label>
-            {t("E-Mail eines bestätigten Kontos")}
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </label>
-          <button className="button secondary" disabled={busy}>
-            {t("Moderation hinzufügen")}
-          </button>
-        </form>
-      </details>
-    </>
+    <details
+      onToggle={(e) => {
+        if (e.currentTarget.open)
+          act(async () =>
+            setProjects(
+              unwrap(
+                await cloud.rpc("list_workshop_projects", {
+                  p_workshop: workshop.id,
+                }),
+              ),
+            ),
+          );
+      }}
+    >
+      <summary>{t("Zugeordnete Projekte")}</summary>
+      {projects && <WorkshopProjectList projects={projects} />}
+    </details>
   );
 }

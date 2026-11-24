@@ -65,6 +65,8 @@ test("all explicitly translated literal UI strings have an English entry", async
     "src/App.jsx",
     "src/InfoPages.jsx",
     "src/ContentEditor.jsx",
+    "src/ContentLibrary.jsx",
+    "src/Members.jsx",
     "src/ProjectModeration.jsx",
     "src/Priority.jsx",
     "src/AppearanceSwitch.jsx",
