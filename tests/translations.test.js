@@ -53,7 +53,7 @@ test("English no-AI output, Markdown and AI request preserve language and topic"
   assert.match(result.mechanisms[0].adaptation, /Keywords define/);
   assert.match(md, /## New mechanics/);
   assert.match(md, /## Safety framework/);
-  assert.match(md, /Your own card/);
+  assert.match(md, /Write your own card texts/);
   assert.equal(requestFor(d).language, "en");
   const prompt = makePrompt(requestFor(d));
   assert.match(prompt, /Produce a complete worksheet in English/);
@@ -72,6 +72,7 @@ test("all explicitly translated literal UI strings have an English entry", async
     "src/AppearanceSwitch.jsx",
     "src/ContextField.jsx",
     "src/Worksheet.jsx",
+    "src/WorksheetCards.jsx",
   ]) {
     const source = await readFile(
       new URL("../" + file, import.meta.url),

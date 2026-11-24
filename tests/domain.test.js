@@ -1,3 +1,4 @@
+import { worksheetCards } from "../supabase/functions/_shared/card-text.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -50,7 +51,7 @@ test("no-AI worksheet contains selected mechanics, safety and real writing field
   assert.deepEqual(r.mechanisms[0].cardExamples, []);
   const md = markdown(d, r);
   assert.match(md, /Safety-Rahmen/);
-  assert.match(md, /Eigene Karte 3/);
+  assert.doesNotMatch(md, /Eigene Karte [0-9]/);
   assert.doesNotMatch(md, /KARTEN:/);
 });
 test("prompt includes full mechanic context but omits personal organisational data", () => {
@@ -261,7 +262,7 @@ test("saved template editions restore with distinct print/export content, includ
         /Entwurf 1|Eigene Karte|Probelauf|Beitrag zu den Lerntätigkeiten|Nächste Schritte/,
       );
       assert.match(md, /Perspektivrollen/);
-    } else assert.match(md, /Eigene Karte/);
+    } else assert.match(md, /Nächste Schritte/);
   }
 });
 
@@ -274,6 +275,50 @@ test("working copy restores printable card answers and rejects unknown slots", (
   const restored = readSnapshot(JSON.parse(JSON.stringify(snapshot))).result;
   assert.deepEqual(restored.answers, result.answers);
   assert.ok(markdown(d, restored).includes(result.answers[slot]));
+  const [oldCard] = worksheetCards(restored);
+  assert.equal(oldCard.text, result.answers[slot]);
+  const cards = [
+    oldCard,
+    ...Array.from({ length: 4 }, (_, i) => ({
+      ...oldCard,
+      id: crypto.randomUUID(),
+      title: "Quellenkarte " + (i + 1),
+      color: "#8799aa",
+      notes: ["Datierung prüfen", "Im Seminar testen"],
+    })),
+  ];
+  const cardSnapshot = {
+    ...snapshot,
+    result: { ...result, cards, answers: { playtest: "Probelauf" } },
+  };
+  const withCards = readSnapshot(
+    JSON.parse(JSON.stringify(cardSnapshot)),
+  ).result;
+  assert.deepEqual(withCards.cards, cards);
+  assert.match(
+    markdown(d, withCards),
+    /Quellenkarte 4[\s\S]*Datierung prüfen[\s\S]*Im Seminar testen/,
+  );
+  assert.throws(
+    () =>
+      readSnapshot({
+        ...cardSnapshot,
+        result: { ...cardSnapshot.result, cards: [oldCard, oldCard] },
+      }),
+    /Ungültige Spielkarten/,
+  );
+  assert.throws(
+    () =>
+      readSnapshot({
+        ...cardSnapshot,
+        result: {
+          ...cardSnapshot.result,
+          cards: [{ ...oldCard, color: "invalid" }],
+        },
+      }),
+    /Ungültige Spielkarten/,
+  );
+  assert.deepEqual(worksheetCards({ ...restored, cards: [] }), []);
   result.answers.fremd = "Test";
   assert.throws(() => readSnapshot(snapshot), /Arbeitsblattantworten/);
 });

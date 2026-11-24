@@ -6,7 +6,7 @@ Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LM
 
 ## Präsenzworkshop und Inhaltsverwaltung
 
-Schritt 5 öffnet das beschreibbare Arbeitsblatt zur aktuellen Auswahl. Kartentexte und Probelaufnotizen werden im Browser gesichert. „Online speichern“ legt den Projektstand im angemeldeten Konto ab. Beim erneuten Öffnen desselben Konfigurationsstands werden die bisherigen Eingaben angezeigt.
+Schritt 5 öffnet das beschreibbare Arbeitsblatt zur aktuellen Auswahl. Pro Mechanik lassen sich eigene Spielkarten mit Titel, formatiertem Text, Randfarbe und Notizen anlegen. Karten und Probelaufnotizen werden im Browser gesichert. „Karten drucken“ gibt die Spielkarten separat zum Ausschneiden aus. „Online speichern“ legt den Projektstand im angemeldeten Konto ab. Beim erneuten Öffnen desselben Konfigurationsstands werden die bisherigen Eingaben angezeigt.
 
 Unter **Inhalte** können Berechtigte Lernerlebnisse und Mechaniken hinzufügen, bearbeiten und für neue Projekte ausblenden. Dort bearbeiten sie Zuordnungen, deutsche und englische Texte, Arbeitsaufträge, Beispiele und die allgemeinen Blattabschnitte. „Inhalte veröffentlichen“ gilt für neue Projekte. Bestehende Projekte führen ihre Inhaltsfassung beim Speichern, Teilen und Exportieren mit.
 
@@ -73,13 +73,13 @@ Automatisierte Prüfungen decken die zentralen Schritte, Arbeitsblatt, Anmeldung
 
 Teilnehmende können beliebig viele der verfügbaren Lernerlebnisse auswählen. Projektlinks teilen einen Stand zur Übernahme als eigene Kopie.
 
-Neue KI-Aufträge berücksichtigen aktuelle Einstellungen; bereits erstellte Arbeitsblätter behalten ihre Kartenzahl. KI-Ausgaben müssen fachlich geprüft werden. Eine abgeschnittene oder nicht zum Auftrag passende Antwort wird nicht als fertiges Arbeitsblatt übernommen. Keine automatische kostenpflichtige Wiederholung; fehlgeschlagene Versuche verbrauchen vorsorglich ebenfalls ein Aufrufkontingent. Aufruf-/Tokenlimits sind keine exakte Euro-Budgetgrenze – zusätzlich Budgetlimits beim API-Anbieter setzen.
+Neue KI-Aufträge berücksichtigen aktuelle Einstellungen; bereits erstellte Arbeitsblätter behalten die Anzahl ihrer KI-Kartenvorschläge. KI-Ausgaben müssen fachlich geprüft werden. Eine abgeschnittene oder nicht zum Auftrag passende Antwort wird nicht als fertiges Arbeitsblatt übernommen. Keine automatische kostenpflichtige Wiederholung; fehlgeschlagene Versuche verbrauchen vorsorglich ebenfalls ein Aufrufkontingent. Aufruf-/Tokenlimits sind keine exakte Euro-Budgetgrenze – zusätzlich Budgetlimits beim API-Anbieter setzen.
 
 Die erste Backendbereitstellung, Mailzustellung und reale Anbieteraufrufe benötigen eine gesonderte Abnahme mit dem gewählten Projekt und Testzugängen. Die bereitgestellten Unit-/Datenbanktests ersetzen diese Abnahme nicht.
 
 ## Mehrere Arbeitsblätter
 
-Jede Erstellung oder übernommene KI-Antwort fügt ein eigenes Arbeitsblatt hinzu. Die Liste in Schritt 5 erlaubt Auswählen und einzelnes Löschen. Jedes Arbeitsblatt behält seinen Konfigurationsstand und seine Kartenzahl; ältere Stände bleiben sichtbar und exportierbar. Eine neue KI-Anfrage überschreibt keine bisherigen Ergebnisse.
+Jede Erstellung oder übernommene KI-Antwort fügt ein eigenes Arbeitsblatt hinzu. Die Liste in Schritt 5 erlaubt Auswählen und einzelnes Löschen. Jedes Arbeitsblatt behält seinen Konfigurationsstand und seine eigenen Karten; ältere Stände bleiben sichtbar und exportierbar. Eine neue KI-Anfrage überschreibt keine bisherigen Ergebnisse.
 
 Browser-Sicherung, JSON-Export und private Online-Speicherung enthalten die gesamte Sammlung samt Auswahl und offenem KI-Auftrag. Bisherige Sicherungen mit einem einzelnen Ergebnis werden beim Laden übernommen. JSON-Dateien und Online-Payloads dürfen bis knapp 2 MB groß sein. Eine Workshop-Abgabe enthält ausschließlich das ausgewählte Arbeitsblatt zum aktuellen Entwurfsstand, keine weiteren Arbeitsblätter oder offenen Aufträge. Dafür auch bei vorhandenen Backends die Migration `202611180001_worksheet_collection.sql` einspielen.
 

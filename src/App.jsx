@@ -1,3 +1,5 @@
+import { worksheetCards } from "../supabase/functions/_shared/card-text.js";
+import { printWorksheet } from "./WorksheetCards.jsx";
 import ContentLibrary from "./ContentLibrary.jsx";
 import Members, { WorkshopRoster } from "./Members.jsx";
 import {
@@ -241,7 +243,6 @@ export default function App() {
     saved.activeWorksheetId,
   );
   const [request, setRequest] = useState(saved.pendingRequest || null);
-  const [activeCard, setActiveCard] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const activeWorksheet =
     worksheets.find((w) => w.id === activeWorksheetId) || null;
@@ -330,6 +331,7 @@ export default function App() {
         ? "save"
         : null;
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settingsDraft, setSettingsDraft] = useState(DEFAULT_SETTINGS);
   const [session, setSession] = useState(null);
   const [admin, setAdmin] = useState(false);
   const [superadmin, setSuperadmin] = useState(false);
@@ -775,6 +777,19 @@ export default function App() {
     setActiveWorksheetId(worksheet.id);
     setBuildingSheet(false);
   }
+  const canEditWorksheet =
+    result &&
+    result.templateVariant !== "overview" &&
+    (!selfStudy || editingId === activeWorksheetId);
+  function updateWorksheetResult(update) {
+    setWorksheets((items) =>
+      items.map((sheet) =>
+        sheet.id === activeWorksheetId
+          ? { ...sheet, result: update(sheet.result) }
+          : sheet,
+      ),
+    );
+  }
   function workshopSheet(forceNew = false) {
     const match =
       !forceNew &&
@@ -782,8 +797,7 @@ export default function App() {
         (w) =>
           w &&
           w.draft.revision === draft.revision &&
-          w.result.templateVariant === "guided" &&
-          w.result.answers,
+          w.result.templateVariant === "guided",
       );
     if (match) setActiveWorksheetId(match.id);
     else {
@@ -792,7 +806,6 @@ export default function App() {
     }
     setBuildingSheet(false);
     setPreview(null);
-    setActiveCard(null);
   }
   function goStep(next) {
     setMessage("");
@@ -1102,6 +1115,18 @@ export default function App() {
   }
   async function openAdminSection(id) {
     setAdminTab(id);
+    if (id === "settings") {
+      const row = unwrap(
+        await cloud
+          .from("app_settings")
+          .select("value")
+          .eq("id", true)
+          .single(),
+      );
+      const current = settingsOf(row.value);
+      setSettings(current);
+      setSettingsDraft(current);
+    }
     if (id === "submissions") {
       setSubmissions(
         unwrap(
@@ -1223,7 +1248,7 @@ export default function App() {
     ["submissions", t("Abgaben")],
     ["credentials", t("KI-Zugänge")],
     ["members", t("Mitglieder")],
-    ["settings", t("Einstellungen")],
+    ["settings", t("KI-Einstellungen")],
   ];
   const notices = (
     <>
@@ -1865,9 +1890,6 @@ export default function App() {
                             <Button
                               secondary
                               onClick={() => {
-                                setActiveCard(
-                                  result.mechanisms[0]?.mechanismId + "-0",
-                                );
                                 if (result.answers) {
                                   setEditingId(
                                     editingId === activeWorksheetId
@@ -1895,10 +1917,21 @@ export default function App() {
                             </Button>
                           )}
                         {result && !buildingSheet && !preview && (
-                          <Button secondary onClick={() => window.print()}>
+                          <Button secondary onClick={() => printWorksheet()}>
                             {t("Drucken")}
                           </Button>
                         )}
+                        {result &&
+                          !buildingSheet &&
+                          !preview &&
+                          worksheetCards(result).length > 0 && (
+                            <Button
+                              secondary
+                              onClick={() => printWorksheet(true)}
+                            >
+                              {t("Karten drucken")}
+                            </Button>
+                          )}
                         {result && !buildingSheet && (
                           <details className="switch-menu export-menu">
                             <summary aria-label={t("Arbeitsblatt exportieren")}>
@@ -1908,11 +1941,7 @@ export default function App() {
                               <button
                                 onClick={() =>
                                   download(
-                                    markdown(
-                                      resultDraft,
-                                      result,
-                                      resultSettings,
-                                    ),
+                                    markdown(resultDraft, result),
                                     result.answers
                                       ? "7rizons-arbeitskopie.md"
                                       : "7rizons-arbeitsblatt.md",
@@ -2310,10 +2339,6 @@ export default function App() {
                 <Worksheet
                   draft={draft}
                   result={preview}
-                  settings={{
-                    ...settings,
-                    cardsPerMechanism: request.cardsPerMechanism,
-                  }}
                   source={{ kind: "import" }}
                 />
               </>
@@ -2330,51 +2355,31 @@ export default function App() {
                 <>
                   <Worksheet
                     key={activeWorksheetId}
-                    inlineEdit={!selfStudy && Boolean(result.answers)}
-                    activeCard={activeCard}
-                    onStartEditing={
-                      (result.answers || !selfStudy) &&
-                      result.templateVariant !== "overview"
-                        ? (key) => {
-                            if (!result.answers) {
-                              const copy = createWorksheet({
-                                ...activeWorksheet,
-                                result: { ...result, answers: {} },
-                              });
-                              setWorksheets((items) => [...items, copy]);
-                              setActiveWorksheetId(copy.id);
-                              setEditingId(copy.id);
-                            } else setEditingId(activeWorksheetId);
-                            setActiveCard(key);
-                          }
+                    onCards={
+                      canEditWorksheet
+                        ? (update) =>
+                            updateWorksheetResult((previous) => {
+                              const { playtest } = previous.answers || {};
+                              return {
+                                ...previous,
+                                cards: update(worksheetCards(previous)),
+                                answers:
+                                  playtest !== undefined ? { playtest } : {},
+                              };
+                            })
                         : undefined
                     }
                     onAnswer={
-                      editingId === activeWorksheetId ||
-                      (!selfStudy && result.answers)
-                        ? (key, value) => {
-                            setWorksheets((items) =>
-                              items.map((w) =>
-                                w.id === activeWorksheetId
-                                  ? {
-                                      ...w,
-                                      result: {
-                                        ...w.result,
-                                        answers: {
-                                          ...w.result.answers,
-                                          [key]: value,
-                                        },
-                                      },
-                                    }
-                                  : w,
-                              ),
-                            );
-                          }
+                      canEditWorksheet
+                        ? (key, value) =>
+                            updateWorksheetResult((previous) => ({
+                              ...previous,
+                              answers: { ...previous.answers, [key]: value },
+                            }))
                         : undefined
                     }
                     draft={resultDraft}
                     result={result}
-                    settings={resultSettings}
                     source={source}
                   />
                   {cloud && (
@@ -3087,10 +3092,16 @@ export default function App() {
                       {t("Projekt herunterladen")}
                     </Button>
                     {activeSharedSheet && (
-                      <Button secondary onClick={() => window.print()}>
+                      <Button secondary onClick={() => printWorksheet()}>
                         {t("Drucken")}
                       </Button>
                     )}
+                    {activeSharedSheet &&
+                      worksheetCards(activeSharedSheet.result).length > 0 && (
+                        <Button secondary onClick={() => printWorksheet(true)}>
+                          {t("Karten drucken")}
+                        </Button>
+                      )}
                     {page === "superadmin-project" && (
                       <Button secondary onClick={() => setPage("admin")}>
                         {t("Zurück zur Projektübersicht")}
@@ -3104,7 +3115,6 @@ export default function App() {
               <Worksheet
                 draft={activeSharedSheet.draft}
                 result={activeSharedSheet.result}
-                settings={activeSharedSheet.resultSettings}
                 source={activeSharedSheet.source}
               />
             )}
@@ -3232,15 +3242,19 @@ export default function App() {
             )}
             {adminTab === "settings" && (
               <Card>
-                <h2>{t("Einstellungen")}</h2>
+                <h2>{t("KI-Einstellungen")}</h2>
                 <p>
                   {t(
-                    "Diese Einstellungen gelten für neue Arbeitsblätter und KI-Aufträge. ",
+                    "Diese Einstellungen gelten für neue KI-Aufträge. Eigene Spielkarten werden im Arbeitsblatt hinzugefügt.",
                   )}
                 </p>
                 <div className="field-grid">
                   {[
-                    ["cardsPerMechanism", t("Karten je Mechanik"), 5],
+                    [
+                      "cardsPerMechanism",
+                      t("KI-Kartenvorschläge je Mechanik"),
+                      5,
+                    ],
                     ["hourlyLimit", t("KI-Aufrufe je Person / Stunde"), 30],
                   ].map(([k, label, max]) => (
                     <label key={k}>
@@ -3249,9 +3263,9 @@ export default function App() {
                         type="number"
                         min="1"
                         max={max}
-                        value={settings[k]}
+                        value={settingsDraft[k]}
                         onChange={(e) =>
-                          setSettings((s) => ({
+                          setSettingsDraft((s) => ({
                             ...s,
                             [k]: Number(e.target.value),
                           }))
@@ -3264,11 +3278,11 @@ export default function App() {
                       {t(label)}
                       {t(" · Modell-ID ")}
                       <input
-                        value={settings.models[id]}
+                        value={settingsDraft.models[id]}
                         maxLength={100}
                         placeholder={t("Leer = Anbieter deaktiviert")}
                         onChange={(e) =>
-                          setSettings((s) => ({
+                          setSettingsDraft((s) => ({
                             ...s,
                             models: { ...s.models, [id]: e.target.value },
                           }))
@@ -3281,7 +3295,7 @@ export default function App() {
                   disabled={busy}
                   onClick={() =>
                     act(async () => {
-                      const s = settingsOf(settings);
+                      const s = settingsOf(settingsDraft);
                       unwrap(
                         await cloud
                           .from("app_settings")
@@ -3289,6 +3303,7 @@ export default function App() {
                           .eq("id", true),
                       );
                       setSettings(s);
+                      setSettingsDraft(s);
                       setMessage(t("Einstellungen veröffentlicht."));
                     })
                   }
@@ -3860,14 +3875,16 @@ function SubmissionList({ submissions, workshops, act, onReview }) {
           </Button>
           <Button
             secondary
-            onClick={() => {
-              const x = s.payload;
-              download(
-                markdown(x.draft, x.result, x.resultSettings),
-                "7rizons-abgabe.md",
-                "text/markdown",
-              );
-            }}
+            onClick={() =>
+              act(() => {
+                const x = readSnapshot(s.payload);
+                download(
+                  markdown(x.draft, x.result),
+                  "7rizons-abgabe.md",
+                  "text/markdown",
+                );
+              })
+            }
           >
             {t("Markdown ")}
           </Button>

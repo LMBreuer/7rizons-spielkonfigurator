@@ -59,3 +59,51 @@ export function cardMarkdown(value) {
     )
     .join("\n\n");
 }
+
+export const DEFAULT_CARD_COLOR = "#2a6fb4";
+
+// Read old numbered answers as individual cards until the worksheet is edited.
+export function worksheetCards(result) {
+  if (result.cards) return result.cards;
+  return Object.entries(result.answers || {})
+    .filter(([key, text]) => key !== "playtest" && text)
+    .map(([key, text]) => ({
+      id: "legacy-" + key,
+      mechanismId: key.replace(/-\d+$/, ""),
+      title: "",
+      text,
+      color: DEFAULT_CARD_COLOR,
+      notes: [],
+    }));
+}
+
+export function validateWorksheetCards(cards, mechanisms) {
+  if (!Array.isArray(cards)) throw new Error("Ungültige Spielkarten.");
+  const ids = new Set();
+  const mechanicIds = new Set(
+    mechanisms.length ? mechanisms.map((m) => m.mechanismId) : [null],
+  );
+  return cards.map((card) => {
+    if (
+      !card ||
+      typeof card.id !== "string" ||
+      !/^(?:[a-f0-9-]{36}|legacy-[a-z0-9_-]{1,58})$/i.test(card.id) ||
+      ids.has(card.id) ||
+      !mechanicIds.has(card.mechanismId) ||
+      typeof card.title !== "string" ||
+      card.title.length > 120 ||
+      !validCardText(card.text) ||
+      typeof card.color !== "string" ||
+      !/^#[a-f0-9]{6}$/i.test(card.color) ||
+      !Array.isArray(card.notes) ||
+      !card.notes.every(
+        (note) => typeof note === "string" && note.length <= 4000,
+      )
+    ) {
+      throw new Error("Ungültige Spielkarten.");
+    }
+    ids.add(card.id);
+    const { id, mechanismId, title, text, color, notes } = card;
+    return { id, mechanismId, title, text, color, notes: [...notes] };
+  });
+}

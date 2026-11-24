@@ -759,28 +759,6 @@ summary {
   margin: 0;
   font-size: 0.85rem;
 }
-.writing-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 15px;
-  margin-top: 25px;
-}
-.writing-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 16px;
-  break-inside: avoid;
-}
-.writing-card h3 {
-  font-size: 0.7rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.writing-card > div {
-  height: 28px;
-  border-bottom: 1px solid var(--line);
-}
 .provenance {
   font-size: 0.7rem;
   color: var(--muted);
@@ -1041,7 +1019,6 @@ html[data-input="keyboard"] main h2:focus {
   }
   .field-grid,
   .mode-grid,
-  .writing-fields,
   .metadata {
     grid-template-columns: 1fr;
   }
@@ -1502,12 +1479,6 @@ html[data-input="pointer"] :focus {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-@media screen {
-  .editing-card > div,
-  .editing-card > .card-answer {
-    display: none;
-  }
-}
 .card-editor .ProseMirror {
   min-height: 6rem;
   padding: 0.65rem;
@@ -1706,49 +1677,10 @@ html[data-input="pointer"] :focus {
 .export-menu summary::after {
   display: none;
 }
-.worksheet .writing-card {
-  position: relative;
-}
-.worksheet .edit-slot {
-  background: none;
-  border: none;
-  color: var(--blue);
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  text-align: right;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 0.7rem;
-  cursor: text;
-}
-.worksheet .card-editor,
-.worksheet .card-editor section,
-.worksheet .card-answer {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
 @media screen {
   .worksheet {
     max-width: 54rem;
     margin: 1.3rem auto;
-  }
-  .worksheet .writing-fields {
-    grid-template-columns: 1fr;
-  }
-  .worksheet .writing-card {
-    border: 0;
-    border-left: 2px solid var(--line);
-    border-radius: 0;
-    padding: 0.7rem 1rem;
-  }
-  .worksheet .writing-card > div {
-    display: none;
-  }
-  .worksheet .writing-card:not(.editing-card) {
-    min-height: 4rem;
   }
 }
 .switch-menu {
@@ -1989,15 +1921,6 @@ html[data-input="pointer"] :focus {
 .worksheet-save small {
   flex-basis: 100%;
 }
-.worksheet .edit-slot {
-  position: static;
-  min-height: 44px;
-  align-items: center;
-  justify-content: flex-start;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-}
 .playtest-notes p {
   white-space: pre-wrap;
 }
@@ -2011,9 +1934,6 @@ html[data-input="pointer"] :focus {
 }
 
 @media screen {
-  .editing-card .card-editor:not(:focus-within) > [role="group"] {
-    display: none;
-  }
   .worksheet .ProseMirror {
     background: var(--surface);
     font-size: 1rem;
@@ -2163,4 +2083,93 @@ html[data-input="pointer"] :focus {
 }
 .editor-detail details .editor-fields {
   margin-top: 0.7rem;
+}
+
+.worksheet-cards {
+  display: grid;
+  gap: 0.8rem;
+  margin-block: 1.1rem;
+}
+.worksheet .writing-card {
+  margin: 0;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--card-color);
+  border-radius: 8px;
+  padding: clamp(0.75rem, 2vw, 1.2rem);
+  background: var(--surface2);
+  overflow-wrap: anywhere;
+}
+.writing-card h4 {
+  margin: 0;
+}
+.worksheet-cards > .add-card {
+  justify-self: start;
+}
+.card-title-row,
+.card-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.35rem;
+}
+.card-edit-form,
+.card-notes-editor {
+  display: grid;
+  gap: 0.7rem;
+}
+.card-edit-form label {
+  margin: 0;
+}
+.card-edit-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+.card-edit-top input {
+  background: var(--surface);
+}
+.card-color input {
+  min-height: 44px;
+  padding: 5px;
+  width: 100%;
+}
+.card-field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-block-end: 0.35rem;
+}
+.worksheet .card-editor,
+.worksheet .card-editor section {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.saved-card-notes {
+  padding-block-start: 0.65rem;
+  margin-block-start: 0.65rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+.saved-card-notes ul {
+  margin-block: 0.3rem 0;
+}
+.card-note {
+  border-inline-start: 2px solid var(--line);
+  padding-inline-start: 0.65rem;
+}
+.card-note textarea {
+  background: var(--surface);
+}
+.card-notes-editor > .text-button {
+  justify-self: start;
+}
+.card-print,
+.print-card-copy {
+  display: none;
 }

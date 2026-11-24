@@ -1,39 +1,23 @@
 import React from "react";
 import { displayDate } from "../supabase/functions/_shared/fields.js";
-import { settingsOf } from "../supabase/functions/_shared/domain.js";
+import { worksheetCards } from "../supabase/functions/_shared/card-text.js";
+import WorksheetCards, { PrintableCards } from "./WorksheetCards.jsx";
 import { translate } from "../supabase/functions/_shared/translations.js";
 
 import { catalogFor } from "../supabase/functions/_shared/content.js";
 
-const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
-function CardAnswer({ value }) {
-  if (typeof value === "string") return value;
-  return value.content.map((p, i) => (
-    <p key={i}>
-      {(p.content || []).map((r, j) => {
-        let text = r.text;
-        for (const m of r.marks || [])
-          text = React.createElement(m.type, null, text);
-        return <React.Fragment key={j}>{text}</React.Fragment>;
-      })}
-      {!p.content && <br />}
-    </p>
-  ));
-}
-
 export default function Worksheet({
   draft,
   result,
-  settings,
   source,
   onAnswer,
-  inlineEdit = false,
-  activeCard,
-  onStartEditing,
+  onCards,
 }) {
   const { LE, MK, blocks } = catalogFor(draft);
   const language = draft.language || "de",
-    t = (text) => translate(text, language);
+    t = (text, values) => translate(text, language, values);
+  const cards = worksheetCards(result);
+  const mechanicName = (id) => t(MK.find((item) => item.id === id)?.label);
   const overview = result.templateVariant === "overview";
   const guided = result.templateVariant === "guided";
   const isBase = (m) =>
@@ -128,100 +112,14 @@ export default function Worksheet({
                           )}
                         </div>
                       )}
-                    <div className="writing-fields">
-                      {Array.from(
-                        { length: settingsOf(settings).cardsPerMechanism },
-                        (_, i) => (
-                          <div
-                            className={
-                              onAnswer &&
-                              (inlineEdit ||
-                                activeCard === m.mechanismId + "-" + i)
-                                ? "writing-card editing-card"
-                                : "writing-card"
-                            }
-                            key={i}
-                          >
-                            <h4>
-                              {t(m.guide ? "Ihr Entwurf" : "Eigene Karte")}{" "}
-                              {i + 1}
-                            </h4>
-                            {onStartEditing &&
-                              !inlineEdit &&
-                              !(
-                                onAnswer &&
-                                activeCard === m.mechanismId + "-" + i
-                              ) && (
-                                <button
-                                  className="edit-slot no-print"
-                                  aria-label={
-                                    t("Karte bearbeiten") +
-                                    " · " +
-                                    t(
-                                      MK.find((x) => x.id === m.mechanismId)
-                                        .label,
-                                    ) +
-                                    " " +
-                                    (i + 1)
-                                  }
-                                  onClick={() =>
-                                    onStartEditing(m.mechanismId + "-" + i)
-                                  }
-                                >
-                                  {result.answers?.[m.mechanismId + "-" + i]
-                                    ? t("Bearbeiten")
-                                    : t("Karte ausfüllen")}
-                                </button>
-                              )}
-                            {onAnswer &&
-                              (inlineEdit ||
-                                activeCard === m.mechanismId + "-" + i) && (
-                                <React.Suspense fallback={null}>
-                                  <CardEditor
-                                    key={result.requestId}
-                                    autoFocus={!inlineEdit}
-                                    t={t}
-                                    label={
-                                      t(
-                                        MK.find((x) => x.id === m.mechanismId)
-                                          .label,
-                                      ) +
-                                      " · " +
-                                      t("Ihr Entwurf") +
-                                      " " +
-                                      (i + 1)
-                                    }
-                                    value={
-                                      result.answers?.[
-                                        m.mechanismId + "-" + i
-                                      ] || ""
-                                    }
-                                    onChange={(value) =>
-                                      onAnswer(m.mechanismId + "-" + i, value)
-                                    }
-                                  />
-                                </React.Suspense>
-                              )}
-                            {result.answers?.[m.mechanismId + "-" + i] ? (
-                              <section className="card-answer">
-                                <CardAnswer
-                                  value={
-                                    result.answers[m.mechanismId + "-" + i]
-                                  }
-                                />
-                              </section>
-                            ) : (
-                              <>
-                                <div />
-                                <div />
-                                <div />
-                                <div />
-                              </>
-                            )}
-                          </div>
-                        ),
+                    <WorksheetCards
+                      cards={cards.filter(
+                        (card) => card.mechanismId === m.mechanismId,
                       )}
-                    </div>
+                      mechanicId={m.mechanismId}
+                      onCards={onCards}
+                      t={t}
+                    />
                   </>
                 )}
               </section>
@@ -229,6 +127,19 @@ export default function Worksheet({
           </React.Fragment>
         );
       })}
+      {!overview &&
+        !result.mechanisms.length &&
+        (onCards || cards.length > 0) && (
+          <section>
+            <h2>{t("Eigene Spielkarten")}</h2>
+            <WorksheetCards
+              cards={cards}
+              mechanicId={null}
+              onCards={onCards}
+              t={t}
+            />
+          </section>
+        )}
       <section>
         <h2>{t("Safety-Rahmen")}</h2>
         <p>
@@ -243,7 +154,7 @@ export default function Worksheet({
               <li key={i}>{text}</li>
             ))}
           </ul>
-          {guided && result.answers && (
+          {guided && (onAnswer || result.answers?.playtest) && (
             <section className="playtest-notes">
               <h3>{t("Notizen zum Probelauf")}</h3>
               {onAnswer && (
@@ -252,14 +163,14 @@ export default function Worksheet({
                   <textarea
                     rows={3}
                     maxLength={4000}
-                    value={result.answers.playtest || ""}
+                    value={result.answers?.playtest || ""}
                     onChange={(e) => onAnswer("playtest", e.target.value)}
                   />
                 </label>
               )}
-              {result.answers.playtest && (
+              {result.answers?.playtest && (
                 <p className={onAnswer ? "print-notes" : ""}>
-                  {result.answers.playtest}
+                  {result.answers?.playtest}
                 </p>
               )}
             </section>
@@ -279,6 +190,7 @@ export default function Worksheet({
           "· Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LMB",
         )}
       </p>
+      <PrintableCards result={result} mechanicName={mechanicName} t={t} />
     </article>
   );
 }

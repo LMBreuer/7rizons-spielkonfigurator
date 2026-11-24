@@ -137,28 +137,65 @@
   main > .worksheet p {
     margin-bottom: 3mm;
   }
-  main > .worksheet .writing-fields {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4mm;
-    margin-top: 3mm;
-    margin-inline-end: 1mm;
+  main > .worksheet .worksheet-cards {
+    display: block;
+    margin-block: 3mm;
   }
   main > .worksheet .writing-card {
     break-inside: avoid-page;
-    min-height: 30mm;
     padding: 3mm;
-    border: 1px solid #aaa;
+    margin-block: 3mm;
+    border: 0.25mm solid #aaa;
+    border-inline-start: 1mm solid var(--card-color);
     border-radius: 0;
+    print-color-adjust: exact;
   }
-  main > .worksheet .writing-card h3,
+  main > .worksheet .print-card-copy {
+    display: block;
+  }
   main > .worksheet .writing-card h4 {
-    margin: 0 0 3mm;
-    font-size: 9pt;
+    margin: 0 0 2mm;
   }
-  main > .worksheet .writing-card > div {
-    height: 5mm;
-    border-bottom: 1px solid #bbb;
+  html[data-print="cards"] main > .worksheet > :not(.card-print) {
+    display: none !important;
+  }
+  html[data-print="cards"] main > .worksheet > .card-print {
+    display: block;
+    text-align: center;
+  }
+  main > .worksheet .cutout-card {
+    display: inline-block;
+    vertical-align: top;
+    box-sizing: border-box;
+    width: 63mm;
+    min-height: 88mm;
+    margin: 0 2mm 3mm;
+    padding: 4mm;
+    border: 0.3mm solid #555;
+    border-top: 1.8mm solid var(--card-color);
+    color: #111;
+    background: #fff;
+    text-align: start;
+    break-inside: avoid-page;
+    print-color-adjust: exact;
+    overflow-wrap: anywhere;
+    font:
+      10pt/1.35 Arial,
+      sans-serif;
+  }
+  main > .worksheet .cutout-card h2 {
+    font-size: 14pt;
+    margin: 0 0 3mm;
+  }
+  main > .worksheet .cutout-card .cutout-mechanic {
+    color: #444;
+    font-size: 8pt;
+  }
+  main > .worksheet .cutout-card.extended-card {
+    display: block;
+    width: auto;
+    break-inside: auto;
+    margin-inline: 2mm;
   }
   main > .worksheet .provenance {
     margin-top: 5mm;

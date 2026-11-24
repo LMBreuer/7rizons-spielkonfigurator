@@ -541,9 +541,15 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     assert.ok(screen.getByRole("article"));
     await user.click(screen.getByRole("button", { name: "Kopie ausfüllen" }));
+    await user.click(
+      screen.getAllByRole("button", { name: /Karte hinzufügen/ })[0],
+    );
+    await user.type(screen.getByLabelText("Kartentitel"), "Quellenkarte");
+    await user.click(screen.getByRole("button", { name: /Notiz hinzufügen/ }));
+    await user.type(screen.getByLabelText("Notiz 1"), "Notiztext");
     const answerField = (
       await within(screen.getByRole("article")).findAllByRole("textbox", {
-        name: /Ihr Entwurf/,
+        name: "Kartentext",
       })
     )[0];
     answerField.focus();
@@ -554,25 +560,30 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("button", { name: "Bearbeitung beenden" }),
     );
     assert.ok(
-      within(screen.getByRole("article")).getByText("Unsere erste Karte"),
+      within(document.querySelector(".writing-card")).getByText(
+        "Unsere erste Karte",
+      ),
     );
     const sheets = JSON.parse(localStorage.getItem(key)).worksheets;
     assert.equal(sheets.at(-2).result.answers, undefined);
     assert.ok(
-      JSON.stringify(sheets.at(-1).result.answers).includes(
-        "Unsere erste Karte",
-      ),
+      JSON.stringify(sheets.at(-1).result.cards).includes("Unsere erste Karte"),
     );
     await user.click(screen.getByRole("button", { name: "Weiterbearbeiten" }));
+    assert.equal(screen.getByLabelText("Notiz 1").value, "Notiztext");
+    await user.click(screen.getByRole("button", { name: "Karten drucken" }));
+    assert.equal(document.documentElement.dataset.print, "cards");
+    window.dispatchEvent(new window.Event("afterprint"));
+    assert.equal(document.documentElement.dataset.print, undefined);
     assert.equal(
       within(screen.getByRole("article")).getAllByRole("textbox", {
-        name: /Ihr Entwurf/,
+        name: "Kartentext",
       })[0].textContent,
       "Unsere erste Karte",
     );
     assert.ok(
       within(screen.getByRole("article"))
-        .getAllByRole("textbox", { name: /Ihr Entwurf/ })[0]
+        .getAllByRole("textbox", { name: "Kartentext" })[0]
         .querySelector("strong"),
     );
     const firstProject = localStorage.getItem("7rizons:active-project");
@@ -634,9 +645,12 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.queryByRole("group", { name: "Weg zum Arbeitsblatt" }),
       null,
     );
+    await user.click(
+      screen.getAllByRole("button", { name: /Karte hinzufügen/ })[0],
+    );
     const editors = await within(screen.getByRole("article")).findAllByRole(
       "textbox",
-      { name: /Ihr Entwurf/ },
+      { name: "Kartentext" },
     );
     await user.click(editors[0]);
     await user.paste("Workshopkarte");
@@ -657,7 +671,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     assert.equal(workshopProject.worksheets.length, 1);
     assert.match(
-      JSON.stringify(workshopProject.worksheets[0].result.answers),
+      JSON.stringify(workshopProject.worksheets[0].result.cards),
       /Workshopkarte/,
     );
     await audit("interactive workshop form");

@@ -1,4 +1,9 @@
-import { validCardText, cardMarkdown } from "./card-text.js";
+import {
+  validCardText,
+  cardMarkdown,
+  worksheetCards,
+  validateWorksheetCards,
+} from "./card-text.js";
 import { catalogFor, validateContent } from "./content.js";
 import { LE, MK, CONFLICTS } from "./catalog.js";
 import { orderedMechanisms, priorityOf } from "./priority.js";
@@ -372,6 +377,10 @@ function readSingleSnapshot(x) {
         fail("Ungültige Arbeitsblattantworten.");
     result.answers = { ...answers };
   }
+  if (result && x.result.cards !== undefined) {
+    if (result.templateVariant === "overview") fail("Ungültige Spielkarten.");
+    result.cards = validateWorksheetCards(x.result.cards, result.mechanisms);
+  }
   return { draft, result, request, source, resultSettings };
 }
 export function createWorksheet(snapshot) {
@@ -503,7 +512,8 @@ export function templateResult(d, s = DEFAULT_SETTINGS, variant) {
             ],
   };
 }
-export function markdown(d, result, s = DEFAULT_SETTINGS) {
+export function markdown(d, result) {
+  const cards = worksheetCards(result);
   const { LE, MK, blocks } = catalogFor(d);
   const t = (text) => translate(text, d.language || "de");
   const labels = {
@@ -514,6 +524,18 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
     semester: "Semester",
     datum: "Datum",
   };
+  function cardLines(card) {
+    const notes = card.notes.filter((note) => note.trim());
+    return [
+      "",
+      `#### ${card.title.trim() || t("Spielkarte")}`,
+      "",
+      cardMarkdown(card.text),
+      ...(notes.length
+        ? ["", `**${t("Notizen")}**`, "", ...notes.map((note) => `- ${note}`)]
+        : []),
+    ];
+  }
   const lines = [
     `# ${result.title}`,
     "",
@@ -564,16 +586,19 @@ export function markdown(d, result, s = DEFAULT_SETTINGS) {
           "",
           m.guide.frame,
         );
-      for (let i = 1; i <= settingsOf(s).cardsPerMechanism; i++)
-        lines.push(
-          "",
-          `**${t(m.guide ? "Ihr Entwurf" : "Eigene Karte")} ${i}:**`,
-          "",
-          cardMarkdown(result.answers?.[m.mechanismId + "-" + (i - 1)]) ||
-            Array(4).fill("______________________________").join("\n\n"),
-        );
+      lines.push(
+        ...cards
+          .filter((card) => card.mechanismId === m.mechanismId)
+          .flatMap(cardLines),
+      );
     }
   }
+  if (cards.some((card) => card.mechanismId === null))
+    lines.push(
+      "",
+      `## ${t("Eigene Spielkarten")}`,
+      ...cards.filter((card) => card.mechanismId === null).flatMap(cardLines),
+    );
   lines.push(
     "",
     `## ${t("Safety-Rahmen")}`,

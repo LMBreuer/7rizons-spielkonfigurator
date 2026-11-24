@@ -147,12 +147,12 @@ function HelpInfo() {
         </li>
         <li>
           {t(
-            "Schritt 5 öffnet das Arbeitsblatt zu Ihrer Auswahl. Tragen Sie Ihre Kartentexte direkt in die Felder ein. Am Ende des Blatts ist Platz für Notizen zum Probelauf.",
+            "Schritt 5 öffnet das Arbeitsblatt zu Ihrer Auswahl. Fügen Sie Spielkarten mit Titel, Kartentext, Randfarbe und Notizen hinzu. Am Ende des Blatts ist Platz für Notizen zum Probelauf.",
           )}
         </li>
         <li>
           {t(
-            "Unter „Projekte“ können Sie Ihr ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort können Sie das Blatt auch als PDF speichern. Im Drei-Punkte-Menü finden Sie den Markdown-Export.",
+            "Unter „Projekte“ können Sie Ihr ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort können Sie das Blatt auch als PDF speichern. „Karten drucken“ öffnet einen separaten Bogen zum Ausschneiden. Die Notizen stehen im Arbeitsblatt. Im Drei-Punkte-Menü finden Sie den Markdown-Export.",
           )}
         </li>
       </ol>
