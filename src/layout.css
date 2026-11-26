@@ -1,24 +1,55 @@
 @media screen {
-  .layout-setting {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-    padding-bottom: 0.9rem;
+  .topbar-shell {
     border-bottom: 1px solid var(--line);
   }
-  .layout-setting h2 {
-    margin: 0;
-    font-size: 1rem;
+  .topbar-shell .topbar {
+    border-bottom: 0;
+  }
+  .topbar-shell:has(.preferences-menu[open]) {
+    position: relative;
+    z-index: 8;
+  }
+  .topbar .preferences-menu > summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 38px;
+    padding: 0.4rem 0.65rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .topbar .preferences-menu > summary:hover,
+  .topbar .preferences-menu[open] > summary {
+    background: var(--surface2);
+    color: var(--ink);
+  }
+  .topbar .preferences-menu .menu-body {
+    left: auto;
+    right: 0;
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.75rem;
+  }
+  .preference-section {
+    display: grid;
+    gap: 0.3rem;
+    justify-items: start;
+  }
+  .preference-section > span {
+    padding-inline: 0.2rem;
+    font-size: 0.77rem;
+    color: var(--muted);
+    font-weight: 650;
   }
   .layout-picker {
     display: flex;
     flex-wrap: wrap;
     gap: 0.2rem;
   }
-  .layout-picker button {
+  .topbar .layout-picker button {
     min-height: 40px;
     padding: 0.35rem 0.7rem;
     border: 1px solid transparent;
@@ -27,20 +58,74 @@
     color: var(--muted);
     font-size: 0.85rem;
   }
-  .layout-picker button[aria-pressed="true"] {
+  .topbar .layout-picker button[aria-pressed="true"] {
     background: var(--blue-light);
     color: var(--blue);
     border-color: var(--blue);
     font-weight: 700;
   }
 
-  .configurator-layout {
+  .configurator-intro {
+    margin-block: 0 1.65rem;
+    padding-block: 0.7rem 1.05rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .configurator-intro h1 {
+    margin: 0 0 0.2rem;
+    font-size: clamp(1.38rem, 3.3vw, 2.12rem);
+    letter-spacing: -0.045em;
+    line-height: 1.28;
+  }
+  .hero-wordmark {
+    display: inline-block;
+    width: 3.1em;
+    height: auto;
+    vertical-align: -0.34em;
+    margin-inline: 0.08em;
+  }
+  .configurator-intro p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.93rem;
+  }
+  .rail-project-title {
+    display: none;
+  }
+  .project-current {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.45rem 0.7rem;
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+  }
+  .project-current .save-status {
+    font-weight: 400;
+  }
+  .step-next {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  .admin-title {
+    margin-bottom: 1rem;
+  }
+  .admin-workspace .admin-tabs {
+    margin: 0;
+  }
+  .admin-section-picker {
+    display: none;
+  }
+  .admin-workspace .admin-tabs button {
+    text-align: start;
+  }
+  .workspace-layout {
     display: grid;
     min-width: 0;
     gap: 0.65rem;
     align-items: start;
   }
-  .configurator-work {
+  .workspace-content {
     min-width: 0;
   }
   .configurator-rail {
@@ -114,24 +199,32 @@
   }
 
   :root[data-layout="modern"] {
-    --navigation-glow: color-mix(in srgb, #61bde4 19%, transparent);
-    --page-glow: color-mix(in srgb, var(--purple) 12%, transparent);
-    --navigation-surface: color-mix(in srgb, var(--surface) 83%, transparent);
-    --navigation-shadow: 4px 6px 17px
-      color-mix(in srgb, var(--line) 75%, transparent);
-    --document-shadow: 2px 5px 16px
-      color-mix(in srgb, var(--line) 54%, transparent);
+    --navigation-glow: color-mix(in srgb, #61bde4 24%, transparent);
+    --page-glow: color-mix(in srgb, var(--purple) 17%, transparent);
+    --navigation-surface: color-mix(in srgb, var(--surface) 74%, transparent);
+    --document-surface: color-mix(in srgb, var(--surface) 79%, transparent);
+    --glass-filter: blur(15px);
+    --glass-edge: inset 0 1px 0 #fffd;
+    --navigation-shadow:
+      var(--glass-edge),
+      6px 9px 21px color-mix(in srgb, var(--line) 80%, transparent);
+    --document-shadow:
+      var(--glass-edge),
+      4px 8px 20px color-mix(in srgb, var(--line) 65%, transparent);
   }
   :root[data-layout="modern"][data-theme="dark"] {
     --navigation-glow: color-mix(in srgb, #2a6fb4 30%, transparent);
     --page-glow: color-mix(in srgb, #7f598b 14%, transparent);
-    --navigation-shadow: 4px 6px 18px #0004;
-    --document-shadow: 2px 5px 18px #0003;
+    --glass-edge: inset 0 1px 0 #ffffff13;
+    --navigation-shadow: var(--glass-edge), 6px 9px 22px #0005;
+    --document-shadow: var(--glass-edge), 4px 8px 24px #0004;
   }
   :root[data-layout="modern"][data-theme="contrast"] {
     --navigation-glow: transparent;
     --page-glow: transparent;
     --navigation-surface: var(--surface);
+    --document-surface: var(--surface);
+    --glass-filter: none;
     --navigation-shadow: none;
     --document-shadow: none;
   }
@@ -150,13 +243,9 @@
       ),
       var(--bg);
   }
-  :root[data-layout="modern"] .topbar {
+  :root[data-layout="modern"] .topbar-shell {
     background: var(--navigation-surface);
-    backdrop-filter: blur(14px);
-  }
-  :root[data-layout="modern"] .topbar:has(.preferences-menu[open]) {
-    position: relative;
-    z-index: 8;
+    backdrop-filter: var(--glass-filter);
   }
   :root[data-layout="modern"] .configurator-rail {
     padding: 0.55rem;
@@ -164,7 +253,7 @@
     border-radius: 13px;
     background: var(--navigation-surface);
     box-shadow: var(--navigation-shadow);
-    backdrop-filter: blur(14px);
+    backdrop-filter: var(--glass-filter);
   }
   /* Menus must stack above the document without being clipped by the glass surface. */
   :root[data-layout="modern"] .configurator-rail:has(.project-menu[open]) {
@@ -176,40 +265,48 @@
   :root[data-layout="modern"] .panel,
   :root[data-layout="modern"] .worksheet {
     border-radius: 16px;
+    background: var(--document-surface);
     box-shadow: var(--document-shadow);
+  }
+  :root[data-layout="modern"] .workspace-content > .worksheet,
+  :root[data-layout="modern"] .workspace-content .workspace > fieldset > .panel,
+  :root[data-layout="modern"] .admin-workspace .workspace-content > .panel {
+    backdrop-filter: var(--glass-filter);
   }
   :root[data-layout="modern"] .worksheet {
     margin: 0.75rem 0 1.1rem;
     max-width: none;
     padding: clamp(17px, 3.2vw, 36px);
   }
-  :root[data-layout="modern"] .has-worksheet .project-identity {
-    display: none;
+  :root[data-layout="modern"] .workspace-content .panel {
+    padding: clamp(17px, 2.5vw, 28px);
   }
-  :root[data-layout="modern"] .has-worksheet .project-head {
-    display: flex;
-    justify-content: flex-end;
-    padding: 0;
-    margin-bottom: 0.15rem;
+  :root[data-layout="modern"] .context-grid > label {
+    margin-bottom: 0;
   }
-  :root[data-layout="modern"] .has-worksheet .project-head:not(:has(button)) {
-    display: none;
+  :root[data-layout="modern"]:not([data-theme="contrast"])
+    .context-grid
+    :is(input, select) {
+    background: color-mix(in srgb, var(--bg) 65%, transparent);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--line) 56%, transparent);
   }
-  :root[data-layout="modern"] .worksheet .writing-card,
-  :root[data-layout="classic"] .worksheet .writing-card {
+  :root[data-layout="modern"] .workspace-content .step-actions {
+    margin-block: 0.9rem 0;
+  }
+  :root[data-layout="modern"] .worksheet .writing-card {
+    position: relative;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
-    padding: 0.65rem 0.85rem;
+    padding: 0.65rem 0.85rem 0.65rem 1.05rem;
   }
-  .worksheet .writing-card h4::before {
+  :root[data-layout="modern"] .worksheet .writing-card::before {
     content: "";
-    display: inline-block;
-    vertical-align: 0.13em;
-    width: 0.5em;
-    height: 0.5em;
-    margin-inline-end: 0.55em;
-    border-radius: 50%;
+    position: absolute;
+    inset-block: 0.65rem;
+    inset-inline-start: 0.4rem;
+    width: 2px;
+    border-radius: 2px;
     background: var(--card-color);
   }
   :root[data-layout="modern"] .worksheet-free-note,
@@ -220,15 +317,7 @@
     background: transparent;
   }
 
-  :root[data-layout="classic"] .configurator-work {
-    display: contents;
-  }
-  :root[data-layout="classic"] .project-head {
-    grid-row: 1;
-    padding-block: 0.35rem;
-  }
   :root[data-layout="classic"] .configurator-rail {
-    grid-row: 2;
     border-bottom: 1px solid var(--line);
     padding-bottom: 0.25rem;
   }
@@ -239,18 +328,36 @@
   :root[data-layout="classic"] .steps button {
     border-radius: 8px;
   }
-  :root[data-layout="classic"] .project-head .project-meta {
-    margin-top: 0.25rem;
-  }
   :root[data-layout="classic"] .worksheet {
     margin-block: 0.6rem 0.85rem;
   }
 }
 
 @media screen and (min-width: 850px) {
-  :root[data-layout="modern"] .configurator-layout {
+  :root[data-layout="modern"] .workspace-layout {
     grid-template-columns: clamp(10.6rem, 17vw, 12.3rem) minmax(0, 1fr);
     gap: clamp(1rem, 2.5vw, 1.7rem);
+  }
+  :root[data-layout="modern"] .admin-workspace .admin-tabs {
+    display: grid;
+    position: sticky;
+    top: 1rem;
+    padding: 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--navigation-surface);
+    box-shadow: var(--navigation-shadow);
+    backdrop-filter: var(--glass-filter);
+  }
+  :root[data-layout="modern"] .rail-project-title {
+    display: block;
+    margin: 0;
+    padding: 0.15rem 0.65rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   :root[data-layout="modern"] .configurator-rail {
     position: sticky;
@@ -305,13 +412,35 @@
   }
   :root[data-layout="modern"] .steps button.active {
     font-weight: 720;
-    box-shadow: inset 0 2px 3px color-mix(in srgb, var(--line) 55%, transparent);
+    box-shadow:
+      inset 0 2px 5px color-mix(in srgb, var(--blue) 22%, transparent),
+      inset 0 -1px 0 var(--document-surface);
   }
   :root[data-layout="modern"][data-theme="contrast"] .steps button.active {
     box-shadow: none;
   }
 }
 @media screen and (max-width: 640px) {
+  .admin-workspace .admin-tabs {
+    display: none;
+  }
+  .admin-section-picker {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .topbar .preferences-menu > summary > span {
+    display: none;
+  }
+  .topbar .preferences-menu > summary {
+    border-color: var(--line);
+  }
+  .configurator-intro {
+    padding-block-start: 0.2rem;
+    margin-bottom: 0.8rem;
+  }
+  .step-actions > .step-next {
+    grid-column: 1 / -1;
+  }
   .configurator-rail .mobile-step-jump select {
     min-height: 44px;
   }

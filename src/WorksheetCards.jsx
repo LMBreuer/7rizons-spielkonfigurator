@@ -379,10 +379,10 @@ export default function WorksheetCards({
                 <button
                   type="button"
                   className="text-button no-print"
-                  aria-label={t("Notiz nach dieser Karte hinzufügen")}
+                  aria-label={t("Notiz zur Karte hinzufügen")}
                   onClick={() => addNote(card.id)}
                 >
-                  {t("Notiz danach")}
+                  {t("Notiz zur Karte")}
                 </button>
               )}
             </section>

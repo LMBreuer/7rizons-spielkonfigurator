@@ -190,17 +190,6 @@ function Button({ children, secondary = false, type = "button", ...props }) {
   );
 }
 function HeaderPreferences({ children }) {
-  const query = "(max-width: 640px)";
-  const [compact, setCompact] = useState(
-    () => window.matchMedia?.(query).matches ?? false,
-  );
-  useEffect(() => {
-    const media = window.matchMedia?.(query);
-    const resize = () => setCompact(media.matches);
-    media?.addEventListener("change", resize);
-    return () => media?.removeEventListener("change", resize);
-  }, []);
-  if (!compact) return children;
   return (
     <details className="switch-menu preferences-menu">
       <summary
@@ -221,6 +210,7 @@ function HeaderPreferences({ children }) {
           <circle cx="12" cy="7" r="2" />
           <circle cx="16" cy="17" r="2" />
         </svg>
+        <span>{t("Darstellung")}</span>
       </summary>
       <div className="menu-body">{children}</div>
     </details>
@@ -229,18 +219,15 @@ function HeaderPreferences({ children }) {
 function Card({ children, className = "" }) {
   return <section className={"panel " + className}>{children}</section>;
 }
-function ConfiguratorLayout({ rail, hasWorksheet, children }) {
+function WorkspaceLayout({ heading, rail, children, className = "" }) {
   return (
-    <div
-      className={
-        hasWorksheet
-          ? "configurator-layout has-worksheet"
-          : "configurator-layout"
-      }
-    >
-      {rail}
-      <div className="configurator-work">{children}</div>
-    </div>
+    <>
+      {heading}
+      <div className={`workspace-layout ${className}`.trim()}>
+        {rail}
+        <div className="workspace-content">{children}</div>
+      </div>
+    </>
   );
 }
 export default function App() {
@@ -281,12 +268,15 @@ export default function App() {
   const resultDraft = activeWorksheet?.draft || draft;
   const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
   const [step, setStep] = useState(
-    !selfStudy && saved.step === 5 && !saved.worksheets.length
+    !selfStudy &&
+      saved.step === 5 &&
+      !saved.worksheets.length &&
+      !saved.buildingSheet
       ? 4
       : saved.step || 1,
   );
   const [buildingSheet, setBuildingSheet] = useState(
-    selfStudy && saved.buildingSheet === true,
+    saved.buildingSheet === true,
   );
   const lastConfigStep = useRef(
     saved.configStep || (saved.step < 5 ? saved.step : 1),
@@ -839,15 +829,13 @@ export default function App() {
       ),
     );
   }
-  function workshopSheet(forceNew = false) {
-    const match =
-      !forceNew &&
-      [activeWorksheet, ...worksheets].find(
-        (w) =>
-          w &&
-          w.draft.revision === draft.revision &&
-          w.result.templateVariant === "guided",
-      );
+  function workshopSheet() {
+    const match = [activeWorksheet, ...worksheets].find(
+      (w) =>
+        w &&
+        w.draft.revision === draft.revision &&
+        w.result.templateVariant === "guided",
+    );
     if (match) setActiveWorksheetId(match.id);
     else {
       const result = templateResult(draft, settings, "guided");
@@ -856,7 +844,7 @@ export default function App() {
     setBuildingSheet(false);
     setPreview(null);
   }
-  function goStep(next) {
+  function goStep(next, openBuilder = false) {
     setMessage("");
     setError("");
     if (next > 1 && !draft.context.thema?.trim()) {
@@ -872,7 +860,11 @@ export default function App() {
       setError(t("Bitte wählen Sie mindestens ein Lernerlebnis."));
       return;
     }
-    if (next === 5 && !selfStudy) {
+    if (next === 5 && openBuilder) {
+      setMode("external");
+      setPreview(null);
+      focusWorksheetBuilder();
+    } else if (next === 5 && !selfStudy) {
       try {
         workshopSheet();
       } catch (error) {
@@ -1004,12 +996,12 @@ export default function App() {
     setWorksheets(x.worksheets);
     setActiveWorksheetId(x.activeWorksheetId);
     setRequest(x.pendingRequest);
-    setBuildingSheet(selfStudy && builderWasOpen);
+    setBuildingSheet(builderWasOpen);
     lastConfigStep.current = previousStep;
     if (projectMenu.current) projectMenu.current.open = false;
     setCloudRevision(revision);
     setStep(
-      !selfStudy && !x.worksheets.length && resumeStep === 5
+      !selfStudy && !x.worksheets.length && resumeStep === 5 && !builderWasOpen
         ? 4
         : resumeStep || (x.worksheets.length ? 5 : 1),
     );
@@ -1343,100 +1335,128 @@ export default function App() {
       >
         {t("Zum Inhalt springen ")}
       </a>
-      <header className="topbar no-print">
-        <a
-          className="brand"
-          href={window.location.pathname}
-          onClick={(e) => {
-            e.preventDefault();
-            openConfigurator();
-          }}
-        >
-          <Logo />
-          <small>{t("Spielkonfigurator · Prototyp")}</small>
-        </a>
-        <nav className="primary-nav" aria-label={t("Hauptnavigation")}>
-          <button
-            aria-current={
-              [
-                "app",
-                "project-save",
-                "project-share",
-                "project-workshops",
-              ].includes(page)
-                ? "page"
-                : undefined
-            }
-            onClick={openConfigurator}
+      <header className="topbar-shell no-print">
+        <div className="topbar">
+          <a
+            className="brand"
+            href={window.location.pathname}
+            onClick={(e) => {
+              e.preventDefault();
+              openConfigurator();
+            }}
           >
-            {t("Konfigurator")}
-          </button>
-          {session && admin && (
+            <Logo />
+            <small>{t("Spielkonfigurator · Prototyp")}</small>
+          </a>
+          <nav className="primary-nav" aria-label={t("Hauptnavigation")}>
             <button
-              disabled={busy}
-              aria-current={page === "content" ? "page" : undefined}
-              onClick={() => setPage("content")}
-            >
-              {t("Inhalte")}
-            </button>
-          )}
-          {session && admin && (
-            <button
-              disabled={busy}
               aria-current={
-                ["admin", "superadmin-project"].includes(page)
+                [
+                  "app",
+                  "project-save",
+                  "project-share",
+                  "project-workshops",
+                ].includes(page)
                   ? "page"
                   : undefined
               }
+              onClick={openConfigurator}
+            >
+              {t("Konfigurator")}
+            </button>
+            {session && admin && (
+              <button
+                disabled={busy}
+                aria-current={page === "content" ? "page" : undefined}
+                onClick={() => setPage("content")}
+              >
+                {t("Inhalte")}
+              </button>
+            )}
+            {session && admin && (
+              <button
+                disabled={busy}
+                aria-current={
+                  ["admin", "superadmin-project"].includes(page)
+                    ? "page"
+                    : undefined
+                }
+                onClick={() => {
+                  setAdminTab(superadmin ? "projects" : "workshops");
+                  act(loadAdmin);
+                }}
+              >
+                {t("Administration")}
+              </button>
+            )}
+          </nav>
+          <nav className="header-tools" aria-label={t("Werkzeuge")}>
+            <HeaderPreferences>
+              <div className="preference-section">
+                <span>{t("Farbmodus")}</span>
+                <AppearanceSwitch value={theme} onChange={setTheme} />
+              </div>
+              <div className="preference-section">
+                <span>{t("Oberfläche")}</span>
+                <div
+                  className="layout-picker"
+                  role="group"
+                  aria-label={t("Layout des Konfigurators")}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={layout === "modern"}
+                    onClick={() => setLayout("modern")}
+                  >
+                    {t("Neue Ansicht")}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={layout === "classic"}
+                    onClick={() => setLayout("classic")}
+                  >
+                    {t("Klassische Ansicht")}
+                  </button>
+                </div>
+              </div>
+              <div
+                className="language-switch"
+                role="group"
+                aria-label={t("Sprache")}
+              >
+                {["de", "en"].map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    lang={code}
+                    disabled={busy}
+                    aria-label={code === "de" ? "Deutsch" : "English"}
+                    aria-pressed={language === code}
+                    onClick={() => {
+                      setLanguage(code);
+                      if (draft.language !== code)
+                        change((d) => ({ ...d, language: code }));
+                    }}
+                  >
+                    {code.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </HeaderPreferences>
+            <button
+              className="account-link"
+              aria-current={page === "account" ? "page" : undefined}
+              disabled={busy}
               onClick={() => {
-                setAdminTab(superadmin ? "projects" : "workshops");
-                act(loadAdmin);
+                setPage("account");
+                setMessage("");
+                setError("");
               }}
             >
-              {t("Administration")}
+              {session ? t("Konto") : t("Anmelden")}
             </button>
-          )}
-        </nav>
-        <nav className="header-tools" aria-label={t("Werkzeuge")}>
-          <HeaderPreferences>
-            <AppearanceSwitch value={theme} onChange={setTheme} />
-            <div
-              className="language-switch"
-              role="group"
-              aria-label={t("Sprache")}
-            >
-              {["de", "en"].map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  lang={code}
-                  disabled={busy}
-                  aria-label={code === "de" ? "Deutsch" : "English"}
-                  aria-pressed={language === code}
-                  onClick={() => {
-                    setLanguage(code);
-                    if (draft.language !== code)
-                      change((d) => ({ ...d, language: code }));
-                  }}
-                >
-                  {code.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </HeaderPreferences>
-          <button
-            className="account-link"
-            aria-current={page === "account" ? "page" : undefined}
-            disabled={busy}
-            onClick={() => {
-              setPage("account");
-              setMessage("");
-              setError("");
-            }}
-          >
-            {session ? t("Konto") : t("Anmelden")}
-          </button>
-        </nav>
+          </nav>
+        </div>
       </header>
       <main id="main-content" ref={mainRef} tabIndex={-1}>
         <div
@@ -1492,8 +1512,20 @@ export default function App() {
           </dialog>
         )}
         {page === "app" && (
-          <ConfiguratorLayout
-            hasWorksheet={step === 5 && (preview || (result && !buildingSheet))}
+          <WorkspaceLayout
+            heading={
+              step === 1 ? (
+                <section className="configurator-intro no-print">
+                  <h1>
+                    {t("Gestalten Sie")} <Logo wordmark />{" "}
+                    {t("für Ihre Lehre.")}
+                  </h1>
+                  <p>{t("Von der Spielidee zum Seminar")}</p>
+                </section>
+              ) : step < 5 || (!preview && (!result || buildingSheet)) ? (
+                <h1 className="sr-only">{t("Konfigurator")}</h1>
+              ) : null
+            }
             rail={
               <aside
                 className="configurator-rail no-print"
@@ -1508,6 +1540,40 @@ export default function App() {
                 >
                   <summary>{t("Projekte")}</summary>
                   <div className="menu-body">
+                    <section className="project-current">
+                      <strong>{projectTitle}</strong>
+                      {savedLocally && (
+                        <span className="save-status">
+                          {t("Im Browser gespeichert")}
+                        </span>
+                      )}
+                    </section>
+                    {cloud && (
+                      <>
+                        <button
+                          disabled={busy}
+                          onClick={() => {
+                            projectMenu.current.open = false;
+                            if (session) {
+                              projectMenu.current
+                                .querySelector("summary")
+                                .focus();
+                              act(saveOnline);
+                            } else {
+                              setError("");
+                              setMessage("");
+                              setPage("project-save");
+                            }
+                          }}
+                        >
+                          {t("Online speichern")}
+                        </button>
+                        <button disabled={busy} onClick={openProjectShare}>
+                          {t("Projekt per Link teilen")}
+                        </button>
+                      </>
+                    )}
+                    <hr />
                     {projects.map((p) => (
                       <button
                         key={p.id}
@@ -1590,6 +1656,11 @@ export default function App() {
                     />
                   </div>
                 </details>
+                {(draft.context.thema || draft.context.name) && (
+                  <p className="rail-project-title" title={projectTitle}>
+                    {projectTitle}
+                  </p>
+                )}
                 <nav
                   className="steps no-print"
                   aria-label={t("Konfigurationsschritte")}
@@ -1627,49 +1698,6 @@ export default function App() {
               </aside>
             }
           >
-            <header className="project-head no-print">
-              <div className="project-identity">
-                <h1>{t("Gestalten Sie 7’rizons für Ihre Lehre.")}</h1>
-                <p>{t("Von der Spielidee zum Seminar")}</p>
-                <div className="project-meta">
-                  {(draft.context.thema || draft.context.name) && (
-                    <p className="project-title">{projectTitle}</p>
-                  )}
-                  {savedLocally && (
-                    <span className="save-status">
-                      {t("Im Browser gespeichert")}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div
-                className="project-heading"
-                role="group"
-                aria-label={t("Projektleiste")}
-              >
-                {cloud && (
-                  <>
-                    <Button
-                      secondary
-                      disabled={busy}
-                      onClick={() => {
-                        if (session) act(saveOnline);
-                        else {
-                          setError("");
-                          setMessage("");
-                          setPage("project-save");
-                        }
-                      }}
-                    >
-                      {t("Online speichern")}
-                    </Button>
-                    <Button disabled={busy} onClick={openProjectShare}>
-                      {t("Teilen")}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </header>
             <div className="workspace no-print" aria-busy={busy}>
               <fieldset disabled={busy} aria-label={t("Spielkonfiguration")}>
                 {step === 1 && (
@@ -1938,10 +1966,6 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!selfStudy) {
-                              act(() => workshopSheet(true));
-                              return;
-                            }
                             if (buildingSheet) {
                               setPreview(null);
                               setBuildingSheet(false);
@@ -2009,12 +2033,12 @@ export default function App() {
                         )}
                       </div>
                     )}
-                    {!selfStudy && !result && (
+                    {!selfStudy && !result && !buildingSheet && (
                       <Button onClick={() => goStep(5)}>
                         {t("Arbeitsblatt öffnen")}
                       </Button>
                     )}
-                    {selfStudy && (!result || buildingSheet) && (
+                    {(buildingSheet || (selfStudy && !result)) && (
                       <Card className="worksheet-builder">
                         <div className="section-title">
                           <h2 tabIndex={-1}>
@@ -2354,22 +2378,27 @@ export default function App() {
                       {t("← Zurück ")}
                     </Button>
 
-                    <Button
-                      disabled={
-                        step === 5 || (step === 2 && !draft.learning.length)
-                      }
-                      onClick={() => goStep(step + 1)}
-                    >
-                      {step === 1
-                        ? t("Weiter zu den Lernerlebnissen →")
-                        : step === 2
-                          ? t("Weiter zu den Mechaniken →")
-                          : step === 3
-                            ? t("Weiter zur Übersicht ({0} gewählt) →", {
-                                0: draft.mechanisms.length,
-                              })
-                            : t("Weiter zum Arbeitsblatt →")}
-                    </Button>
+                    <div className="step-next">
+                      {step === 4 && !selfStudy && (
+                        <Button secondary onClick={() => goStep(5, true)}>
+                          {t("KI-Optionen")}
+                        </Button>
+                      )}
+                      <Button
+                        disabled={step === 2 && !draft.learning.length}
+                        onClick={() => goStep(step + 1)}
+                      >
+                        {step === 1
+                          ? t("Weiter zu den Lernerlebnissen →")
+                          : step === 2
+                            ? t("Weiter zu den Mechaniken →")
+                            : step === 3
+                              ? t("Weiter zur Übersicht ({0} gewählt) →", {
+                                  0: draft.mechanisms.length,
+                                })
+                              : t("Weiter zum Arbeitsblatt →")}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </fieldset>
@@ -2588,7 +2617,7 @@ export default function App() {
                 </>
               </>
             )}
-          </ConfiguratorLayout>
+          </WorkspaceLayout>
         )}
         {(page === "account" || (projectAction && !session)) && (
           <Card>
@@ -2601,31 +2630,6 @@ export default function App() {
                     ? t("Konto")
                     : t("Anmelden")}
             </h1>
-            {page === "account" && (
-              <div className="layout-setting">
-                <h2>{t("Oberfläche")}</h2>
-                <div
-                  className="layout-picker"
-                  role="group"
-                  aria-label={t("Layout des Konfigurators")}
-                >
-                  <button
-                    type="button"
-                    aria-pressed={layout === "modern"}
-                    onClick={() => setLayout("modern")}
-                  >
-                    {t("Neue Ansicht")}
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={layout === "classic"}
-                    onClick={() => setLayout("classic")}
-                  >
-                    {t("Klassische Ansicht")}
-                  </button>
-                </div>
-              </div>
-            )}
             {projectAction === "save" && (
               <p>
                 {t("Melden Sie sich an, um „{0}“ online zu speichern.", {
@@ -3321,26 +3325,47 @@ export default function App() {
           />
         )}
         {page === "admin" && admin && (
-          <div className="admin-grid">
-            <header className="admin-heading">
-              <h1>{t("Administration")}</h1>
-              <nav
-                className="admin-tabs"
-                aria-label={t("Administrationsbereiche")}
-              >
-                {adminSections.map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-current={adminTab === id ? "page" : undefined}
+          <WorkspaceLayout
+            className="admin-workspace"
+            heading={<h1 className="admin-title">{t("Administration")}</h1>}
+            rail={
+              <div className="admin-rail">
+                <nav
+                  className="admin-tabs"
+                  aria-label={t("Administrationsbereiche")}
+                >
+                  {adminSections.map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-current={adminTab === id ? "page" : undefined}
+                      disabled={busy}
+                      onClick={() => act(() => openAdminSection(id))}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+                <label className="admin-section-picker">
+                  {t("Administrationsbereiche")}
+                  <select
+                    value={adminTab}
                     disabled={busy}
-                    onClick={() => act(() => openAdminSection(id))}
+                    onChange={(e) => {
+                      const section = e.target.value;
+                      act(() => openAdminSection(section));
+                    }}
                   >
-                    {label}
-                  </button>
-                ))}
-              </nav>
-            </header>
+                    {adminSections.map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            }
+          >
             {adminTab === "projects" && superadmin && (
               <Card>
                 <AdminProjectList
@@ -3764,7 +3789,7 @@ export default function App() {
                 />
               </Card>
             )}
-          </div>
+          </WorkspaceLayout>
         )}
         {page === "about" && (
           <Card>

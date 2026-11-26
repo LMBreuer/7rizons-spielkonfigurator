@@ -41,8 +41,8 @@
   .workspace,
   .footer,
   .skip-link,
-  main:has(.worksheet) > :not(.worksheet, .configurator-layout),
-  .configurator-work:has(> .worksheet) > :not(.worksheet) {
+  main:has(.worksheet) > :not(.worksheet, .workspace-layout),
+  .workspace-content:has(> .worksheet) > :not(.worksheet) {
     display: none !important;
   }
   main#main-content {
@@ -51,8 +51,8 @@
     padding: 0;
     margin: 0;
   }
-  .configurator-layout,
-  .configurator-work {
+  .workspace-layout,
+  .workspace-content {
     display: contents;
   }
   main .worksheet {
@@ -222,7 +222,10 @@
 
 @media print {
   html[data-print="reflection"] main .worksheet > :not(.worksheet-reflections),
-  html[data-print="reflection"] main .worksheet .reflection-sheet:not([data-print-selected]) {
+  html[data-print="reflection"]
+    main
+    .worksheet
+    .reflection-sheet:not([data-print-selected]) {
     display: none !important;
   }
   html[data-print="reflection"] main .worksheet .reflection-print-title {

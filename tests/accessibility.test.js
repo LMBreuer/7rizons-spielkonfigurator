@@ -191,6 +191,19 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         label,
       );
     };
+    const openPreferences = async () => {
+      const preferences = document.querySelector(".preferences-menu");
+      if (!preferences.open)
+        await user.click(preferences.querySelector("summary"));
+    };
+    await user.tab();
+    assert.equal(
+      document.activeElement.textContent.trim(),
+      "Zum Inhalt springen",
+    );
+    await user.keyboard("{Enter}");
+    assert.equal(document.activeElement.id, "main-content");
+    await openPreferences();
     const appearances = within(
       screen.getByRole("group", { name: "Darstellung" }),
     );
@@ -200,13 +213,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .getAttribute("aria-pressed"),
       "true",
     );
-    await user.tab();
-    assert.equal(
-      document.activeElement.textContent.trim(),
-      "Zum Inhalt springen",
-    );
-    await user.keyboard("{Enter}");
-    assert.equal(document.activeElement.id, "main-content");
+    await user.keyboard("{Escape}");
     assert.equal(screen.getByLabelText("Datum").type, "date");
     assert.equal(screen.getByLabelText("Semester").tagName, "SELECT");
     const semester = screen.getByLabelText("Semester", { exact: true });
@@ -328,6 +335,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       null,
     );
     for (const theme of ["light", "dark", "contrast"]) {
+      await openPreferences();
       await user.click(
         appearances.getByRole("button", {
           name: { light: "Hell", dark: "Dunkel", contrast: "Hoher Kontrast" }[
@@ -499,6 +507,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("button", { name: "Administrationszugang" }),
     );
     assert.equal(screen.getByLabelText("Passwort").type, "password");
+    await openPreferences();
     const layout = within(
       screen.getByRole("group", { name: "Layout des Konfigurators" }),
     );
@@ -524,6 +533,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("heading", { name: "Über den Spielkonfigurator" }),
     );
     await audit("about");
+    await openPreferences();
     await user.click(screen.getByRole("button", { name: /English/ }));
     assert.equal(document.documentElement.lang, "en");
     await audit("English about");
@@ -558,6 +568,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     const savedDocs = JSON.parse(localStorage.getItem(key)).worksheets;
     assert.equal(savedDocs.at(-1).draft.language, "en");
     assert.equal(savedDocs[0].draft.language, "de");
+    await openPreferences();
     await user.click(
       screen.getByRole("button", { name: "Deutsch", exact: true }),
     );
@@ -652,7 +663,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     await user.click(
       screen.getByRole("button", {
-        name: "Notiz nach dieser Karte hinzufügen",
+        name: "Notiz zur Karte hinzufügen",
       }),
     );
     const freeNote = await screen.findByRole("textbox", {
@@ -779,6 +790,22 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       /Workshopkarte/,
     );
     await audit("interactive workshop form");
+    await step("Übersicht");
+    await user.click(screen.getByRole("button", { name: "KI-Optionen" }));
+    const builder = within(
+      screen.getByRole("group", { name: "Weg zum Arbeitsblatt" }),
+    );
+    assert.ok(builder.getByRole("button", { name: "Mit Ihrer KI-App" }));
+    assert.ok(builder.getByRole("button", { name: "Mit eigenem API-Zugang" }));
+    assert.equal(screen.queryByRole("article"), null);
+    cleanup();
+    render(React.createElement(App));
+    assert.ok(screen.getByRole("group", { name: "Weg zum Arbeitsblatt" }));
+    await user.click(screen.getByRole("button", { name: "Zurück zum Blatt" }));
+    assert.equal(
+      screen.getByRole("textbox", { name: "Notizen zum Probelauf" }).value,
+      "Beobachtung",
+    );
   } finally {
     cleanup?.();
     await unlink(temp).catch(() => {});
