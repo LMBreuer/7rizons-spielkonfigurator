@@ -20,8 +20,23 @@ export default function Priority({
     [drag, setDrag] = useState(null),
     [dropTarget, setDropTarget] = useState(null),
     focus = useRef(null),
+    baseFocus = useRef(null),
     container = useRef(null);
   useEffect(() => {
+    if (baseFocus.current) {
+      const { index, keyboard } = baseFocus.current;
+      baseFocus.current = null;
+      if (keyboard) {
+        const inputs = container.current.querySelectorAll(
+          "[data-base-id] input",
+        );
+        (
+          inputs[index] ||
+          inputs[inputs.length - 1] ||
+          container.current.querySelector("#base-mechanics-heading")
+        ).focus({ preventScroll: true });
+      }
+    }
     if (focus.current) {
       (
         container.current?.querySelector(
@@ -168,7 +183,9 @@ export default function Priority({
           {t(c)}
         </div>
       ))}
-      <h3 className="section-divider">{t("Im Basisspiel vorhanden")}</h3>
+      <h3 className="section-divider" id="base-mechanics-heading" tabIndex={-1}>
+        {t("Im Basisspiel vorhanden")}
+      </h3>
       <p className="muted">
         {t(
           "Diese Mechaniken gehören bereits zum Basisspiel. Markieren Sie die Elemente, die Sie für Ihr Seminar anpassen möchten. Sie erscheinen dann unter den Hauptanpassungen.",
@@ -185,19 +202,29 @@ export default function Priority({
           </span>
           <span className="priority-badge always">{t("IMMER")}</span>
         </div>
-        {base.map((m) => (
+        {base.map((m, index) => (
           <label className="base-mechanic" key={m.id} data-base-id={m.id}>
             <input
               type="checkbox"
               checked={false}
-              onChange={() => {
-                focus.current = m.id;
+              onChange={(event) => {
+                baseFocus.current = {
+                  index,
+                  keyboard: event.currentTarget.matches(":focus-visible"),
+                };
                 update({
                   ...p,
                   promoted: [...p.promoted, m.id],
                   mechanismOrder: [m.id, ...p.mechanismOrder],
                   finalSelection: [...new Set([...p.finalSelection, m.id])],
                 });
+                onAnnounce(
+                  translate(
+                    "{0} zu den Hauptanpassungen hinzugefügt.",
+                    language,
+                    { 0: t(m.label) },
+                  ),
+                );
               }}
             />
             <span className="base-copy">

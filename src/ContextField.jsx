@@ -36,16 +36,7 @@ export default function ContextField({
               }
             }}
           >
-            <option value="">
-              {t("z. B. {0}", {
-                0:
-                  getLanguage() === "en"
-                    ? options[1]
-                        .replace("WS ", "Winter semester ")
-                        .replace("SoSe ", "Summer semester ")
-                    : options[1],
-              })}
-            </option>
+            <option value="">{t("Keine Angabe")}</option>
             {options.map((s, i) => (
               <option key={s} value={s}>
                 {getLanguage() === "en"
@@ -66,7 +57,6 @@ export default function ContextField({
               id={`${id}-custom`}
               maxLength={1500}
               value={value}
-              placeholder={t(placeholder)}
               onChange={(e) => onChange(e.target.value)}
             />
           </label>

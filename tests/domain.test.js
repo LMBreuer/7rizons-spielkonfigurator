@@ -74,6 +74,29 @@ test("import rejects incomplete, repeated, unknown and stale mechanism results",
   ])
     assert.throws(() => parseResult(bad, r));
 });
+test("AI answers accept nine valid next steps and report actionable list errors", () => {
+  const r = requestFor(draft());
+  const nextSteps = Array.from({ length: 9 }, (_, i) => "Schritt " + (i + 1));
+  const valid = { ...answer(r), nextSteps };
+  assert.deepEqual(parseResult(valid, r).nextSteps, nextSteps);
+  assert.match(makePrompt(r), /nextSteps.*höchstens 20 Einträge/);
+  assert.match(
+    makePrompt({ ...r, language: "en" }),
+    /nextSteps.*at most 20 entries/,
+  );
+  assert.throws(
+    () => parseResult({ ...valid, nextSteps: [] }, r),
+    /mindestens einem nächsten Schritt/,
+  );
+  assert.throws(
+    () => parseResult({ ...valid, nextSteps: Array(21).fill("Erproben") }, r),
+    /höchstens 20/,
+  );
+  assert.throws(
+    () => parseResult({ ...valid, nextSteps: [" ".repeat(4)] }, r),
+    /muss Text enthalten/,
+  );
+});
 test("import supports pasted JSON fence and strips unrelated fields", () => {
   const r = requestFor(draft());
   const a = { ...answer(r), apiKey: "must-not-survive", admin: true };

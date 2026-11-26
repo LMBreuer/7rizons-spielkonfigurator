@@ -542,6 +542,22 @@ summary {
   flex-shrink: 0;
   color: var(--blue);
 }
+.check::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background:
+    linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 2px 100% no-repeat;
+}
+.mechanism.selected .check::before {
+  background: none;
+  width: 6px;
+  height: 11px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
 .mechanism.selected .check {
   border-color: var(--blue);
 }
@@ -2172,4 +2188,8 @@ html[data-input="pointer"] :focus {
 .card-print,
 .print-card-copy {
   display: none;
+}
+
+.answer-error {
+  margin-block: 0.6rem 0;
 }

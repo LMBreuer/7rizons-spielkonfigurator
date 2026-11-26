@@ -361,6 +361,7 @@ export default function App() {
   const [provider, setProvider] = useState("openai");
   const [apiKey, setApiKey] = useState("");
   const [importText, setImportText] = useState("");
+  const [answerError, setAnswerError] = useState("");
   const configImportRef = useRef(null);
   const answerImportRef = useRef(null);
   const [preview, setPreview] = useState(null);
@@ -407,14 +408,15 @@ export default function App() {
     pendingRequest:
       request?.configurationRevision === draft.revision ? request : null,
   });
-  async function act(fn) {
+  async function act(fn, reportError = setError) {
     setError("");
     setMessage("");
+    if (reportError !== setError) reportError("");
     setBusy(true);
     try {
       await fn();
     } catch (e) {
-      setError(t(e.message || "Etwas hat nicht funktioniert."));
+      reportError(t(e.message || "Etwas hat nicht funktioniert."));
     } finally {
       setBusy(false);
     }
@@ -728,10 +730,7 @@ export default function App() {
     );
     if (!worksheets.length && !cloudRevision && !exchange)
       setDraft((d) =>
-        d.id === draft.id &&
-        d.revision === 1 &&
-        !d.learning.length &&
-        !Object.values(d.context).some(Boolean)
+        d.id === draft.id && d.revision === 1 && !d.learning.length
           ? { ...d, edition: content }
           : d,
       );
@@ -885,6 +884,7 @@ export default function App() {
       const r = requestFor(draft, settings);
       setRequest(r);
       setImportText("");
+      setAnswerError("");
       setPreview(null);
       setMessage(
         t(
@@ -943,6 +943,7 @@ export default function App() {
     setProjects(listProjects());
     setEditingId(null);
     setImportText("");
+    setAnswerError("");
     setApiKey("");
     setSubmissionConsent(false);
     setMode("template");
@@ -1640,11 +1641,11 @@ export default function App() {
                           t("z.B. Mittelalterliche Geschichte II"),
                         ],
                         ["dozent", "Dozent:in", t("z.B. Prof. Dr. Müller")],
-                        ["semester", t("Semester"), t("z.B. WS 2025/26")],
+                        ["semester", "Semester"],
                         ["datum", t("Datum"), t("z.B. 14.11.2025")],
                       ].map(([key, label, placeholder]) => (
                         <ContextField
-                          key={key}
+                          key={draft.id + ":" + key}
                           name={key}
                           label={t(label)}
                           value={draft.context[key] || ""}
@@ -2228,9 +2229,10 @@ export default function App() {
                                 <textarea
                                   rows={6}
                                   value={importText}
-                                  onChange={(e) =>
-                                    setImportText(e.target.value)
-                                  }
+                                  onChange={(e) => {
+                                    setImportText(e.target.value);
+                                    setAnswerError("");
+                                  }}
                                   placeholder={t("JSON-Antwort hier einfügen")}
                                 />
                               </label>
@@ -2249,13 +2251,17 @@ export default function App() {
                                   const file = e.target.files[0];
                                   e.target.value = "";
                                   if (file)
-                                    act(async () =>
-                                      setImportText(await fileText(file)),
-                                    );
+                                    act(async () => {
+                                      setImportText(await fileText(file));
+                                    }, setAnswerError);
                                 }}
                               />
                               <Button
                                 secondary
+                                disabled={busy}
+                                aria-describedby={
+                                  answerError ? "answer-error" : undefined
+                                }
                                 onClick={() =>
                                   act(async () => {
                                     setPreview(
@@ -2266,11 +2272,20 @@ export default function App() {
                                         "Antwort geprüft. Kontrollieren Sie die Vorschau und übernehmen Sie sie anschließend.",
                                       ),
                                     );
-                                  })
+                                  }, setAnswerError)
                                 }
                               >
                                 {t("Antwort prüfen ")}
                               </Button>
+                              {answerError && (
+                                <p
+                                  className="notice error answer-error"
+                                  id="answer-error"
+                                  role="alert"
+                                >
+                                  {answerError}
+                                </p>
+                              )}
                             </div>
                           )}
                       </Card>
@@ -2326,6 +2341,7 @@ export default function App() {
                         );
                         setPreview(null);
                         setImportText("");
+                        setAnswerError("");
                         setMessage(t("KI-Antwort übernommen."));
                       }}
                     >
@@ -3767,9 +3783,7 @@ function MechanismChoices({
                 (m.kern && draft.mechanisms.includes(m.id)) || undefined
               }
             >
-              <span className="check" aria-hidden="true">
-                {draft.mechanisms.includes(m.id) ? "✓" : "+"}
-              </span>
+              <span className="check" aria-hidden="true" />
               <span>
                 <strong id={`mechanism-${m.id}-label`}>{t(m.label)}</strong>
                 <span className="badges" id={`mechanism-${m.id}-relevance`}>

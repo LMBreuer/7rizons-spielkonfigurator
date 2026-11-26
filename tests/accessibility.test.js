@@ -4,6 +4,7 @@ import { readFile, writeFile, unlink } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { newDraft } from "../supabase/functions/_shared/domain.js";
+import { semesterOptions } from "../supabase/functions/_shared/fields.js";
 import { JSDOM } from "jsdom";
 import { build } from "esbuild";
 import { PNG } from "pngjs";
@@ -191,6 +192,8 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     assert.equal(screen.getByLabelText("Datum").type, "date");
     assert.equal(screen.getByLabelText("Semester").tagName, "SELECT");
     const semester = screen.getByLabelText("Semester", { exact: true });
+    assert.equal(semester.value, semesterOptions()[0]);
+    assert.doesNotMatch(semester.textContent, /z\. B\./);
     await user.selectOptions(semester, "custom");
     await user.type(
       screen.getByLabelText("Anderes Semester", { exact: true }),
@@ -266,6 +269,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     await user.click(
       screen.getByRole("checkbox", { name: /Zweiteilige Kartenstruktur/ }),
+    );
+    assert.ok(
+      !document.activeElement.matches(".drag-handle"),
+      "promoting a mechanic keeps focus in the base-game section",
     );
     const handle = screen.getByRole("button", {
       name: "Zweiteilige Kartenstruktur – Priorität ändern",
@@ -416,10 +423,16 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         learningContribution: "Lernbeitrag",
         cardExamples: Array(pending.cardsPerMechanism).fill("Beispiel"),
       })),
-      nextSteps: ["Erproben"],
+      nextSteps: Array.from({ length: 9 }, (_, i) => "Erproben " + (i + 1)),
     };
+    const checkAnswer = screen.getByRole("button", { name: "Antwort prüfen" });
+    await user.click(checkAnswer);
+    const importError = screen.getByRole("alert");
+    assert.equal(importError.previousElementSibling, checkAnswer);
+    assert.match(importError.textContent, /kein gültiges JSON/);
     await user.click(screen.getByLabelText("JSON-Antwort Ihrer KI"));
     await user.paste(JSON.stringify(answer));
+    assert.equal(screen.queryByRole("alert"), null);
     await user.click(screen.getByRole("button", { name: "Antwort prüfen" }));
     await user.click(
       screen.getByRole("button", { name: "Vorschau übernehmen" }),
