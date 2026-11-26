@@ -553,7 +553,11 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       }),
     );
     assert.ok(screen.getByRole("article"));
-    await user.click(screen.getByRole("button", { name: "Kopie ausfüllen" }));
+    const originalWorksheetId = JSON.parse(localStorage.getItem(key))
+      .worksheets[0].id;
+    await user.click(
+      screen.getByRole("button", { name: "Arbeitsblatt bearbeiten" }),
+    );
     await user.click(
       screen.getAllByRole("button", { name: /Karte hinzufügen/ })[0],
     );
@@ -578,11 +582,14 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       ),
     );
     const sheets = JSON.parse(localStorage.getItem(key)).worksheets;
-    assert.equal(sheets.at(-2).result.answers, undefined);
+    assert.equal(sheets.length, 1);
+    assert.equal(sheets[0].id, originalWorksheetId);
     assert.ok(
       JSON.stringify(sheets.at(-1).result.cards).includes("Unsere erste Karte"),
     );
-    await user.click(screen.getByRole("button", { name: "Weiterbearbeiten" }));
+    await user.click(
+      screen.getByRole("button", { name: "Arbeitsblatt bearbeiten" }),
+    );
     assert.equal(screen.getByLabelText("Notiz 1").value, "Notiztext");
     await user.click(screen.getByRole("button", { name: "Karten drucken" }));
     assert.equal(document.documentElement.dataset.print, "cards");

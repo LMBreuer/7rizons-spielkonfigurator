@@ -1794,9 +1794,7 @@ export default function App() {
                           ref={sheetMenu}
                         >
                           <summary>
-                            {result?.answers
-                              ? t("Arbeitskopie")
-                              : t("Arbeitsblatt")}{" "}
+                            {t("Arbeitsblatt")}{" "}
                             {worksheets.indexOf(activeWorksheet) + 1}
                           </summary>
                           <div className="menu-body">
@@ -1848,7 +1846,6 @@ export default function App() {
                                         language === "en" ? "en-GB" : "de-AT",
                                         { timeZone: "Europe/Vienna" },
                                       )}
-                                      {w.result.answers && t(" · Arbeitskopie")}
                                       {w.draft.revision !== draft.revision
                                         ? t(" · früherer Stand")
                                         : ""}
@@ -1891,29 +1888,15 @@ export default function App() {
                             <Button
                               secondary
                               onClick={() => {
-                                if (result.answers) {
-                                  setEditingId(
-                                    editingId === activeWorksheetId
-                                      ? null
-                                      : activeWorksheetId,
-                                  );
-                                } else {
-                                  const copy = createWorksheet({
-                                    ...activeWorksheet,
-                                    result: { ...result, answers: {} },
-                                  });
-                                  setWorksheets((items) => [...items, copy]);
-                                  setActiveWorksheetId(copy.id);
-                                  setEditingId(copy.id);
-                                }
+                                setEditingId(
+                                  canEditWorksheet ? null : activeWorksheetId,
+                                );
                               }}
                             >
                               {t(
-                                !result.answers
-                                  ? "Kopie ausfüllen"
-                                  : editingId === activeWorksheetId
-                                    ? "Bearbeitung beenden"
-                                    : "Weiterbearbeiten",
+                                canEditWorksheet
+                                  ? "Bearbeitung beenden"
+                                  : "Arbeitsblatt bearbeiten",
                               )}
                             </Button>
                           )}
@@ -1943,9 +1926,7 @@ export default function App() {
                                 onClick={() =>
                                   download(
                                     markdown(resultDraft, result),
-                                    result.answers
-                                      ? "7rizons-arbeitskopie.md"
-                                      : "7rizons-arbeitsblatt.md",
+                                    "7rizons-arbeitsblatt.md",
                                     "text/markdown",
                                   )
                                 }
