@@ -230,6 +230,49 @@ function WorkspaceLayout({ heading, rail, children, className = "" }) {
     </>
   );
 }
+function printFromMenu(event, mode) {
+  const menu = event.currentTarget.closest("details");
+  menu.open = false;
+  menu.querySelector("summary").focus();
+  printWorksheet(mode);
+}
+function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
+  const intro = (
+    <>
+      {t("Gestalten Sie")} <Logo wordmark /> {t("für Ihre Lehre.")}
+    </>
+  );
+  const ProjectHeading = hasDocument ? "p" : "h1";
+  return (
+    <header className="configurator-intro no-print">
+      <div className="configurator-heading-line">
+        {step === 1 ? (
+          <h1 className="configurator-title">{intro}</h1>
+        ) : (
+          <>
+            <span
+              className="configurator-title intro-height"
+              aria-hidden="true"
+            >
+              {intro}
+            </span>
+            <ProjectHeading
+              className="configurator-title current-project-title"
+              title={projectTitle}
+            >
+              {projectTitle}
+            </ProjectHeading>
+          </>
+        )}
+      </div>
+      <p className="configurator-subtitle">
+        {step === 1
+          ? t("Von der Spielidee zum Seminar")
+          : t("Schritt {0} von {1}", { 0: step, 1: steps.length })}
+      </p>
+    </header>
+  );
+}
 export default function App() {
   const [language, setLanguage] = useLanguage();
   useEffect(() => trackInputMethod(), []);
@@ -1322,6 +1365,173 @@ export default function App() {
       )}
     </>
   );
+  const hasWorksheet = step === 5 && result && !buildingSheet && !preview;
+  const sheetTools = step === 5 && worksheets.length > 0 && (
+    <div
+      className="sheet-tools no-print"
+      role="group"
+      aria-label={t("Arbeitsblatt verwalten")}
+    >
+      <details className="switch-menu sheet-menu" ref={sheetMenu}>
+        <summary>
+          {t("Arbeitsblatt")}{" "}
+          {activeWorksheet && worksheets.indexOf(activeWorksheet) + 1}
+        </summary>
+        <div className="menu-body">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              sheetMenu.current.open = false;
+              setPreview(null);
+              focusWorksheetBuilder();
+            }}
+          >
+            + {t("Neues Blatt")}
+          </button>
+          <div
+            className="worksheet-list"
+            role="group"
+            aria-label={t("Gespeicherte Arbeitsblätter")}
+          >
+            {worksheets.map((w, index) => (
+              <div
+                className="worksheet-row"
+                key={w.id}
+                data-worksheet-id={w.id}
+              >
+                <button
+                  className="worksheet-open"
+                  aria-pressed={w.id === activeWorksheetId}
+                  onClick={() => {
+                    sheetMenu.current.open = false;
+                    setBuildingSheet(false);
+                    setActiveWorksheetId(w.id);
+                    setOriginalId(null);
+                    setPreview(null);
+                  }}
+                >
+                  <strong>
+                    {t("Arbeitsblatt ")}
+                    {index + 1}: {w.result.title}
+                  </strong>
+                  <small>
+                    {w.source.kind === "template"
+                      ? [
+                          t("Ohne KI"),
+                          w.result.templateVariant &&
+                            t(
+                              w.result.templateVariant === "guided"
+                                ? "Mit Arbeitsaufträgen"
+                                : "Nur Übersicht",
+                            ),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : w.source.kind === "import"
+                        ? t("KI-Import")
+                        : PROVIDERS[w.source.provider] || t("KI")}{" "}
+                    ·{" "}
+                    {new Date(w.createdAt).toLocaleString(
+                      language === "en" ? "en-GB" : "de-AT",
+                      { timeZone: "Europe/Vienna" },
+                    )}
+                    {w.draft.revision !== draft.revision
+                      ? t(" · früherer Stand")
+                      : ""}
+                  </small>
+                </button>
+                <Button
+                  secondary
+                  onClick={() => deleteWorksheet(w.id)}
+                  aria-label={t("Arbeitsblatt {0} löschen", {
+                    0: index + 1,
+                  })}
+                >
+                  {t("Löschen ")}
+                </Button>
+              </div>
+            ))}
+          </div>
+          {activeWorksheet?.original && !showingOriginal && (
+            <button
+              type="button"
+              onClick={() => {
+                setOriginalId(activeWorksheetId);
+                setBuildingSheet(false);
+                setPreview(null);
+                sheetMenu.current.open = false;
+              }}
+            >
+              {t("Original anzeigen")}
+            </button>
+          )}
+          {hasWorksheet && (
+            <button
+              type="button"
+              onClick={() => {
+                sheetMenu.current.open = false;
+                sheetMenu.current.querySelector("summary").focus();
+                download(
+                  markdown(resultDraft, visibleResult),
+                  "7rizons-arbeitsblatt.md",
+                  "text/markdown",
+                );
+              }}
+            >
+              {t("Markdown herunterladen ")}
+            </button>
+          )}
+        </div>
+      </details>
+      <div className="sheet-actions">
+        {buildingSheet && !preview && (
+          <button type="button" onClick={() => setBuildingSheet(false)}>
+            {t("Zurück zum Blatt")}
+          </button>
+        )}
+        {selfStudy &&
+          hasWorksheet &&
+          !showingOriginal &&
+          result.templateVariant !== "overview" && (
+            <Button
+              secondary
+              onClick={() => {
+                setEditingId(canEditWorksheet ? null : activeWorksheetId);
+              }}
+            >
+              {t(
+                canEditWorksheet
+                  ? "Bearbeitung beenden"
+                  : "Arbeitsblatt bearbeiten",
+              )}
+            </Button>
+          )}
+
+        {hasWorksheet &&
+          (worksheetCards(visibleResult).length ? (
+            <details className="switch-menu sheet-print-menu">
+              <summary>{t("Drucken")}</summary>
+              <div className="menu-body">
+                <button type="button" onClick={(e) => printFromMenu(e)}>
+                  {t("Arbeitsblatt drucken")}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => printFromMenu(e, "cards")}
+                >
+                  {t("Karten drucken")}
+                </button>
+              </div>
+            </details>
+          ) : (
+            <Button secondary onClick={() => printWorksheet()}>
+              {t("Drucken")}
+            </Button>
+          ))}
+      </div>
+    </div>
+  );
   return (
     <>
       <a
@@ -1514,17 +1724,11 @@ export default function App() {
         {page === "app" && (
           <WorkspaceLayout
             heading={
-              step === 1 ? (
-                <section className="configurator-intro no-print">
-                  <h1>
-                    {t("Gestalten Sie")} <Logo wordmark />{" "}
-                    {t("für Ihre Lehre.")}
-                  </h1>
-                  <p>{t("Von der Spielidee zum Seminar")}</p>
-                </section>
-              ) : step < 5 || (!preview && (!result || buildingSheet)) ? (
-                <h1 className="sr-only">{t("Konfigurator")}</h1>
-              ) : null
+              <ConfiguratorHeading
+                step={step}
+                projectTitle={projectTitle}
+                hasDocument={Boolean(hasWorksheet || (step === 5 && preview))}
+              />
             }
             rail={
               <aside
@@ -1656,11 +1860,6 @@ export default function App() {
                     />
                   </div>
                 </details>
-                {(draft.context.thema || draft.context.name) && (
-                  <p className="rail-project-title" title={projectTitle}>
-                    {projectTitle}
-                  </p>
-                )}
                 <nav
                   className="steps no-print"
                   aria-label={t("Konfigurationsschritte")}
@@ -1871,175 +2070,14 @@ export default function App() {
                 )}
                 {step === 5 && (
                   <>
-                    {worksheets.length > 0 && (
-                      <div className="sheet-tools">
-                        <details
-                          className="switch-menu sheet-menu"
-                          ref={sheetMenu}
-                        >
-                          <summary>
-                            {t("Arbeitsblatt")}{" "}
-                            {worksheets.indexOf(activeWorksheet) + 1}
-                          </summary>
-                          <div className="menu-body">
-                            <div
-                              className="worksheet-list"
-                              role="group"
-                              aria-label={t("Gespeicherte Arbeitsblätter")}
-                            >
-                              {worksheets.map((w, index) => (
-                                <div
-                                  className="worksheet-row"
-                                  key={w.id}
-                                  data-worksheet-id={w.id}
-                                >
-                                  <button
-                                    className="worksheet-open"
-                                    aria-pressed={w.id === activeWorksheetId}
-                                    onClick={() => {
-                                      sheetMenu.current.open = false;
-                                      setBuildingSheet(false);
-                                      setActiveWorksheetId(w.id);
-                                      setOriginalId(null);
-                                      setPreview(null);
-                                    }}
-                                  >
-                                    <strong>
-                                      {t("Arbeitsblatt ")}
-                                      {index + 1}: {w.result.title}
-                                    </strong>
-                                    <small>
-                                      {w.source.kind === "template"
-                                        ? [
-                                            t("Ohne KI"),
-                                            w.result.templateVariant &&
-                                              t(
-                                                w.result.templateVariant ===
-                                                  "guided"
-                                                  ? "Mit Arbeitsaufträgen"
-                                                  : "Nur Übersicht",
-                                              ),
-                                          ]
-                                            .filter(Boolean)
-                                            .join(" · ")
-                                        : w.source.kind === "import"
-                                          ? t("KI-Import")
-                                          : PROVIDERS[w.source.provider] ||
-                                            t("KI")}{" "}
-                                      ·{" "}
-                                      {new Date(w.createdAt).toLocaleString(
-                                        language === "en" ? "en-GB" : "de-AT",
-                                        { timeZone: "Europe/Vienna" },
-                                      )}
-                                      {w.draft.revision !== draft.revision
-                                        ? t(" · früherer Stand")
-                                        : ""}
-                                    </small>
-                                  </button>
-                                  <Button
-                                    secondary
-                                    onClick={() => deleteWorksheet(w.id)}
-                                    aria-label={t("Arbeitsblatt {0} löschen", {
-                                      0: index + 1,
-                                    })}
-                                  >
-                                    {t("Löschen ")}
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                            {activeWorksheet?.original && !showingOriginal && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOriginalId(activeWorksheetId);
-                                  setBuildingSheet(false);
-                                  setPreview(null);
-                                  sheetMenu.current.open = false;
-                                }}
-                              >
-                                {t("Original anzeigen")}
-                              </button>
-                            )}
-                          </div>
-                        </details>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (buildingSheet) {
-                              setPreview(null);
-                              setBuildingSheet(false);
-                            } else focusWorksheetBuilder();
-                          }}
-                        >
-                          {buildingSheet
-                            ? t("Zurück zum Blatt")
-                            : "+ " + t("Neues Blatt")}
-                        </button>
-                        {selfStudy &&
-                          !buildingSheet &&
-                          !showingOriginal &&
-                          result.templateVariant !== "overview" && (
-                            <Button
-                              secondary
-                              onClick={() => {
-                                setEditingId(
-                                  canEditWorksheet ? null : activeWorksheetId,
-                                );
-                              }}
-                            >
-                              {t(
-                                canEditWorksheet
-                                  ? "Bearbeitung beenden"
-                                  : "Arbeitsblatt bearbeiten",
-                              )}
-                            </Button>
-                          )}
-                        {result && !buildingSheet && !preview && (
-                          <Button secondary onClick={() => printWorksheet()}>
-                            {t("Drucken")}
-                          </Button>
-                        )}
-                        {result &&
-                          !buildingSheet &&
-                          !preview &&
-                          worksheetCards(visibleResult).length > 0 && (
-                            <Button
-                              secondary
-                              onClick={() => printWorksheet("cards")}
-                            >
-                              {t("Karten drucken")}
-                            </Button>
-                          )}
-                        {result && !buildingSheet && (
-                          <details className="switch-menu export-menu">
-                            <summary aria-label={t("Arbeitsblatt exportieren")}>
-                              ···
-                            </summary>
-                            <div className="menu-body">
-                              <button
-                                onClick={() =>
-                                  download(
-                                    markdown(resultDraft, visibleResult),
-                                    "7rizons-arbeitsblatt.md",
-                                    "text/markdown",
-                                  )
-                                }
-                              >
-                                {t("Markdown herunterladen ")}
-                              </button>
-                            </div>
-                          </details>
-                        )}
-                      </div>
-                    )}
                     {!selfStudy && !result && !buildingSheet && (
                       <Button onClick={() => goStep(5)}>
                         {t("Arbeitsblatt öffnen")}
                       </Button>
                     )}
-                    {(buildingSheet || (selfStudy && !result)) && (
+                    {!preview && (buildingSheet || (selfStudy && !result)) && (
                       <Card className="worksheet-builder">
+                        {sheetTools}
                         <div className="section-title">
                           <h2 tabIndex={-1}>
                             {worksheets.length
@@ -2404,217 +2442,221 @@ export default function App() {
               </fieldset>
             </div>
             {step === 5 && preview && (
-              <>
-                <div className="no-print">
-                  <h2>{t("Importvorschau")}</h2>
-                  <div className="actions">
-                    <Button
-                      disabled={busy}
-                      onClick={() => {
-                        addWorksheet(
-                          preview,
-                          { kind: "import" },
-                          {
-                            ...settings,
-                            cardsPerMechanism: request.cardsPerMechanism,
-                          },
-                          request,
-                        );
-                        setPreview(null);
-                        setImportText("");
-                        setAnswerError("");
-                        setMessage(t("KI-Antwort übernommen."));
-                      }}
-                    >
-                      {t("Vorschau übernehmen ")}
-                    </Button>
-                    <Button secondary onClick={() => setPreview(null)}>
-                      {t("Verwerfen ")}
-                    </Button>
-                  </div>
-                </div>
-                <Worksheet
-                  draft={draft}
-                  result={preview}
-                  source={{ kind: "import" }}
-                />
-              </>
-            )}
-            {step === 5 && result && !buildingSheet && !preview && (
-              <>
-                {!isCurrent && (
-                  <div className="notice error no-print">
-                    {t(
-                      "Dieses Arbeitsblatt gehört zu einer früheren Konfiguration. Für Ihre aktuelle Auswahl können Sie ein weiteres Arbeitsblatt hinzufügen. ",
-                    )}
-                  </div>
-                )}
-                <>
-                  {showingOriginal && (
-                    <div className="notice original-notice no-print">
-                      <strong>
-                        {t("Original vor der ersten Bearbeitung")}
-                      </strong>
-                      <Button secondary onClick={() => setOriginalId(null)}>
-                        {t("Zurück zur Bearbeitung")}
-                      </Button>
+              <Worksheet
+                screenLanguage={language}
+                screenHeader={
+                  <>
+                    {sheetTools}
+                    <div className="no-print">
+                      <h2>{t("Importvorschau")}</h2>
+                      <div className="actions">
+                        <Button
+                          disabled={busy}
+                          onClick={() => {
+                            addWorksheet(
+                              preview,
+                              { kind: "import" },
+                              {
+                                ...settings,
+                                cardsPerMechanism: request.cardsPerMechanism,
+                              },
+                              request,
+                            );
+                            setPreview(null);
+                            setImportText("");
+                            setAnswerError("");
+                            setMessage(t("KI-Antwort übernommen."));
+                          }}
+                        >
+                          {t("Vorschau übernehmen ")}
+                        </Button>
+                        <Button secondary onClick={() => setPreview(null)}>
+                          {t("Verwerfen ")}
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                  <Worksheet
-                    key={
-                      activeWorksheetId + (showingOriginal ? "-original" : "")
-                    }
-                    onCards={
-                      canEditWorksheet
-                        ? (update) =>
-                            updateWorksheetResult((previous) => {
-                              const { playtest } = previous.answers || {};
-                              const cards = update(worksheetCards(previous));
-                              const ids = new Set(cards.map((card) => card.id));
-                              return {
-                                ...previous,
-                                cards,
-                                ...(previous.notes
-                                  ? {
-                                      notes: previous.notes.map((note) =>
-                                        note.after && !ids.has(note.after)
-                                          ? { ...note, after: undefined }
-                                          : note,
-                                      ),
-                                    }
-                                  : {}),
-                                answers:
-                                  playtest !== undefined ? { playtest } : {},
-                              };
-                            })
-                        : undefined
-                    }
-                    onNotes={
-                      canEditWorksheet
-                        ? (update) =>
-                            updateWorksheetResult((previous) => ({
-                              ...previous,
-                              notes: update(previous.notes || []),
-                            }))
-                        : undefined
-                    }
-                    onReflections={
-                      canEditWorksheet
-                        ? (update) =>
-                            updateWorksheetResult((previous) => ({
-                              ...previous,
-                              reflections: update(previous.reflections || []),
-                            }))
-                        : undefined
-                    }
-                    onAnswer={
-                      canEditWorksheet
-                        ? (key, value) =>
-                            updateWorksheetResult((previous) => ({
-                              ...previous,
-                              answers: { ...previous.answers, [key]: value },
-                            }))
-                        : undefined
-                    }
-                    draft={resultDraft}
-                    result={visibleResult}
-                    source={source}
-                  />
-                  {session && isCurrent && !showingOriginal && (
-                    <Card className="no-print">
-                      <h2>{t("Mit der Workshopmoderation teilen")}</h2>
-                      <p>
-                        {t(
-                          "Mit der Abgabe erhält die Moderation das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern. Eine Projektzuordnung zeigt nur Titel und Änderungsdatum.",
-                        )}
-                      </p>
-                      <WorkshopJoin
-                        {...{
-                          workshops,
-                          workshopId,
-                          setWorkshopId,
-                          code,
-                          setCode,
-                          session,
-                        }}
-                        join={() => act(join)}
-                      />
-                      {workshops.some((w) => w.id === workshopId && w.active) &&
-                        !workshopLinks.some(
-                          (link) => link.workshop_id === workshopId,
-                        ) && (
-                          <Button
-                            secondary
-                            disabled={busy}
-                            onClick={() =>
-                              act(() => changeWorkshopLink(workshopId, true))
-                            }
-                          >
-                            {t("Projekt diesem Workshop zuordnen")}
-                          </Button>
-                        )}
-                      {workshopLinks.map((link) => (
-                        <div className="archive-row" key={link.workshop_id}>
-                          <span>{link.title}</span>
-                          <Button
-                            secondary
-                            disabled={busy}
-                            onClick={() =>
-                              act(() =>
-                                changeWorkshopLink(link.workshop_id, false),
-                              )
-                            }
-                          >
-                            {t("Zuordnung entfernen")}
+                  </>
+                }
+                draft={draft}
+                result={preview}
+                source={{ kind: "import" }}
+              />
+            )}
+            {hasWorksheet && (
+              <>
+                <Worksheet
+                  screenLanguage={language}
+                  key={activeWorksheetId + (showingOriginal ? "-original" : "")}
+                  screenHeader={
+                    <>
+                      {sheetTools}
+                      {!isCurrent && (
+                        <div className="notice error">
+                          {t(
+                            "Dieses Arbeitsblatt gehört zu einer früheren Konfiguration. Für Ihre aktuelle Auswahl können Sie ein weiteres Arbeitsblatt hinzufügen. ",
+                          )}
+                        </div>
+                      )}
+                      {showingOriginal && (
+                        <div className="notice original-notice">
+                          <strong>
+                            {t("Original vor der ersten Bearbeitung")}
+                          </strong>
+                          <Button secondary onClick={() => setOriginalId(null)}>
+                            {t("Zurück zur Bearbeitung")}
                           </Button>
                         </div>
-                      ))}
-                      <label className="checkbox">
-                        <input
-                          type="checkbox"
-                          checked={submissionConsent}
-                          onChange={(e) =>
-                            setSubmissionConsent(e.target.checked)
-                          }
-                        />
-                        {t(
-                          "Diesen Stand samt Kontextangaben für die Workshopmoderation freigeben. ",
-                        )}
-                      </label>
-                      <Button
-                        disabled={busy || !workshopId || !submissionConsent}
-                        onClick={() =>
-                          act(async () => {
-                            await saveOnline();
-                            unwrap(
-                              await cloud.rpc("submit_configuration", {
-                                p_workshop: workshopId,
-                                p_configuration: draft.id,
-                              }),
-                            );
-                            setSubmissionConsent(false);
-                            setMySubmissions(
-                              unwrap(
-                                await cloud
-                                  .from("submissions")
-                                  .select("id,title,workshop_id,created_at")
-                                  .eq("owner_id", session.user.id)
-                                  .order("created_at", { ascending: false }),
-                              ),
-                            );
-                            setMessage(
-                              t(
-                                "Dieser Stand wurde an die Workshopmoderation abgegeben.",
-                              ),
-                            );
+                      )}
+                    </>
+                  }
+                  onCards={
+                    canEditWorksheet
+                      ? (update) =>
+                          updateWorksheetResult((previous) => {
+                            const { playtest } = previous.answers || {};
+                            const cards = update(worksheetCards(previous));
+                            const ids = new Set(cards.map((card) => card.id));
+                            return {
+                              ...previous,
+                              cards,
+                              ...(previous.notes
+                                ? {
+                                    notes: previous.notes.map((note) =>
+                                      note.after && !ids.has(note.after)
+                                        ? { ...note, after: undefined }
+                                        : note,
+                                    ),
+                                  }
+                                : {}),
+                              answers:
+                                playtest !== undefined ? { playtest } : {},
+                            };
                           })
-                        }
-                      >
-                        {t("Arbeitsblatt abgeben ")}
-                      </Button>
-                    </Card>
-                  )}
-                </>
+                      : undefined
+                  }
+                  onNotes={
+                    canEditWorksheet
+                      ? (update) =>
+                          updateWorksheetResult((previous) => ({
+                            ...previous,
+                            notes: update(previous.notes || []),
+                          }))
+                      : undefined
+                  }
+                  onReflections={
+                    canEditWorksheet
+                      ? (update) =>
+                          updateWorksheetResult((previous) => ({
+                            ...previous,
+                            reflections: update(previous.reflections || []),
+                          }))
+                      : undefined
+                  }
+                  onAnswer={
+                    canEditWorksheet
+                      ? (key, value) =>
+                          updateWorksheetResult((previous) => ({
+                            ...previous,
+                            answers: { ...previous.answers, [key]: value },
+                          }))
+                      : undefined
+                  }
+                  draft={resultDraft}
+                  result={visibleResult}
+                  source={source}
+                />
+                {session && isCurrent && !showingOriginal && (
+                  <Card className="no-print">
+                    <h2>{t("Mit der Workshopmoderation teilen")}</h2>
+                    <p>
+                      {t(
+                        "Mit der Abgabe erhält die Moderation das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern. Eine Projektzuordnung zeigt nur Titel und Änderungsdatum.",
+                      )}
+                    </p>
+                    <WorkshopJoin
+                      {...{
+                        workshops,
+                        workshopId,
+                        setWorkshopId,
+                        code,
+                        setCode,
+                        session,
+                      }}
+                      join={() => act(join)}
+                    />
+                    {workshops.some((w) => w.id === workshopId && w.active) &&
+                      !workshopLinks.some(
+                        (link) => link.workshop_id === workshopId,
+                      ) && (
+                        <Button
+                          secondary
+                          disabled={busy}
+                          onClick={() =>
+                            act(() => changeWorkshopLink(workshopId, true))
+                          }
+                        >
+                          {t("Projekt diesem Workshop zuordnen")}
+                        </Button>
+                      )}
+                    {workshopLinks.map((link) => (
+                      <div className="archive-row" key={link.workshop_id}>
+                        <span>{link.title}</span>
+                        <Button
+                          secondary
+                          disabled={busy}
+                          onClick={() =>
+                            act(() =>
+                              changeWorkshopLink(link.workshop_id, false),
+                            )
+                          }
+                        >
+                          {t("Zuordnung entfernen")}
+                        </Button>
+                      </div>
+                    ))}
+                    <label className="checkbox">
+                      <input
+                        type="checkbox"
+                        checked={submissionConsent}
+                        onChange={(e) => setSubmissionConsent(e.target.checked)}
+                      />
+                      {t(
+                        "Diesen Stand samt Kontextangaben für die Workshopmoderation freigeben. ",
+                      )}
+                    </label>
+                    <Button
+                      disabled={busy || !workshopId || !submissionConsent}
+                      onClick={() =>
+                        act(async () => {
+                          await saveOnline();
+                          unwrap(
+                            await cloud.rpc("submit_configuration", {
+                              p_workshop: workshopId,
+                              p_configuration: draft.id,
+                            }),
+                          );
+                          setSubmissionConsent(false);
+                          setMySubmissions(
+                            unwrap(
+                              await cloud
+                                .from("submissions")
+                                .select("id,title,workshop_id,created_at")
+                                .eq("owner_id", session.user.id)
+                                .order("created_at", { ascending: false }),
+                            ),
+                          );
+                          setMessage(
+                            t(
+                              "Dieser Stand wurde an die Workshopmoderation abgegeben.",
+                            ),
+                          );
+                        })
+                      }
+                    >
+                      {t("Arbeitsblatt abgeben ")}
+                    </Button>
+                  </Card>
+                )}
               </>
             )}
           </WorkspaceLayout>

@@ -70,7 +70,13 @@
     padding-block: 0.7rem 1.05rem;
     border-bottom: 1px solid var(--line);
   }
-  .configurator-intro h1 {
+  .configurator-heading-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+  }
+  .configurator-title {
+    grid-area: 1 / 1;
     margin: 0 0 0.2rem;
     font-size: clamp(1.38rem, 3.3vw, 2.12rem);
     letter-spacing: -0.045em;
@@ -83,13 +89,75 @@
     vertical-align: -0.34em;
     margin-inline: 0.08em;
   }
-  .configurator-intro p {
+  .intro-height {
+    visibility: hidden;
+    font-weight: 800;
+  }
+  .current-project-title {
+    overflow: hidden;
+    color: var(--ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 800;
+  }
+  p.current-project-title {
+    font-size: clamp(1.18rem, 2.4vw, 1.55rem);
+  }
+  .configurator-subtitle {
     margin: 0;
     color: var(--muted);
     font-size: 0.93rem;
   }
-  .rail-project-title {
+  :root .workspace-content > .worksheet:has(> .worksheet-screen-header) {
+    margin-block-start: 0;
+    padding-block-start: 0.55rem;
+  }
+  .worksheet-screen-header {
+    margin-bottom: 1.15rem;
+  }
+  .sheet-tools {
+    padding: 0 0 0.5rem;
+    margin: 0;
+  }
+  .worksheet-builder > .sheet-tools {
+    margin-bottom: 1rem;
+  }
+  .sheet-tools .switch-menu > summary {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0.35rem 0.5rem;
+    border-radius: 7px;
+    font-weight: 650;
+    line-height: 1.25;
+  }
+  .sheet-tools .switch-menu > summary:hover,
+  .sheet-tools .switch-menu[open] > summary {
+    background: var(--surface2);
+  }
+  .sheet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    margin-inline-start: auto;
+  }
+  .sheet-actions:empty {
     display: none;
+  }
+  .sheet-print-menu .menu-body {
+    left: auto;
+    right: 0;
+  }
+  .sheet-menu .menu-body {
+    width: min(28rem, calc(100vw - 4.25rem));
+  }
+  .sheet-menu .worksheet-row:last-child {
+    border-bottom: 1px solid var(--line);
+  }
+  .worksheet-screen-header > .notice {
+    margin-block: 0.7rem 0;
   }
   .project-current {
     display: grid;
@@ -199,12 +267,12 @@
   }
 
   :root[data-layout="modern"] {
-    --navigation-glow: color-mix(in srgb, #61bde4 24%, transparent);
-    --page-glow: color-mix(in srgb, var(--purple) 17%, transparent);
-    --navigation-surface: color-mix(in srgb, var(--surface) 74%, transparent);
-    --document-surface: color-mix(in srgb, var(--surface) 79%, transparent);
-    --glass-filter: blur(15px);
-    --glass-edge: inset 0 1px 0 #fffd;
+    --navigation-glow: color-mix(in srgb, #61bde4 48%, transparent);
+    --page-glow: color-mix(in srgb, #7f598b 32%, transparent);
+    --navigation-surface: color-mix(in srgb, var(--surface) 60%, transparent);
+    --document-surface: color-mix(in srgb, var(--surface) 67%, transparent);
+    --glass-filter: blur(18px);
+    --glass-edge: inset 0 1px 0 #fffe, inset 1px 0 0 #fff7;
     --navigation-shadow:
       var(--glass-edge),
       6px 9px 21px color-mix(in srgb, var(--line) 80%, transparent);
@@ -213,9 +281,9 @@
       4px 8px 20px color-mix(in srgb, var(--line) 65%, transparent);
   }
   :root[data-layout="modern"][data-theme="dark"] {
-    --navigation-glow: color-mix(in srgb, #2a6fb4 30%, transparent);
-    --page-glow: color-mix(in srgb, #7f598b 14%, transparent);
-    --glass-edge: inset 0 1px 0 #ffffff13;
+    --navigation-glow: color-mix(in srgb, #2a6fb4 56%, transparent);
+    --page-glow: color-mix(in srgb, #7f598b 39%, transparent);
+    --glass-edge: inset 0 1px 0 #ffffff29, inset 1px 0 0 #ffffff13;
     --navigation-shadow: var(--glass-edge), 6px 9px 22px #0005;
     --document-shadow: var(--glass-edge), 4px 8px 24px #0004;
   }
@@ -232,12 +300,12 @@
     min-height: 100vh;
     background:
       radial-gradient(
-        ellipse 34rem 26rem at top left,
+        ellipse 28rem 21rem at clamp(9%, calc(50% - 26rem), 28%) 18rem,
         var(--navigation-glow),
         transparent
       ),
       radial-gradient(
-        ellipse 39rem 28rem at top right,
+        ellipse 35rem 24rem at clamp(70%, calc(50% + 26rem), 92%) 16rem,
         var(--page-glow),
         transparent
       ),
@@ -349,16 +417,6 @@
     box-shadow: var(--navigation-shadow);
     backdrop-filter: var(--glass-filter);
   }
-  :root[data-layout="modern"] .rail-project-title {
-    display: block;
-    margin: 0;
-    padding: 0.15rem 0.65rem;
-    color: var(--muted);
-    font-size: 0.8rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   :root[data-layout="modern"] .configurator-rail {
     position: sticky;
     top: 1rem;
@@ -437,6 +495,12 @@
   .configurator-intro {
     padding-block-start: 0.2rem;
     margin-bottom: 0.8rem;
+  }
+  .sheet-tools .switch-menu > summary {
+    min-height: 44px;
+  }
+  .sheet-menu .menu-body {
+    width: min(25rem, calc(100vw - 4.25rem));
   }
   .step-actions > .step-next {
     grid-column: 1 / -1;

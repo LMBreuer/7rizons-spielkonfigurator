@@ -11,6 +11,8 @@ export default function Worksheet({
   draft,
   result,
   source,
+  screenHeader,
+  screenLanguage,
   onAnswer,
   onCards,
   onNotes,
@@ -35,6 +37,11 @@ export default function Worksheet({
       id="worksheet"
       lang={language}
     >
+      {screenHeader && (
+        <div className="worksheet-screen-header no-print" lang={screenLanguage}>
+          {screenHeader}
+        </div>
+      )}
       <div className="eyebrow">{t("7’rizons · Ihr Seminar-Hack")}</div>
       <h1 tabIndex={-1}>{result.title}</h1>
       {result.introduction && <p className="intro">{result.introduction}</p>}

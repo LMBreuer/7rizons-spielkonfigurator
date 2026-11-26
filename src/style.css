@@ -1639,13 +1639,6 @@ html[data-input="pointer"] :focus {
 .sheet-tools > button:hover {
   color: var(--blue);
 }
-.export-menu .menu-body {
-  left: auto;
-  right: 0;
-}
-.export-menu summary::after {
-  display: none;
-}
 @media screen {
   .worksheet {
     max-width: 54rem;
