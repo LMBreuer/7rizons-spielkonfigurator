@@ -81,7 +81,7 @@ function PrivacyInfo({ online }) {
           <ul>
             <li>
               {t(
-                "Wenn Sie ein Projekt einem Workshop zuordnen, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie zusätzlich eine Kopie des ausgewählten Arbeitsblatts samt Kontextangaben.",
+                "Wenn Sie ein Projekt einem Workshop zuordnen, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern.",
               )}
             </li>
             <li>

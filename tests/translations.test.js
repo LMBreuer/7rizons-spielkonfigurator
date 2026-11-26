@@ -73,6 +73,7 @@ test("all explicitly translated literal UI strings have an English entry", async
     "src/ContextField.jsx",
     "src/Worksheet.jsx",
     "src/WorksheetCards.jsx",
+    "src/Reflections.jsx",
   ]) {
     const source = await readFile(
       new URL("../" + file, import.meta.url),

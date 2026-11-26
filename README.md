@@ -6,7 +6,7 @@ Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LM
 
 ## Präsenzworkshop und Inhaltsverwaltung
 
-Schritt 5 öffnet das beschreibbare Arbeitsblatt zur aktuellen Auswahl. Pro Mechanik lassen sich eigene Spielkarten mit Titel, formatiertem Text, Randfarbe und Notizen anlegen. Karten und Probelaufnotizen werden im Browser gesichert. „Karten drucken“ gibt die Spielkarten separat zum Ausschneiden aus. „Online speichern“ legt den Projektstand im angemeldeten Konto ab. Beim erneuten Öffnen desselben Konfigurationsstands werden die bisherigen Eingaben angezeigt.
+Schritt 5 öffnet das beschreibbare Arbeitsblatt zur aktuellen Auswahl. Pro Mechanik lassen sich eigene Spielkarten mit Titel, formatiertem Text, Randfarbe und Notizen anlegen. Freie Notizen lassen sich auch zwischen Karten ergänzen. Beim ersten Bearbeiten sichert das Projekt den bisherigen Arbeitsblattstand unter „Original anzeigen“. Pro Gruppe oder Probelauf lässt sich ein Ergebnisblatt mit Sternen, Wünschen, beobachteten Lernerlebnissen und einer nächsten Änderung hinzufügen und einzeln drucken. Karten, Notizen und Ergebnisblätter werden im Browser gesichert. „Karten drucken“ gibt die Spielkarten separat zum Ausschneiden aus. „Online speichern“ legt den Projektstand im angemeldeten Konto ab. Beim erneuten Öffnen desselben Konfigurationsstands werden die bisherigen Eingaben angezeigt.
 
 Unter **Inhalte** können Berechtigte Lernerlebnisse und Mechaniken hinzufügen, bearbeiten und für neue Projekte ausblenden. Dort bearbeiten sie Zuordnungen, deutsche und englische Texte, Arbeitsaufträge, Beispiele und die allgemeinen Blattabschnitte. „Inhalte veröffentlichen“ gilt für neue Projekte. Bestehende Projekte führen ihre Inhaltsfassung beim Speichern, Teilen und Exportieren mit.
 

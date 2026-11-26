@@ -2,6 +2,7 @@ import React from "react";
 import { displayDate } from "../supabase/functions/_shared/fields.js";
 import { worksheetCards } from "../supabase/functions/_shared/card-text.js";
 import WorksheetCards, { PrintableCards } from "./WorksheetCards.jsx";
+import Reflections from "./Reflections.jsx";
 import { translate } from "../supabase/functions/_shared/translations.js";
 
 import { catalogFor } from "../supabase/functions/_shared/content.js";
@@ -12,11 +13,14 @@ export default function Worksheet({
   source,
   onAnswer,
   onCards,
+  onNotes,
+  onReflections,
 }) {
   const { LE, MK, blocks } = catalogFor(draft);
   const language = draft.language || "de",
     t = (text, values) => translate(text, language, values);
   const cards = worksheetCards(result);
+  const notes = result.notes || [];
   const mechanicName = (id) => t(MK.find((item) => item.id === id)?.label);
   const overview = result.templateVariant === "overview";
   const guided = result.templateVariant === "guided";
@@ -116,6 +120,10 @@ export default function Worksheet({
                       cards={cards.filter(
                         (card) => card.mechanismId === m.mechanismId,
                       )}
+                      notes={notes.filter(
+                        (note) => note.mechanismId === m.mechanismId,
+                      )}
+                      onNotes={onNotes}
                       mechanicId={m.mechanismId}
                       onCards={onCards}
                       t={t}
@@ -129,11 +137,13 @@ export default function Worksheet({
       })}
       {!overview &&
         !result.mechanisms.length &&
-        (onCards || cards.length > 0) && (
+        (onCards || onNotes || cards.length > 0 || notes.length > 0) && (
           <section>
             <h2>{t("Eigene Spielkarten")}</h2>
             <WorksheetCards
               cards={cards}
+              notes={notes}
+              onNotes={onNotes}
               mechanicId={null}
               onCards={onCards}
               t={t}
@@ -177,6 +187,14 @@ export default function Worksheet({
           )}
           <p>{t(blocks.closing)}</p>
         </section>
+      )}
+      {!overview && (
+        <Reflections
+          items={result.reflections || []}
+          title={result.title}
+          onChange={onReflections}
+          t={t}
+        />
       )}
       <p className="provenance">
         {t(

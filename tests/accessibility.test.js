@@ -562,7 +562,9 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getAllByRole("button", { name: /Karte hinzufügen/ })[0],
     );
     await user.type(screen.getByLabelText("Kartentitel"), "Quellenkarte");
-    await user.click(screen.getByRole("button", { name: /Notiz hinzufügen/ }));
+    await user.click(
+      screen.getByRole("button", { name: /^\+ Notiz hinzufügen$/ }),
+    );
     await user.type(screen.getByLabelText("Notiz 1"), "Notiztext");
     const answerField = (
       await within(screen.getByRole("article")).findAllByRole("textbox", {
@@ -606,6 +608,60 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .getAllByRole("textbox", { name: "Kartentext" })[0]
         .querySelector("strong"),
     );
+    await user.click(screen.getByRole("button", { name: "Aufzählung" }));
+    assert.ok(
+      screen
+        .getByRole("textbox", { name: "Kartentext" })
+        .querySelector("ul li"),
+    );
+    await user.click(screen.getByRole("button", { name: "Rückgängig" }));
+    assert.equal(
+      screen.getByRole("textbox", { name: "Kartentext" }).querySelector("ul"),
+      null,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fertig", exact: true }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Notiz nach dieser Karte hinzufügen",
+      }),
+    );
+    const freeNote = await screen.findByRole("textbox", {
+      name: "Notiz",
+      exact: true,
+    });
+    await user.click(freeNote);
+    await user.paste("Notiz nach der Karte");
+    await user.click(
+      screen.getByRole("button", { name: "Fertig", exact: true }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Ergebnisblatt hinzufügen/ }),
+    );
+    await user.type(screen.getByLabelText("Gruppe oder Probelauf"), "Gruppe A");
+    await user.type(screen.getByLabelText("Sterne"), "Rollenwechsel");
+    await user.click(
+      screen.getByRole("button", { name: "Ergebnisblatt drucken" }),
+    );
+    assert.equal(document.documentElement.dataset.print, "reflection");
+    window.dispatchEvent(new window.Event("afterprint"));
+    await openSheets();
+    await user.click(screen.getByRole("button", { name: "Original anzeigen" }));
+    assert.ok(screen.getByText("Original vor der ersten Bearbeitung"));
+    assert.equal(document.querySelector(".writing-card"), null);
+    assert.equal(document.querySelector(".reflection-sheet"), null);
+    await user.click(
+      screen.getByRole("button", { name: "Zurück zur Bearbeitung" }),
+    );
+    const completeSheet = JSON.parse(localStorage.getItem(key)).worksheets[0];
+    assert.deepEqual(completeSheet.original, {});
+    assert.match(
+      JSON.stringify(completeSheet.result.notes),
+      /Notiz nach der Karte/,
+    );
+    assert.equal(completeSheet.result.reflections[0].stars, "Rollenwechsel");
+    await audit("worksheet with playtest report and an original version");
     const firstProject = localStorage.getItem("7rizons:active-project");
     const projectTrigger = screen.getByText("Projekte", {
       selector: "summary",

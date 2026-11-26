@@ -214,3 +214,37 @@
     break-inside: avoid-page;
   }
 }
+
+@media print {
+  html[data-print="reflection"]
+    main
+    > .worksheet
+    > :not(.worksheet-reflections),
+  html[data-print="reflection"]
+    main
+    > .worksheet
+    .reflection-sheet:not([data-print-selected]) {
+    display: none !important;
+  }
+  html[data-print="reflection"] main > .worksheet .reflection-print-title {
+    display: block;
+  }
+  html[data-print="reflection"] main > .worksheet .worksheet-reflections,
+  html[data-print="reflection"] main > .worksheet .reflection-sheet {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  main > .worksheet .reflection-sheet h3 {
+    font-size: 15pt;
+    margin: 0 0 4mm;
+  }
+  main > .worksheet .reflection-fields > div {
+    break-inside: avoid-page;
+  }
+  main > .worksheet .worksheet-free-note {
+    margin-block: 2mm;
+    padding: 2mm 3mm;
+    break-inside: avoid-page;
+  }
+}

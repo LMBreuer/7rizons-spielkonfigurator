@@ -5,12 +5,19 @@ import { EditorView } from "prosemirror-view";
 import { baseKeymap, toggleMark } from "prosemirror-commands";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
+import {
+  addListNodes,
+  wrapInList,
+  liftListItem,
+  splitListItem,
+} from "prosemirror-schema-list";
 import { validCardText } from "../supabase/functions/_shared/card-text.js";
 
-const schema = new Schema({
+const baseSchema = new Schema({
   nodes: {
     doc: { content: "paragraph+" },
     paragraph: {
+      group: "block",
       content: "text*",
       parseDOM: [{ tag: "p" }],
       toDOM: () => ["p", 0],
@@ -25,6 +32,45 @@ const schema = new Schema({
     em: { parseDOM: [{ tag: "em" }, { tag: "i" }], toDOM: () => ["em", 0] },
   },
 });
+const schema = new Schema({
+  nodes: addListNodes(
+    baseSchema.spec.nodes.update("doc", { content: "block+" }),
+    "paragraph block*",
+    "block",
+  ),
+  marks: baseSchema.spec.marks,
+});
+
+function enclosingListName(state) {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const name = $from.node(depth).type.name;
+    if (name === "bullet_list" || name === "ordered_list")
+      return { name, position: $from.before(depth) };
+  }
+  return null;
+}
+
+function toggleList(type) {
+  return (state, dispatch) => {
+    const list = enclosingListName(state);
+    if (!list) return wrapInList(schema.nodes[type])(state, dispatch);
+    if (list.name === type)
+      return liftListItem(schema.nodes.list_item)(state, dispatch);
+    if (dispatch)
+      dispatch(state.tr.setNodeMarkup(list.position, schema.nodes[type]));
+    return true;
+  };
+}
+
+const commands = [
+  ["strong", "Fett", toggleMark(schema.marks.strong)],
+  ["em", "Kursiv", toggleMark(schema.marks.em)],
+  ["bullet_list", "Aufzählung", toggleList("bullet_list")],
+  ["ordered_list", "Nummerierte Liste", toggleList("ordered_list")],
+  ["undo", "Rückgängig", undo],
+  ["redo", "Wiederholen", redo],
+];
 export default function CardEditor({
   value,
   onChange,
@@ -36,7 +82,11 @@ export default function CardEditor({
     view = useRef(null),
     callback = useRef(onChange);
   callback.current = onChange;
-  const [active, setActive] = useState([]);
+  const [toolbar, setToolbar] = useState({
+    active: [],
+    undo: false,
+    redo: false,
+  });
   useLayoutEffect(() => {
     const doc =
       typeof value === "string"
@@ -61,6 +111,7 @@ export default function CardEditor({
         plugins: [
           history(),
           keymap({
+            Enter: splitListItem(schema.nodes.list_item),
             "Mod-b": toggleMark(schema.marks.strong),
             "Mod-i": toggleMark(schema.marks.em),
             "Mod-z": undo,
@@ -78,15 +129,18 @@ export default function CardEditor({
         const state = this.state.apply(tr);
         this.updateState(state);
         const sel = state.selection;
-        setActive(
-          Object.values(schema.marks)
-            .filter((mark) =>
-              sel.empty
-                ? mark.isInSet(state.storedMarks || sel.$from.marks())
-                : state.doc.rangeHasMark(sel.from, sel.to, mark),
-            )
-            .map((mark) => mark.name),
-        );
+        const marks = Object.values(schema.marks)
+          .filter((mark) =>
+            sel.empty
+              ? mark.isInSet(state.storedMarks || sel.$from.marks())
+              : state.doc.rangeHasMark(sel.from, sel.to, mark),
+          )
+          .map((mark) => mark.name);
+        setToolbar({
+          active: [...marks, enclosingListName(state)?.name],
+          undo: undo(state),
+          redo: redo(state),
+        });
         if (tr.docChanged && state.doc !== tr.before)
           callback.current(state.doc.textContent ? state.doc.toJSON() : "");
       },
@@ -98,24 +152,29 @@ export default function CardEditor({
   return (
     <section className="card-editor no-print">
       <div role="group" aria-label={t("Textformatierung")}>
-        {[
-          ["strong", "Fett"],
-          ["em", "Kursiv"],
-        ].map(([mark, name]) => (
-          <button
-            key={mark}
-            type="button"
-            aria-pressed={active.includes(mark)}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              const editor = view.current;
-              toggleMark(schema.marks[mark])(editor.state, editor.dispatch);
-              editor.focus();
-            }}
-          >
-            {React.createElement(mark, null, t(name))}
-          </button>
-        ))}
+        {commands.map(([key, label, command]) => {
+          const historyAction = key === "undo" || key === "redo";
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={
+                historyAction ? undefined : toolbar.active.includes(key)
+              }
+              disabled={historyAction && !toolbar[key]}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const editor = view.current;
+                command(editor.state, editor.dispatch);
+                editor.focus();
+              }}
+            >
+              {key === "strong" || key === "em"
+                ? React.createElement(key, null, t(label))
+                : t(label)}
+            </button>
+          );
+        })}
       </div>
       <section ref={host} />
     </section>

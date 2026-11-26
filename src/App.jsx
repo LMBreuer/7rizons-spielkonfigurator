@@ -1,4 +1,7 @@
-import { worksheetCards } from "../supabase/functions/_shared/card-text.js";
+import {
+  worksheetCards,
+  worksheetEdits,
+} from "../supabase/functions/_shared/card-text.js";
 import { printWorksheet } from "./WorksheetCards.jsx";
 import ContentLibrary from "./ContentLibrary.jsx";
 import Members, { WorkshopRoster } from "./Members.jsx";
@@ -36,6 +39,7 @@ import {
   templateResult,
   markdown,
   readSnapshot,
+  originalWorksheetResult,
   createWorksheet,
 } from "../supabase/functions/_shared/domain.js";
 import { trackInputMethod } from "./focus.js";
@@ -244,9 +248,15 @@ export default function App() {
   );
   const [request, setRequest] = useState(saved.pendingRequest || null);
   const [editingId, setEditingId] = useState(null);
+  const [originalId, setOriginalId] = useState(null);
   const activeWorksheet =
     worksheets.find((w) => w.id === activeWorksheetId) || null;
   const result = activeWorksheet?.result || null;
+  const showingOriginal =
+    originalId === activeWorksheetId && Boolean(activeWorksheet?.original);
+  const visibleResult = showingOriginal
+    ? originalWorksheetResult(activeWorksheet)
+    : result;
   const source = activeWorksheet?.source || null;
   const resultSettings = activeWorksheet?.resultSettings || DEFAULT_SETTINGS;
   const resultDraft = activeWorksheet?.draft || draft;
@@ -442,7 +452,13 @@ export default function App() {
   useEffect(() => {
     const old = lastView.current;
     const changed = old.page !== page || old.step !== step;
-    lastView.current = { page, step, activeWorksheetId, preview };
+    lastView.current = {
+      page,
+      step,
+      activeWorksheetId,
+      preview,
+      showingOriginal,
+    };
     let heading;
     if (changed)
       heading = mainRef.current?.querySelector(
@@ -450,14 +466,15 @@ export default function App() {
       );
     else if (
       (activeWorksheetId && activeWorksheetId !== old.activeWorksheetId) ||
-      (preview && preview !== old.preview)
+      (preview && preview !== old.preview) ||
+      showingOriginal !== (old.showingOriginal || false)
     )
       heading = mainRef.current?.querySelector(".worksheet h1");
     if (heading) {
       heading.tabIndex = -1;
       heading.focus();
     }
-  }, [page, step, activeWorksheetId, preview]);
+  }, [page, step, activeWorksheetId, preview, showingOriginal]);
   useEffect(() => {
     document.documentElement.lang = language;
     document.title =
@@ -779,12 +796,17 @@ export default function App() {
   const canEditWorksheet =
     result &&
     result.templateVariant !== "overview" &&
+    !showingOriginal &&
     (!selfStudy || editingId === activeWorksheetId);
   function updateWorksheetResult(update) {
     setWorksheets((items) =>
       items.map((sheet) =>
         sheet.id === activeWorksheetId
-          ? { ...sheet, result: update(sheet.result) }
+          ? {
+              ...sheet,
+              original: sheet.original ?? worksheetEdits(sheet.result),
+              result: update(sheet.result),
+            }
           : sheet,
       ),
     );
@@ -942,6 +964,7 @@ export default function App() {
     setImportCopy(metadata.copy);
     setProjects(listProjects());
     setEditingId(null);
+    setOriginalId(null);
     setImportText("");
     setAnswerError("");
     setApiKey("");
@@ -1816,6 +1839,7 @@ export default function App() {
                                       sheetMenu.current.open = false;
                                       setBuildingSheet(false);
                                       setActiveWorksheetId(w.id);
+                                      setOriginalId(null);
                                       setPreview(null);
                                     }}
                                   >
@@ -1863,6 +1887,19 @@ export default function App() {
                                 </div>
                               ))}
                             </div>
+                            {activeWorksheet?.original && !showingOriginal && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOriginalId(activeWorksheetId);
+                                  setBuildingSheet(false);
+                                  setPreview(null);
+                                  sheetMenu.current.open = false;
+                                }}
+                              >
+                                {t("Original anzeigen")}
+                              </button>
+                            )}
                           </div>
                         </details>
                         <button
@@ -1884,6 +1921,7 @@ export default function App() {
                         </button>
                         {selfStudy &&
                           !buildingSheet &&
+                          !showingOriginal &&
                           result.templateVariant !== "overview" && (
                             <Button
                               secondary
@@ -1908,10 +1946,10 @@ export default function App() {
                         {result &&
                           !buildingSheet &&
                           !preview &&
-                          worksheetCards(result).length > 0 && (
+                          worksheetCards(visibleResult).length > 0 && (
                             <Button
                               secondary
-                              onClick={() => printWorksheet(true)}
+                              onClick={() => printWorksheet("cards")}
                             >
                               {t("Karten drucken")}
                             </Button>
@@ -1925,7 +1963,7 @@ export default function App() {
                               <button
                                 onClick={() =>
                                   download(
-                                    markdown(resultDraft, result),
+                                    markdown(resultDraft, visibleResult),
                                     "7rizons-arbeitsblatt.md",
                                     "text/markdown",
                                   )
@@ -2350,20 +2388,61 @@ export default function App() {
                   </div>
                 )}
                 <>
+                  {showingOriginal && (
+                    <div className="notice original-notice no-print">
+                      <strong>
+                        {t("Original vor der ersten Bearbeitung")}
+                      </strong>
+                      <Button secondary onClick={() => setOriginalId(null)}>
+                        {t("Zurück zur Bearbeitung")}
+                      </Button>
+                    </div>
+                  )}
                   <Worksheet
-                    key={activeWorksheetId}
+                    key={
+                      activeWorksheetId + (showingOriginal ? "-original" : "")
+                    }
                     onCards={
                       canEditWorksheet
                         ? (update) =>
                             updateWorksheetResult((previous) => {
                               const { playtest } = previous.answers || {};
+                              const cards = update(worksheetCards(previous));
+                              const ids = new Set(cards.map((card) => card.id));
                               return {
                                 ...previous,
-                                cards: update(worksheetCards(previous)),
+                                cards,
+                                ...(previous.notes
+                                  ? {
+                                      notes: previous.notes.map((note) =>
+                                        note.after && !ids.has(note.after)
+                                          ? { ...note, after: undefined }
+                                          : note,
+                                      ),
+                                    }
+                                  : {}),
                                 answers:
                                   playtest !== undefined ? { playtest } : {},
                               };
                             })
+                        : undefined
+                    }
+                    onNotes={
+                      canEditWorksheet
+                        ? (update) =>
+                            updateWorksheetResult((previous) => ({
+                              ...previous,
+                              notes: update(previous.notes || []),
+                            }))
+                        : undefined
+                    }
+                    onReflections={
+                      canEditWorksheet
+                        ? (update) =>
+                            updateWorksheetResult((previous) => ({
+                              ...previous,
+                              reflections: update(previous.reflections || []),
+                            }))
                         : undefined
                     }
                     onAnswer={
@@ -2376,10 +2455,10 @@ export default function App() {
                         : undefined
                     }
                     draft={resultDraft}
-                    result={result}
+                    result={visibleResult}
                     source={source}
                   />
-                  {cloud && (
+                  {cloud && !showingOriginal && (
                     <div className="worksheet-save no-print">
                       <p>
                         {t(
@@ -2398,12 +2477,12 @@ export default function App() {
                       {error && <small>{t(error)}</small>}
                     </div>
                   )}
-                  {session && isCurrent && (
+                  {session && isCurrent && !showingOriginal && (
                     <Card className="no-print">
                       <h2>{t("Mit der Workshopmoderation teilen")}</h2>
                       <p>
                         {t(
-                          "Mit der Abgabe erhält die Moderation eine Kopie des gewählten Arbeitsblatts samt Kontextangaben. Eine Projektzuordnung zeigt nur Titel und Änderungsdatum.",
+                          "Mit der Abgabe erhält die Moderation das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern. Eine Projektzuordnung zeigt nur Titel und Änderungsdatum.",
                         )}
                       </p>
                       <WorkshopJoin
@@ -3095,7 +3174,10 @@ export default function App() {
                     )}
                     {activeSharedSheet &&
                       worksheetCards(activeSharedSheet.result).length > 0 && (
-                        <Button secondary onClick={() => printWorksheet(true)}>
+                        <Button
+                          secondary
+                          onClick={() => printWorksheet("cards")}
+                        >
                           {t("Karten drucken")}
                         </Button>
                       )}

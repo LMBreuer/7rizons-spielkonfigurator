@@ -12,6 +12,8 @@ import {
   validateDraft,
   settingsOf,
   readSnapshot,
+  originalWorksheetResult,
+  createWorksheet,
 } from "../supabase/functions/_shared/domain.js";
 import {
   providerRequest,
@@ -58,6 +60,7 @@ test("prompt includes full mechanic context but omits personal organisational da
   const p = makePrompt(requestFor(draft()));
   assert.match(p, /Perspektivrollen/);
   assert.match(p, /Stadt und Hof/);
+  assert.match(p, /Einstiegskarten.*kurzen Probelauf.*Fachmaterial mit „Optional:“/);
   assert.doesNotMatch(p, /VERTRAULICHER NAME/);
 });
 test("import rejects incomplete, repeated, unknown and stale mechanism results", () => {
@@ -80,10 +83,7 @@ test("AI answers accept nine valid next steps and report actionable list errors"
   const valid = { ...answer(r), nextSteps };
   assert.deepEqual(parseResult(valid, r).nextSteps, nextSteps);
   assert.match(makePrompt(r), /nextSteps.*höchstens 20 Einträge/);
-  assert.match(
-    makePrompt({ ...r, language: "en" }),
-    /nextSteps.*at most 20 entries/,
-  );
+  assert.match(makePrompt({ ...r, language: "en" }), /nextSteps.*1–20 entries/);
   assert.throws(
     () => parseResult({ ...valid, nextSteps: [] }, r),
     /mindestens einem nächsten Schritt/,
@@ -371,6 +371,89 @@ test("formatted cards restore and export bold, italic and paragraphs", () => {
   );
   answer.content[0].content[0].marks[0].type = "unknown";
   assert.throws(() => readSnapshot(snapshot), /Arbeitsblattantworten/);
+});
+
+test("worksheet backup, rich standalone notes and playtest reports round-trip", () => {
+  const d = draft();
+  const result = templateResult(d, undefined, "guided");
+  const sheet = createWorksheet({
+    draft: d,
+    result,
+    source: { kind: "template" },
+  });
+  const mechanismId = result.mechanisms[0].mechanismId;
+  const text = {
+    type: "doc",
+    content: [
+      {
+        type: "ordered_list",
+        attrs: { order: 3 },
+        content: [
+          {
+            type: "list_item",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Erste Beobachtung" }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const cards = [
+    {
+      id: crypto.randomUUID(),
+      mechanismId,
+      title: "Testkarte",
+      text,
+      color: "#2a6fb4",
+      notes: [],
+    },
+  ];
+  const notes = [
+    {
+      id: crypto.randomUUID(),
+      mechanismId,
+      after: cards[0].id,
+      text: "Freie Notiz",
+    },
+  ];
+  const reflections = [
+    {
+      id: crypto.randomUUID(),
+      title: "Gruppe A",
+      stars: "Rollenwechsel",
+      wishes: "Mehr Zeit",
+      learning: "Andere Deutung",
+      next: "Karte kürzen",
+    },
+  ];
+  const snapshot = {
+    draft: d,
+    worksheets: [
+      {
+        ...sheet,
+        original: {},
+        result: { ...sheet.result, cards, notes, reflections },
+      },
+    ],
+  };
+  const restored = readSnapshot(JSON.parse(JSON.stringify(snapshot)))
+    .worksheets[0];
+  assert.deepEqual(restored.result.cards, cards);
+  assert.deepEqual(restored.result.notes, notes);
+  assert.deepEqual(restored.result.reflections, reflections);
+  assert.equal(originalWorksheetResult(restored).cards, undefined);
+  assert.equal(originalWorksheetResult(restored).title, result.title);
+  const md = markdown(d, restored.result);
+  assert.match(
+    md,
+    /3\. Erste Beobachtung[\s\S]*Freie Notiz[\s\S]*Gruppe A[\s\S]*Karte kürzen/,
+  );
+  notes[0].after = crypto.randomUUID();
+  assert.throws(() => readSnapshot(snapshot), /Ungültige freie Notizen/);
 });
 
 test("published content travels with a project, its worksheet responses and English output", () => {
