@@ -1035,5 +1035,12 @@
   "Ergebnisblatt löschen": "Delete playtest report",
   "Ergebnisblatt zum Probelauf": "Playtest report",
   "Mit der Abgabe erhält die Moderation das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern. Eine Projektzuordnung zeigt nur Titel und Änderungsdatum.": "Submitting shares the selected worksheet, its context, notes and playtest reports with workshop facilitators. Linking a project shows only its title and last modified date.",
-  "Wenn Sie ein Projekt einem Workshop zuordnen, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern.": "When you link a project to a workshop, its facilitators see the title and last modified date. A submission shares the selected worksheet, its context, notes and playtest reports."
+  "Wenn Sie ein Projekt einem Workshop zuordnen, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern.": "When you link a project to a workshop, its facilitators see the title and last modified date. A submission shares the selected worksheet, its context, notes and playtest reports.",
+  "Projekt und Schritte": "Project and steps",
+  "Oberfläche": "Interface",
+  "Layout des Konfigurators": "Configurator layout",
+  "Neue Ansicht": "New layout",
+  "Klassische Ansicht": "Classic layout",
+  "Notiz zur Karte": "Note for this card",
+  "Notiz danach": "Note after this card"
 }

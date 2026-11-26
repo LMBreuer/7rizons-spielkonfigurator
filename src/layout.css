@@ -1,0 +1,337 @@
+@media screen {
+  .layout-setting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .layout-setting h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .layout-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+  }
+  .layout-picker button {
+    min-height: 40px;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .layout-picker button[aria-pressed="true"] {
+    background: var(--blue-light);
+    color: var(--blue);
+    border-color: var(--blue);
+    font-weight: 700;
+  }
+
+  .configurator-layout {
+    display: grid;
+    min-width: 0;
+    gap: 0.65rem;
+    align-items: start;
+  }
+  .configurator-work {
+    min-width: 0;
+  }
+  .configurator-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: center;
+    min-width: 0;
+  }
+  .configurator-rail > .project-menu {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+  .configurator-rail .steps,
+  .configurator-rail .mobile-step-jump {
+    grid-area: 1 / 1;
+    margin-bottom: 0;
+  }
+  .configurator-rail .project-menu > summary {
+    min-height: 40px;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.85rem;
+    font-weight: 650;
+  }
+  .configurator-rail .project-menu .menu-body {
+    right: 0;
+    left: auto;
+  }
+
+  .editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0.2rem;
+    border: 1px solid var(--line);
+    border-radius: 7px 7px 0 0;
+    background: var(--surface2);
+  }
+  .card-editor .editor-toolbar button {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    min-height: 32px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--muted);
+    background: transparent;
+  }
+  .card-editor .editor-toolbar button:not(:disabled):hover {
+    color: var(--blue);
+    background: var(--surface);
+  }
+  .card-editor .editor-toolbar button[aria-pressed="true"] {
+    border-color: var(--blue);
+    background: var(--blue-light);
+    color: var(--blue);
+  }
+  .editor-toolbar button:nth-child(3),
+  .editor-toolbar button:nth-child(5) {
+    margin-inline-start: 0.15rem;
+  }
+  .card-editor .ProseMirror {
+    border-top: 0;
+    border-radius: 0 0 7px 7px;
+  }
+  :root[data-input="keyboard"] .card-editor .ProseMirror:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+
+  :root[data-layout="modern"] {
+    --navigation-glow: color-mix(in srgb, #61bde4 19%, transparent);
+    --page-glow: color-mix(in srgb, var(--purple) 12%, transparent);
+    --navigation-surface: color-mix(in srgb, var(--surface) 83%, transparent);
+    --navigation-shadow: 4px 6px 17px
+      color-mix(in srgb, var(--line) 75%, transparent);
+    --document-shadow: 2px 5px 16px
+      color-mix(in srgb, var(--line) 54%, transparent);
+  }
+  :root[data-layout="modern"][data-theme="dark"] {
+    --navigation-glow: color-mix(in srgb, #2a6fb4 30%, transparent);
+    --page-glow: color-mix(in srgb, #7f598b 14%, transparent);
+    --navigation-shadow: 4px 6px 18px #0004;
+    --document-shadow: 2px 5px 18px #0003;
+  }
+  :root[data-layout="modern"][data-theme="contrast"] {
+    --navigation-glow: transparent;
+    --page-glow: transparent;
+    --navigation-surface: var(--surface);
+    --navigation-shadow: none;
+    --document-shadow: none;
+  }
+  :root[data-layout="modern"] body {
+    min-height: 100vh;
+    background:
+      radial-gradient(
+        ellipse 34rem 26rem at top left,
+        var(--navigation-glow),
+        transparent
+      ),
+      radial-gradient(
+        ellipse 39rem 28rem at top right,
+        var(--page-glow),
+        transparent
+      ),
+      var(--bg);
+  }
+  :root[data-layout="modern"] .topbar {
+    background: var(--navigation-surface);
+    backdrop-filter: blur(14px);
+  }
+  :root[data-layout="modern"] .topbar:has(.preferences-menu[open]) {
+    position: relative;
+    z-index: 8;
+  }
+  :root[data-layout="modern"] .configurator-rail {
+    padding: 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--navigation-surface);
+    box-shadow: var(--navigation-shadow);
+    backdrop-filter: blur(14px);
+  }
+  /* Menus must stack above the document without being clipped by the glass surface. */
+  :root[data-layout="modern"] .configurator-rail:has(.project-menu[open]) {
+    z-index: 6;
+  }
+  :root[data-layout="modern"] .configurator-rail .project-menu summary {
+    background: var(--surface);
+  }
+  :root[data-layout="modern"] .panel,
+  :root[data-layout="modern"] .worksheet {
+    border-radius: 16px;
+    box-shadow: var(--document-shadow);
+  }
+  :root[data-layout="modern"] .worksheet {
+    margin: 0.75rem 0 1.1rem;
+    max-width: none;
+    padding: clamp(17px, 3.2vw, 36px);
+  }
+  :root[data-layout="modern"] .has-worksheet .project-identity {
+    display: none;
+  }
+  :root[data-layout="modern"] .has-worksheet .project-head {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0;
+    margin-bottom: 0.15rem;
+  }
+  :root[data-layout="modern"] .has-worksheet .project-head:not(:has(button)) {
+    display: none;
+  }
+  :root[data-layout="modern"] .worksheet .writing-card,
+  :root[data-layout="classic"] .worksheet .writing-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+  }
+  .worksheet .writing-card h4::before {
+    content: "";
+    display: inline-block;
+    vertical-align: 0.13em;
+    width: 0.5em;
+    height: 0.5em;
+    margin-inline-end: 0.55em;
+    border-radius: 50%;
+    background: var(--card-color);
+  }
+  :root[data-layout="modern"] .worksheet-free-note,
+  :root[data-layout="classic"] .worksheet-free-note {
+    padding: 0.3rem 0 0.3rem 0.8rem;
+    border-left: 2px solid var(--purple);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  :root[data-layout="classic"] .configurator-work {
+    display: contents;
+  }
+  :root[data-layout="classic"] .project-head {
+    grid-row: 1;
+    padding-block: 0.35rem;
+  }
+  :root[data-layout="classic"] .configurator-rail {
+    grid-row: 2;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.25rem;
+  }
+  :root[data-layout="classic"] .panel {
+    border-radius: 12px;
+    box-shadow: none;
+  }
+  :root[data-layout="classic"] .steps button {
+    border-radius: 8px;
+  }
+  :root[data-layout="classic"] .project-head .project-meta {
+    margin-top: 0.25rem;
+  }
+  :root[data-layout="classic"] .worksheet {
+    margin-block: 0.6rem 0.85rem;
+  }
+}
+
+@media screen and (min-width: 850px) {
+  :root[data-layout="modern"] .configurator-layout {
+    grid-template-columns: clamp(10.6rem, 17vw, 12.3rem) minmax(0, 1fr);
+    gap: clamp(1rem, 2.5vw, 1.7rem);
+  }
+  :root[data-layout="modern"] .configurator-rail {
+    position: sticky;
+    top: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.45rem;
+  }
+  :root[data-layout="modern"] .configurator-rail > .project-menu,
+  :root[data-layout="modern"] .configurator-rail .steps {
+    grid-area: auto;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  :root[data-layout="modern"] .configurator-rail > .project-menu {
+    width: 100%;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.4rem;
+  }
+  :root[data-layout="modern"] .configurator-rail .project-menu summary {
+    background: transparent;
+    justify-content: space-between;
+    width: 100%;
+    border: 0;
+  }
+  :root[data-layout="modern"] .configurator-rail .project-menu .menu-body {
+    left: 0;
+    right: auto;
+  }
+  :root[data-layout="modern"] .configurator-rail .steps {
+    display: grid;
+    overflow: visible;
+    gap: 0.15rem;
+    padding: 0;
+    margin: 0;
+  }
+  :root[data-layout="modern"] .steps button {
+    justify-content: start;
+    white-space: normal;
+    padding: 0.55rem 0.6rem;
+    border-radius: 7px;
+    text-align: left;
+    line-height: 1.25;
+  }
+  :root[data-layout="modern"] .steps button > span {
+    border: 0;
+    width: 1.1rem;
+    height: auto;
+    flex: 0 0 1.1rem;
+    background: none;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  :root[data-layout="modern"] .steps button.active {
+    font-weight: 720;
+    box-shadow: inset 0 2px 3px color-mix(in srgb, var(--line) 55%, transparent);
+  }
+  :root[data-layout="modern"][data-theme="contrast"] .steps button.active {
+    box-shadow: none;
+  }
+}
+@media screen and (max-width: 640px) {
+  .configurator-rail .mobile-step-jump select {
+    min-height: 44px;
+  }
+  .configurator-rail .project-menu > summary {
+    min-height: 44px;
+  }
+  .configurator-rail .project-menu .menu-body {
+    max-width: calc(100vw - 3.4rem);
+  }
+  .card-editor .editor-toolbar button {
+    width: 34px;
+    min-height: 44px;
+  }
+}
+@media screen and (forced-colors: active) {
+  :root[data-layout="modern"] body {
+    background: Canvas;
+  }
+  :root[data-layout="modern"] .configurator-rail {
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+}

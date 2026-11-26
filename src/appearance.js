@@ -7,3 +7,12 @@ export function initialAppearance(storage) {
     return "light";
   }
 }
+
+export const LAYOUT_KEY = "7rizons:layout:v1";
+export function initialLayout(storage) {
+  try {
+    return storage.getItem(LAYOUT_KEY) === "classic" ? "classic" : "modern";
+  } catch {
+    return "modern";
+  }
+}

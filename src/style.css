@@ -1921,22 +1921,6 @@ html[data-input="pointer"] :focus {
   line-height: 1;
   cursor: pointer;
 }
-.worksheet-save {
-  max-width: 54rem;
-  margin: 1rem auto;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem 1rem;
-}
-.worksheet-save p {
-  flex: 1 1 18rem;
-  margin: 0;
-  color: var(--muted);
-}
-.worksheet-save small {
-  flex-basis: 100%;
-}
 .playtest-notes p {
   white-space: pre-wrap;
 }

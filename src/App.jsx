@@ -50,7 +50,12 @@ import ContextField from "./ContextField.jsx";
 import { jsonFilename } from "./downloads.js";
 import Logo from "./Logo.jsx";
 import AppearanceSwitch from "./AppearanceSwitch.jsx";
-import { APPEARANCE_KEY, initialAppearance } from "./appearance.js";
+import {
+  APPEARANCE_KEY,
+  LAYOUT_KEY,
+  initialAppearance,
+  initialLayout,
+} from "./appearance.js";
 const API_KEY_GUIDES = {
   openai: "https://developers.openai.com/api/docs/quickstart",
   anthropic: "https://platform.claude.com/docs/en/get-api-key",
@@ -224,6 +229,20 @@ function HeaderPreferences({ children }) {
 function Card({ children, className = "" }) {
   return <section className={"panel " + className}>{children}</section>;
 }
+function ConfiguratorLayout({ rail, hasWorksheet, children }) {
+  return (
+    <div
+      className={
+        hasWorksheet
+          ? "configurator-layout has-worksheet"
+          : "configurator-layout"
+      }
+    >
+      {rail}
+      <div className="configurator-work">{children}</div>
+    </div>
+  );
+}
 export default function App() {
   const [language, setLanguage] = useLanguage();
   useEffect(() => trackInputMethod(), []);
@@ -360,6 +379,9 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [layout, setLayout] = useState(() =>
+    initialLayout({ getItem: (key) => localStorage.getItem(key) }),
+  );
   const [theme, setTheme] = useState(() =>
     initialAppearance({ getItem: (key) => localStorage.getItem(key) }),
   );
@@ -431,6 +453,12 @@ export default function App() {
       setBusy(false);
     }
   }
+  useEffect(() => {
+    document.documentElement.dataset.layout = layout;
+    try {
+      localStorage.setItem(LAYOUT_KEY, layout);
+    } catch {}
+  }, [layout]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme =
@@ -1464,26 +1492,12 @@ export default function App() {
           </dialog>
         )}
         {page === "app" && (
-          <>
-            <header className="project-head no-print">
-              <div className="project-identity">
-                <h1>{t("Gestalten Sie 7’rizons für Ihre Lehre.")}</h1>
-                <p>{t("Von der Spielidee zum Seminar")}</p>
-                <div className="project-meta">
-                  {(draft.context.thema || draft.context.name) && (
-                    <p className="project-title">{projectTitle}</p>
-                  )}
-                  {savedLocally && (
-                    <span className="save-status">
-                      {t("Im Browser gespeichert")}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div
-                className="project-heading"
-                role="group"
-                aria-label={t("Projektleiste")}
+          <ConfiguratorLayout
+            hasWorksheet={step === 5 && (preview || (result && !buildingSheet))}
+            rail={
+              <aside
+                className="configurator-rail no-print"
+                aria-label={t("Projekt und Schritte")}
               >
                 <details
                   ref={projectMenu}
@@ -1576,6 +1590,63 @@ export default function App() {
                     />
                   </div>
                 </details>
+                <nav
+                  className="steps no-print"
+                  aria-label={t("Konfigurationsschritte")}
+                >
+                  {steps.map((label, i) => (
+                    <button
+                      key={t(label)}
+                      disabled={busy}
+                      className={step === i + 1 ? "active" : ""}
+                      aria-current={step === i + 1 ? "step" : undefined}
+                      onClick={() => goStep(i + 1)}
+                    >
+                      <span>{i + 1}</span>
+                      {i === 4 && worksheets.length
+                        ? `${t("Arbeitsblätter")} (${worksheets.length})`
+                        : t(label)}
+                    </button>
+                  ))}
+                </nav>
+                <label className="step-jump mobile-step-jump no-print">
+                  <span className="sr-only">
+                    {t("Direkt zu einem Schritt springen ")}
+                  </span>
+                  <select
+                    value={step}
+                    onChange={(e) => goStep(Number(e.target.value))}
+                  >
+                    {steps.map((label, index) => (
+                      <option key={t(label)} value={index + 1}>
+                        {index + 1}/{steps.length} · {t(label)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </aside>
+            }
+          >
+            <header className="project-head no-print">
+              <div className="project-identity">
+                <h1>{t("Gestalten Sie 7’rizons für Ihre Lehre.")}</h1>
+                <p>{t("Von der Spielidee zum Seminar")}</p>
+                <div className="project-meta">
+                  {(draft.context.thema || draft.context.name) && (
+                    <p className="project-title">{projectTitle}</p>
+                  )}
+                  {savedLocally && (
+                    <span className="save-status">
+                      {t("Im Browser gespeichert")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div
+                className="project-heading"
+                role="group"
+                aria-label={t("Projektleiste")}
+              >
                 {cloud && (
                   <>
                     <Button
@@ -1599,44 +1670,6 @@ export default function App() {
                 )}
               </div>
             </header>
-            <nav
-              className="steps no-print"
-              aria-label={t("Konfigurationsschritte")}
-            >
-              {steps.map((label, i) => (
-                <button
-                  key={t(label)}
-                  disabled={busy}
-                  className={step === i + 1 ? "active" : ""}
-                  aria-current={step === i + 1 ? "step" : undefined}
-                  onClick={() => goStep(i + 1)}
-                >
-                  <span>{i + 1}</span>
-                  {i === 4 && worksheets.length
-                    ? `${t("Arbeitsblätter")} (${worksheets.length})`
-                    : t(label)}
-                </button>
-              ))}
-            </nav>
-            <label className="step-jump mobile-step-jump no-print">
-              <span className="sr-only">
-                {t("Direkt zu einem Schritt springen ")}
-              </span>
-              <select
-                value={step}
-                onChange={(e) => goStep(Number(e.target.value))}
-              >
-                {steps.map((label, index) => (
-                  <option key={t(label)} value={index + 1}>
-                    {t("Schritt {0} von {1}", {
-                      0: index + 1,
-                      1: steps.length,
-                    })}{" "}
-                    · {t(label)}
-                  </option>
-                ))}
-              </select>
-            </label>
             <div className="workspace no-print" aria-busy={busy}>
               <fieldset disabled={busy} aria-label={t("Spielkonfiguration")}>
                 {step === 1 && (
@@ -2458,25 +2491,6 @@ export default function App() {
                     result={visibleResult}
                     source={source}
                   />
-                  {cloud && !showingOriginal && (
-                    <div className="worksheet-save no-print">
-                      <p>
-                        {t(
-                          "Ihre Eingaben werden in diesem Browser gesichert. Online gespeicherte Arbeitsblätter finden Sie unter „Konto → Meine Entwürfe“.",
-                        )}
-                      </p>
-                      <Button
-                        disabled={busy}
-                        onClick={() =>
-                          session ? act(saveOnline) : setPage("project-save")
-                        }
-                      >
-                        {t("Online speichern")}
-                      </Button>
-                      {message && <small>{t(message)}</small>}
-                      {error && <small>{t(error)}</small>}
-                    </div>
-                  )}
                   {session && isCurrent && !showingOriginal && (
                     <Card className="no-print">
                       <h2>{t("Mit der Workshopmoderation teilen")}</h2>
@@ -2574,7 +2588,7 @@ export default function App() {
                 </>
               </>
             )}
-          </>
+          </ConfiguratorLayout>
         )}
         {(page === "account" || (projectAction && !session)) && (
           <Card>
@@ -2587,6 +2601,31 @@ export default function App() {
                     ? t("Konto")
                     : t("Anmelden")}
             </h1>
+            {page === "account" && (
+              <div className="layout-setting">
+                <h2>{t("Oberfläche")}</h2>
+                <div
+                  className="layout-picker"
+                  role="group"
+                  aria-label={t("Layout des Konfigurators")}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={layout === "modern"}
+                    onClick={() => setLayout("modern")}
+                  >
+                    {t("Neue Ansicht")}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={layout === "classic"}
+                    onClick={() => setLayout("classic")}
+                  >
+                    {t("Klassische Ansicht")}
+                  </button>
+                </div>
+              </div>
+            )}
             {projectAction === "save" && (
               <p>
                 {t("Melden Sie sich an, um „{0}“ online zu speichern.", {

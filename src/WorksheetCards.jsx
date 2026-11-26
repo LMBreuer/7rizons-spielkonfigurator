@@ -311,7 +311,7 @@ export default function WorksheetCards({
                           );
                         }}
                       >
-                        + {t("Notiz hinzufügen")}
+                        + {t("Notiz zur Karte")}
                       </button>
                     </div>
                     <div className="card-edit-actions">
@@ -379,9 +379,10 @@ export default function WorksheetCards({
                 <button
                   type="button"
                   className="text-button no-print"
+                  aria-label={t("Notiz nach dieser Karte hinzufügen")}
                   onClick={() => addNote(card.id)}
                 >
-                  {t("Notiz nach dieser Karte hinzufügen")}
+                  {t("Notiz danach")}
                 </button>
               )}
             </section>
@@ -406,7 +407,7 @@ export default function WorksheetCards({
             type="button"
             onClick={() => addNote(cards.at(-1)?.id)}
           >
-            + {t("Freie Notiz hinzufügen")}
+            + {t("Notiz hinzufügen")}
           </button>
         )}
       </div>

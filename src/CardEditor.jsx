@@ -71,6 +71,15 @@ const commands = [
   ["undo", "Rückgängig", undo],
   ["redo", "Wiederholen", redo],
 ];
+const toolPaths = {
+  strong: "M7 12h7a4 4 0 0 1 0 8H7V4h6a4 4 0 0 1 0 8",
+  em: "M18 4h-8m4 0-4 16m4 0H6",
+  bullet_list: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
+  ordered_list:
+    "M10 6h10M10 12h10M10 18h10M4 5l1-1v4m-1 0h2m-2 7a2 2 0 0 1 2 0c1 1.5-2 3-2 4h3",
+  undo: "m9 14-5-5 5-5M4 9h10a6 6 0 0 1 0 12h-2",
+  redo: "m15 14 5-5-5-5m5 5H10a6 6 0 0 0 0 12h2",
+};
 export default function CardEditor({
   value,
   onChange,
@@ -151,13 +160,19 @@ export default function CardEditor({
   }, []);
   return (
     <section className="card-editor no-print">
-      <div role="group" aria-label={t("Textformatierung")}>
+      <div
+        className="editor-toolbar"
+        role="group"
+        aria-label={t("Textformatierung")}
+      >
         {commands.map(([key, label, command]) => {
           const historyAction = key === "undo" || key === "redo";
           return (
             <button
               key={key}
               type="button"
+              aria-label={t(label)}
+              title={t(label)}
               aria-pressed={
                 historyAction ? undefined : toolbar.active.includes(key)
               }
@@ -169,9 +184,19 @@ export default function CardEditor({
                 editor.focus();
               }}
             >
-              {key === "strong" || key === "em"
-                ? React.createElement(key, null, t(label))
-                : t(label)}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d={toolPaths[key]} />
+              </svg>
             </button>
           );
         })}

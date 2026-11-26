@@ -8,7 +8,12 @@ import { semesterOptions } from "../supabase/functions/_shared/fields.js";
 import { JSDOM } from "jsdom";
 import { build } from "esbuild";
 import { PNG } from "pngjs";
-import { initialAppearance, APPEARANCE_KEY } from "../src/appearance.js";
+import {
+  initialAppearance,
+  APPEARANCE_KEY,
+  initialLayout,
+  LAYOUT_KEY,
+} from "../src/appearance.js";
 
 test("light is default, only an explicit new appearance preference is restored", () => {
   assert.equal(initialAppearance({ getItem: () => null }), "light");
@@ -28,6 +33,15 @@ test("light is default, only an explicit new appearance preference is restored",
       }),
       theme,
     );
+});
+test("the new layout is default and the saved classic layout restores", () => {
+  assert.equal(initialLayout({ getItem: () => null }), "modern");
+  assert.equal(
+    initialLayout({
+      getItem: (key) => (key === LAYOUT_KEY ? "classic" : null),
+    }),
+    "classic",
+  );
 });
 test("original logo has alpha transparency and favicon embeds the unchanged source symbol", async () => {
   const bytes = await readFile(
@@ -116,6 +130,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
   const stylesheet = dom.window.document.createElement("style");
   stylesheet.textContent = await readFile(
     new URL("../src/style.css", import.meta.url),
+    "utf8",
+  );
+  stylesheet.textContent += await readFile(
+    new URL("../src/layout.css", import.meta.url),
     "utf8",
   );
   dom.window.document.head.append(stylesheet);
@@ -481,7 +499,17 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("button", { name: "Administrationszugang" }),
     );
     assert.equal(screen.getByLabelText("Passwort").type, "password");
+    const layout = within(
+      screen.getByRole("group", { name: "Layout des Konfigurators" }),
+    );
+    await user.click(
+      layout.getByRole("button", { name: "Klassische Ansicht" }),
+    );
+    assert.equal(document.documentElement.dataset.layout, "classic");
+    assert.equal(localStorage.getItem(LAYOUT_KEY), "classic");
     await audit("account");
+    await user.click(layout.getByRole("button", { name: "Neue Ansicht" }));
+    assert.equal(document.documentElement.dataset.layout, "modern");
     const about = within(screen.getByRole("contentinfo")).getByRole("link", {
       name: "Über das Tool",
     });
@@ -563,7 +591,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     await user.type(screen.getByLabelText("Kartentitel"), "Quellenkarte");
     await user.click(
-      screen.getByRole("button", { name: /^\+ Notiz hinzufügen$/ }),
+      screen.getByRole("button", { name: /^\+ Notiz zur Karte$/ }),
     );
     await user.type(screen.getByLabelText("Notiz 1"), "Notiztext");
     const answerField = (
