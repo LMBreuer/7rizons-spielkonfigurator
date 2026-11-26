@@ -3,6 +3,11 @@ import {
   worksheetEdits,
 } from "../supabase/functions/_shared/card-text.js";
 import { printWorksheet } from "./WorksheetCards.jsx";
+import CardPrintEditor from "./CardPrintEditor.jsx";
+import {
+  readCardPrint,
+  savedCardPrint,
+} from "../supabase/functions/_shared/card-print.js";
 import ContentLibrary from "./ContentLibrary.jsx";
 import Members, { WorkshopRoster } from "./Members.jsx";
 import {
@@ -230,11 +235,11 @@ function WorkspaceLayout({ heading, rail, children, className = "" }) {
     </>
   );
 }
-function printFromMenu(event, mode) {
+function runPrintMenuAction(event, action) {
   const menu = event.currentTarget.closest("details");
   menu.open = false;
   menu.querySelector("summary").focus();
-  printWorksheet(mode);
+  action();
 }
 function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
   const intro = (
@@ -291,6 +296,10 @@ export default function App() {
     "selbststudium";
   const { LE, MK } = catalogFor(draft);
   const [published, setPublished] = useState(null);
+  const [cardPrint, setCardPrint] = useState(() =>
+    readCardPrint(saved.cardPrint),
+  );
+  const [cardPrintOpen, setCardPrintOpen] = useState(false);
   const [worksheets, setWorksheets] = useState(saved.worksheets || []);
   const [activeWorksheetId, setActiveWorksheetId] = useState(
     saved.activeWorksheetId,
@@ -461,8 +470,10 @@ export default function App() {
   };
   const [submissionConsent, setSubmissionConsent] = useState(false);
   const isCurrent = result?.configurationRevision === draft.revision;
+  const storedCardPrint = savedCardPrint(cardPrint);
   const payload = () => ({
     draft,
+    ...(storedCardPrint ? { cardPrint: storedCardPrint } : {}),
     ...(exchange ? { exchange, exchangeBase, importCopy } : {}),
     result: isCurrent ? result : null,
     request: isCurrent ? activeWorksheet?.request : null,
@@ -575,6 +586,7 @@ export default function App() {
     exchange,
     exchangeBase,
     importCopy,
+    cardPrint,
     worksheets,
     activeWorksheetId,
     request,
@@ -1035,6 +1047,8 @@ export default function App() {
     setMode("template");
     setWithInstructions(true);
     setDraft(x.draft);
+    setCardPrint(readCardPrint(x.cardPrint));
+    setCardPrintOpen(false);
     setLanguage(x.draft.language || "de");
     setWorksheets(x.worksheets);
     setActiveWorksheetId(x.activeWorksheetId);
@@ -1366,6 +1380,14 @@ export default function App() {
     </>
   );
   const hasWorksheet = step === 5 && result && !buildingSheet && !preview;
+  const activeCards = hasWorksheet ? worksheetCards(visibleResult) : [];
+  const printCardCatalog = hasWorksheet ? catalogFor(resultDraft).MK : [];
+  const printCardType = (card) => {
+    const name = printCardCatalog.find(
+      (item) => item.id === card.mechanismId,
+    )?.label;
+    return name ? t(name) : t("Spielkarte");
+  };
   const sheetTools = step === 5 && worksheets.length > 0 && (
     <div
       className="sheet-tools no-print"
@@ -1509,16 +1531,21 @@ export default function App() {
           )}
 
         {hasWorksheet &&
-          (worksheetCards(visibleResult).length ? (
+          (activeCards.length ? (
             <details className="switch-menu sheet-print-menu">
               <summary>{t("Drucken")}</summary>
               <div className="menu-body">
-                <button type="button" onClick={(e) => printFromMenu(e)}>
+                <button
+                  type="button"
+                  onClick={(e) => runPrintMenuAction(e, () => printWorksheet())}
+                >
                   {t("Arbeitsblatt drucken")}
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => printFromMenu(e, "cards")}
+                  onClick={(e) =>
+                    runPrintMenuAction(e, () => setCardPrintOpen(true))
+                  }
                 >
                   {t("Karten drucken")}
                 </button>
@@ -1948,7 +1975,7 @@ export default function App() {
                   </Card>
                 )}
                 {step === 2 && (
-                  <Card>
+                  <Card className="learning-step">
                     <div className="section-title">
                       <h2>{t("Schritt 2: Lernerlebnisse wählen")}</h2>
                     </div>
@@ -2564,7 +2591,21 @@ export default function App() {
                   draft={resultDraft}
                   result={visibleResult}
                   source={source}
+                  worksheetId={activeWorksheetId}
+                  cardPrint={cardPrint}
                 />
+                {cardPrintOpen && activeCards.length > 0 && (
+                  <CardPrintEditor
+                    cards={activeCards}
+                    cardType={printCardType}
+                    worksheetId={activeWorksheetId}
+                    settings={cardPrint}
+                    onSettings={setCardPrint}
+                    onClose={() => setCardPrintOpen(false)}
+                    t={t}
+                    language={language}
+                  />
+                )}
                 {session && isCurrent && !showingOriginal && (
                   <Card className="no-print">
                     <h2>{t("Mit der Workshopmoderation teilen")}</h2>
@@ -3280,6 +3321,8 @@ export default function App() {
                 draft={activeSharedSheet.draft}
                 result={activeSharedSheet.result}
                 source={activeSharedSheet.source}
+                worksheetId={activeSharedSheet.id}
+                cardPrint={sharedProject.snapshot.cardPrint}
               />
             )}
           </>

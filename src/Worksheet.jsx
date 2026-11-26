@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { displayDate } from "../supabase/functions/_shared/fields.js";
 import { worksheetCards } from "../supabase/functions/_shared/card-text.js";
-import WorksheetCards, { PrintableCards } from "./WorksheetCards.jsx";
+import WorksheetCards from "./WorksheetCards.jsx";
+import { PrintableCards } from "./CardPrintFaces.jsx";
+import { CARD_PRINT_DEFAULTS } from "../supabase/functions/_shared/card-print.js";
 import Reflections from "./Reflections.jsx";
 import { translate } from "../supabase/functions/_shared/translations.js";
 
@@ -11,6 +13,8 @@ export default function Worksheet({
   draft,
   result,
   source,
+  worksheetId,
+  cardPrint = CARD_PRINT_DEFAULTS,
   screenHeader,
   screenLanguage,
   onAnswer,
@@ -21,7 +25,7 @@ export default function Worksheet({
   const { LE, MK, blocks } = catalogFor(draft);
   const language = draft.language || "de",
     t = (text, values) => translate(text, language, values);
-  const cards = worksheetCards(result);
+  const cards = useMemo(() => worksheetCards(result), [result]);
   const notes = result.notes || [];
   const mechanicName = (id) => t(MK.find((item) => item.id === id)?.label);
   const overview = result.templateVariant === "overview";
@@ -215,7 +219,15 @@ export default function Worksheet({
           "· Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LMB",
         )}
       </p>
-      <PrintableCards result={result} mechanicName={mechanicName} t={t} />
+      {cards.length > 0 && (
+        <PrintableCards
+          cards={cards}
+          cardType={(card) => mechanicName(card.mechanismId) || t("Spielkarte")}
+          worksheetId={worksheetId}
+          settings={cardPrint}
+          t={t}
+        />
+      )}
     </article>
   );
 }

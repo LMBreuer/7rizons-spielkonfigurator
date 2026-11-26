@@ -6,6 +6,7 @@ import {
   notesForWorksheet,
   resultWithWorksheetEdits,
 } from "./card-text.js";
+import { savedCardPrint } from "./card-print.js";
 import { reflectionFields, validateReflections } from "./reflection.js";
 import { catalogFor, validateContent } from "./content.js";
 import { LE, MK, CONFLICTS } from "./catalog.js";
@@ -491,9 +492,11 @@ export function readSnapshot(x) {
     pendingRequest = pending.request;
   }
   const current = active?.draft.revision === base.draft.revision;
+  const cardPrint = savedCardPrint(x.cardPrint);
   return {
     ...base,
     worksheets,
+    ...(cardPrint ? { cardPrint } : {}),
     activeWorksheetId: active?.id || null,
     pendingRequest,
     result: current ? active.result : null,

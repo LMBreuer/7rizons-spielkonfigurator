@@ -36,10 +36,12 @@ export function nextExchange(draftId, previous) {
 }
 
 export async function projectFingerprint(payload) {
-  const { draft, worksheets, pendingRequest } = readSnapshot(payload);
+  const { draft, worksheets, pendingRequest, cardPrint } =
+    readSnapshot(payload);
   const { id, ...draftContent } = draft;
   const snapshot = {
     draft: draftContent,
+    ...(cardPrint ? { cardPrint } : {}),
     worksheets: worksheets.map((sheet) => {
       if (sheet.source?.kind !== "template") return sheet;
       // Template restore rebuilds the generated result, including a transient request ID.

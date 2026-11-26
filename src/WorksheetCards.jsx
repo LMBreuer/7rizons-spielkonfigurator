@@ -1,7 +1,6 @@
 import React, { useRef, useState } from "react";
 import {
   DEFAULT_CARD_COLOR,
-  plainCardText,
   worksheetCards,
 } from "../supabase/functions/_shared/card-text.js";
 
@@ -26,42 +25,6 @@ export function printWorksheet(mode, reflectionId) {
     );
   } else delete root.dataset.print;
   window.print();
-}
-
-function longCard(card) {
-  const text = plainCardText(card.text);
-  const estimatedLines = text
-    .split("\n")
-    .reduce(
-      (lines, line) => lines + Math.max(1, Math.ceil(line.length / 31)),
-      0,
-    );
-  return estimatedLines > 12 || card.title.length > 75;
-}
-export function PrintableCards({ result, mechanicName, t }) {
-  const cards = worksheetCards(result);
-  if (!cards.length) return null;
-  return (
-    <div className="card-print">
-      {cards.map((card) => (
-        <section
-          key={card.id}
-          className={
-            longCard(card) ? "cutout-card extended-card" : "cutout-card"
-          }
-          style={{ "--card-color": card.color }}
-        >
-          {card.mechanismId && (
-            <p className="cutout-mechanic">{mechanicName(card.mechanismId)}</p>
-          )}
-          <h2>{card.title.trim() || t("Spielkarte")}</h2>
-          <div className="card-answer">
-            <CardAnswer value={card.text} />
-          </div>
-        </section>
-      ))}
-    </div>
-  );
 }
 
 function CardNotes({ notes, t }) {

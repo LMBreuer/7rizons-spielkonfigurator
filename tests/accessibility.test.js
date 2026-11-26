@@ -638,11 +638,46 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     assert.ok(cardPrintMenu.closest(".worksheet-screen-header.no-print"));
     await user.click(cardPrintMenu.querySelector("summary"));
     assert.ok(screen.getByRole("button", { name: "Arbeitsblatt drucken" }));
+    dom.window.HTMLDialogElement.prototype.showModal = function () {
+      this.open = true;
+    };
+    dom.window.HTMLDialogElement.prototype.close = function () {
+      this.open = false;
+    };
     await user.click(screen.getByRole("button", { name: "Karten drucken" }));
     assert.equal(cardPrintMenu.open, false);
+    const cardStudio = within(
+      screen.getByRole("dialog", { name: "Kartendruck" }),
+    );
+    assert.ok(
+      cardStudio
+        .getByRole("region", { name: "Karten im Arbeitsblatt" })
+        .querySelector("button"),
+    );
+    assert.equal(
+      cardStudio.queryByRole("textbox", { name: "Kartentext" }),
+      null,
+    );
+    await user.selectOptions(
+      cardStudio.getByLabelText("Kartendesign"),
+      "future",
+    );
+    await user.selectOptions(cardStudio.getByLabelText("Format"), "landscape");
+    assert.equal(
+      JSON.parse(localStorage.getItem(key)).cardPrint.design,
+      "future",
+    );
+    assert.equal(
+      JSON.parse(localStorage.getItem(key)).cardPrint.orientation,
+      "landscape",
+    );
+    await user.click(
+      cardStudio.getByRole("button", { name: "Karten drucken" }),
+    );
     assert.equal(document.documentElement.dataset.print, "cards");
     window.dispatchEvent(new window.Event("afterprint"));
     assert.equal(document.documentElement.dataset.print, undefined);
+    await user.click(cardStudio.getByRole("button", { name: "Schließen" }));
     assert.equal(
       within(screen.getByRole("article")).getAllByRole("textbox", {
         name: "Kartentext",
