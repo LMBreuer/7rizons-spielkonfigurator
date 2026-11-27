@@ -629,7 +629,10 @@
   }
   .editor-toolbar .editor-block-format {
     min-height: 38px;
+    min-width: 0;
     max-width: 100%;
+    flex: 1 1 0;
+    margin-inline-end: 0;
   }
   .editor-commands {
     display: grid;
