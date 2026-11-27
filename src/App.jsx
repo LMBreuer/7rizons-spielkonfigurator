@@ -1723,9 +1723,10 @@ export default function App() {
     <>
       {error && (
         <div className="notice error" role="alert">
-          {t(error)}{" "}
+          <span>{t(error)}</span>
           <button
-            className="notice-close"
+            type="button"
+            className="icon-button notice-close"
             onClick={() => setError("")}
             aria-label={t("Meldung schließen")}
           >
@@ -1735,9 +1736,10 @@ export default function App() {
       )}
       {message && (
         <div className="notice success" role="status">
-          {t(message)}{" "}
+          <span>{t(message)}</span>
           <button
-            className="notice-close"
+            type="button"
+            className="icon-button notice-close"
             onClick={() => setMessage("")}
             aria-label={t("Meldung schließen")}
           >
@@ -3502,7 +3504,7 @@ export default function App() {
               <div className="project-library-actions">
                 <button
                   type="button"
-                  className="text-button project-create"
+                  className="button"
                   disabled={busy}
                   onClick={() => act(() => newConfiguration())}
                 >
@@ -3510,7 +3512,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  className="text-button"
+                  className="button secondary"
                   disabled={busy}
                   onClick={() => configImportRef.current?.click()}
                   aria-label={t("Projekt importieren")}
@@ -3519,7 +3521,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  className="text-button"
+                  className="button secondary"
                   disabled={busy}
                   onClick={() => act(exportProject)}
                   aria-label={t("Aktuelles Projekt exportieren")}

@@ -198,7 +198,7 @@ export default function GuidedTour({
             })}
           />
           <span aria-hidden="true">{index + 1} / {steps.length}</span>
-          <button className="tour-close" aria-label={t("Tour schließen")} onClick={onClose}>
+          <button type="button" className="icon-button" aria-label={t("Tour schließen")} onClick={onClose}>
             ×
           </button>
         </header>

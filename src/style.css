@@ -15,6 +15,8 @@
   --shadow: 0 12px 45px #213b5b08;
   --white: #fff;
   --focus: #7f598b;
+  --control-radius: 8px;
+  --control-height: 44px;
 }
 :root[data-theme="dark"] {
   --bg: #101820;
@@ -74,7 +76,8 @@ select,
 textarea {
   touch-action: manipulation;
 }
-button {
+button,
+summary {
   cursor: pointer;
 }
 button:disabled {
@@ -231,7 +234,9 @@ small {
 }
 .topbar .account-link {
   border: 1px solid transparent;
-  min-height: 38px;
+}
+.topbar :is(.primary-nav button, .account-link) {
+  min-height: var(--control-height);
 }
 main {
   max-width: 1100px;
@@ -411,25 +416,32 @@ textarea::placeholder {
 }
 .button {
   display: inline-flex;
+  gap: 0.35rem;
   align-items: center;
   justify-content: center;
   border: 1px solid #2a6fb4;
-  border-radius: 9px;
-  padding: 11px 18px;
+  border-radius: var(--control-radius);
+  padding: 0.55rem 0.9rem;
   background: #2a6fb4;
   color: #fff;
   font-weight: 600;
-  font-size: 0.83rem;
-  min-height: 44px;
+  font-size: 0.85rem;
+  min-height: var(--control-height);
+  line-height: 1.35;
+  text-align: center;
   text-decoration: none;
 }
-.button:hover:not(:disabled) {
-  filter: brightness(1.12);
+.button:not(.secondary):hover:not(:disabled) {
+  filter: brightness(0.93);
 }
 .button.secondary {
   background: var(--surface);
   color: var(--ink);
   border-color: var(--line);
+}
+.button.secondary:hover:not(:disabled) {
+  background: var(--blue-light);
+  color: var(--blue);
 }
 .actions {
   display: flex;
@@ -669,12 +681,13 @@ summary {
 }
 .text-button {
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--blue);
   padding: 0.55rem 0.65rem;
-  min-height: 40px;
+  min-height: var(--control-height);
   font-size: 0.85rem;
+  font-weight: 600;
 }
 .text-button:hover:enabled {
   background: var(--blue-light);
@@ -963,13 +976,6 @@ summary {
 .project-library-heading .project-library-actions {
   gap: 0.125rem 0.3rem;
 }
-.project-library .project-create {
-  background: var(--blue-light);
-  font-weight: 700;
-}
-.project-library .project-create:hover:enabled {
-  background: color-mix(in srgb, var(--blue) 12%, var(--blue-light));
-}
 .project-library .project-delete {
   color: var(--muted);
 }
@@ -1014,11 +1020,14 @@ form > .button {
 .skip-link:focus {
   transform: translateY(0);
 }
-html[data-input="keyboard"] main:focus,
-html[data-input="keyboard"] main h1:focus,
-html[data-input="keyboard"] main h2:focus {
+html[data-input="keyboard"] main:focus {
   outline: 3px solid var(--focus);
   outline-offset: 6px;
+}
+html[data-input="keyboard"] main :is(h1, h2)[tabindex="-1"]:focus {
+  outline: none;
+  text-decoration: underline 0.08em var(--focus);
+  text-underline-offset: 0.16em;
   scroll-margin-top: 1rem;
 }
 .option .selection-indicator,
@@ -1750,10 +1759,15 @@ html[data-input="pointer"] :focus {
   display: block;
   width: 100%;
   text-align: left;
+  min-height: var(--control-height);
+  border-radius: var(--control-radius);
 }
-.menu-body > button:hover,
-.menu-body > button[aria-pressed="true"] {
+.menu-body > button:hover:enabled {
   background: var(--surface2);
+}
+.menu-body > button[aria-pressed="true"] {
+  background: var(--blue-light);
+  color: var(--blue);
 }
 .project-menu hr {
   border: 0;
@@ -1818,11 +1832,15 @@ html[data-input="pointer"] :focus {
   margin-bottom: 1.1rem;
 }
 .admin-tabs button {
+  min-height: var(--control-height);
   padding: 0.6rem 0.85rem;
   border: 1px solid transparent;
   border-radius: 8px;
   background: none;
   color: var(--ink);
+}
+.admin-tabs button:hover:enabled:not([aria-current]) {
+  background: var(--surface2);
 }
 .admin-tabs button[aria-current="page"] {
   border-color: var(--blue);
@@ -1858,8 +1876,7 @@ html[data-input="pointer"] :focus {
   gap: 0.35rem;
 }
 .sheet-tools .button {
-  min-height: 2rem;
-  background: transparent;
+  padding-inline: 0.65rem;
 }
 .sheet-cards-menu .menu-body {
   inset-inline: auto 0;
@@ -2108,14 +2125,34 @@ section.account-section {
   margin: 1rem 0 0.4rem;
 }
 
-.notice-close {
-  float: right;
-  border: 0;
-  color: inherit;
+.notice:has(> .notice-close) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding-block: 0.4rem;
+  overflow-wrap: anywhere;
+}
+.icon-button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 36px;
+  block-size: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
   background: transparent;
-  font-size: 1.1rem;
+  color: var(--muted);
+  font-size: 1.25rem;
   line-height: 1;
-  cursor: pointer;
+}
+.icon-button:hover:enabled {
+  background: var(--surface2);
+  color: var(--ink);
+}
+.notice-close {
+  color: inherit;
 }
 .playtest-notes p {
   white-space: pre-wrap;
@@ -2142,7 +2179,6 @@ section.account-section {
   gap: 1rem;
 }
 .editor-heading,
-.edition-row,
 .member-list li {
   display: flex;
   align-items: center;
@@ -2160,20 +2196,75 @@ section.account-section {
   margin: 0.4rem 0 0;
   max-width: 62ch;
 }
-.edition-row,
 .member-list li {
   padding: 1rem 0;
   border-bottom: 1px solid var(--line);
 }
-.edition-row:last-child,
 .member-list li:last-child {
   border: none;
 }
-.edition-visibility {
-  margin: 0 0.4rem 0 0;
+.edition-list {
+  container-type: inline-size;
 }
-.edition-row > .actions {
-  margin: 0;
+.edition-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+  column-gap: 0.8rem;
+}
+.edition-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding-block: 0.75rem;
+}
+.edition-row + .edition-row {
+  border-block-start: 1px solid var(--line);
+}
+.edition-name small {
+  display: block;
+  margin-block-start: 0.25rem;
+  overflow-wrap: anywhere;
+}
+.edition-standard-action {
+  grid-column: 3;
+}
+.edition-edit-action {
+  grid-column: 4;
+}
+@container (max-width: 42rem) {
+  .edition-rows {
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+  }
+  .edition-name {
+    grid-column: 1 / -1;
+  }
+  .edition-standard-action {
+    grid-column: 2;
+  }
+  .edition-edit-action {
+    grid-column: 3;
+    justify-self: end;
+  }
+  .edition-row {
+    row-gap: 0.35rem;
+  }
+}
+@container (max-width: 30rem) {
+  .edition-rows {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .edition-visibility {
+    grid-column: 1 / -1;
+  }
+  .edition-standard-action {
+    grid-column: 1;
+    justify-self: start;
+    text-align: start;
+  }
+  .edition-edit-action {
+    grid-column: 2;
+  }
 }
 .edition-default {
   display: inline-block;

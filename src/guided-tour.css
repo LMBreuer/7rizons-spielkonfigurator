@@ -125,26 +125,6 @@
     accent-color: var(--blue);
   }
 
-  .tour-close {
-    flex: none;
-    display: grid;
-    place-items: center;
-    min-width: 36px;
-    min-height: 36px;
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: 0.45rem;
-    background: transparent;
-    color: var(--muted);
-    font-size: 1.3rem;
-    line-height: 1;
-  }
-
-  .tour-close:hover {
-    background: var(--surface2);
-    color: var(--ink);
-  }
-
   .tour-card h2 {
     margin: 0 0 0.45rem;
     font-size: 1.2rem;
@@ -162,11 +142,6 @@
     gap: 0.5rem;
   }
 
-  .tour-actions .button {
-    min-height: 40px;
-    padding: 0.35rem 0.85rem;
-    font-size: 0.86rem;
-  }
 }
 
 @media screen and (forced-colors: active) {

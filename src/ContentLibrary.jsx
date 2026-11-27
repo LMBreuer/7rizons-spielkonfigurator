@@ -161,27 +161,27 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
             {t("Fassungen laden")}
           </button>
         )}
-        {rows.map((row) => {
-          const isDefault = row.id === defaultId;
-          const uses = workshops.filter(
-            (w) => (w.edition_id || defaultId) === row.id,
-          );
-          return (
-            <div className="edition-row" key={row.id}>
-              <div>
-                <h3>
-                  {row.title}{" "}
-                  {isDefault && (
-                    <span className="edition-default">{t("Standard")}</span>
-                  )}
-                </h3>
-                <small className="muted">
-                  {uses.length
-                    ? uses.map((w) => w.title).join(" · ")
-                    : t("Keinem Workshop zugewiesen")}
-                </small>
-              </div>
-              <div className="actions">
+        <div className="edition-rows">
+          {rows.map((row) => {
+            const isDefault = row.id === defaultId;
+            const uses = workshops.filter(
+              (w) => (w.edition_id || defaultId) === row.id,
+            );
+            return (
+              <div className="edition-row" key={row.id}>
+                <div className="edition-name">
+                  <h3>
+                    {row.title}{" "}
+                    {isDefault && (
+                      <span className="edition-default">{t("Standard")}</span>
+                    )}
+                  </h3>
+                  <small className="muted">
+                    {uses.length
+                      ? uses.map((w) => w.title).join(" · ")
+                      : t("Keinem Workshop zugewiesen")}
+                  </small>
+                </div>
                 <label className="checkbox edition-visibility">
                   <input
                     type="checkbox"
@@ -205,7 +205,7 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
                 </label>
                 {!isDefault && (
                   <button
-                    className="text-button"
+                    className="text-button edition-standard-action"
                     disabled={busy}
                     onClick={() =>
                       act(async () => {
@@ -231,16 +231,16 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
                   </button>
                 )}
                 <button
-                  className="button secondary"
+                  className="button secondary edition-edit-action"
                   disabled={busy}
                   onClick={() => act(() => edit(row.id))}
                 >
                   {t("Bearbeiten")}
                 </button>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </section>
     </section>
   );
