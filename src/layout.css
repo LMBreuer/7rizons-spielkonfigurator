@@ -312,22 +312,33 @@
     --facet-secondary: #7f598b39;
     --navigation-glow: color-mix(in srgb, #61bde4 48%, transparent);
     --page-glow: color-mix(in srgb, #7f598b 32%, transparent);
-    --navigation-surface: color-mix(in srgb, var(--surface) 60%, transparent);
-    --document-surface: color-mix(in srgb, var(--surface) 67%, transparent);
-    --glass-filter: blur(18px);
-    --glass-edge: inset 0 1px 0 #fffe, inset 1px 0 0 #fff7;
+    --navigation-surface: color-mix(in srgb, var(--surface) 32%, transparent);
+    --document-surface: color-mix(in srgb, var(--surface) 40%, transparent);
+    --tile-surface: color-mix(in srgb, var(--surface) 34%, transparent);
+    --field-surface: color-mix(in srgb, var(--bg) 40%, transparent);
+    --blue-selection: color-mix(in srgb, var(--blue) 13%, var(--tile-surface));
+    --purple-selection: color-mix(in srgb, var(--purple) 14%, var(--tile-surface));
+    --glass-blue-text: color-mix(in srgb, var(--blue) 80%, var(--ink));
+    --glass-purple-text: color-mix(in srgb, var(--purple) 80%, var(--ink));
+    --glass-filter: blur(2px) saturate(110%);
+    --glass-edge: inset 0 1px 0 #fffd, inset 1px 0 0 #fff5;
     --navigation-shadow:
       var(--glass-edge),
-      6px 9px 21px color-mix(in srgb, var(--line) 80%, transparent);
+      4px 7px 17px #213b5b18;
     --document-shadow:
       var(--glass-edge),
-      4px 8px 20px color-mix(in srgb, var(--line) 65%, transparent);
+      3px 6px 19px #213b5b10;
+  }
+  :root[data-layout="modern"][data-theme="light"] {
+    --muted: #4c586a;
   }
   :root[data-layout="modern"][data-theme="dark"] {
     --facet-line: #61bde453;
     --facet-secondary: #c6a4d34f;
     --navigation-glow: color-mix(in srgb, #2a6fb4 56%, transparent);
     --page-glow: color-mix(in srgb, #7f598b 39%, transparent);
+    --glass-blue-text: var(--blue);
+    --glass-purple-text: var(--purple);
     --glass-edge: inset 0 1px 0 #ffffff29, inset 1px 0 0 #ffffff13;
     --navigation-shadow: var(--glass-edge), 6px 9px 22px #0005;
     --document-shadow: var(--glass-edge), 4px 8px 24px #0004;
@@ -339,6 +350,7 @@
     --page-glow: transparent;
     --navigation-surface: var(--surface);
     --document-surface: var(--surface);
+    --tile-surface: var(--surface);
     --glass-filter: none;
     --navigation-shadow: none;
     --document-shadow: none;
@@ -348,12 +360,12 @@
     isolation: isolate;
     background:
       radial-gradient(
-        ellipse 28rem 21rem at clamp(9%, calc(50% - 26rem), 28%) 18rem,
+        ellipse 35rem 29rem at clamp(9%, calc(50% - 26rem), 28%) 12rem,
         var(--navigation-glow),
         transparent
       ),
       radial-gradient(
-        ellipse 35rem 24rem at clamp(70%, calc(50% + 26rem), 92%) 16rem,
+        ellipse 40rem 31rem at clamp(70%, calc(50% + 26rem), 92%) 16rem,
         var(--page-glow),
         transparent
       ),
@@ -368,19 +380,19 @@
     background:
       repeating-linear-gradient(
           151deg,
-          var(--facet-line) 0 1px,
-          transparent 1px 61px
+          var(--facet-line) 0 2px,
+          transparent 2px 61px
         )
         left / 55% 100% no-repeat,
       repeating-linear-gradient(
           29deg,
-          var(--facet-secondary) 0 1px,
-          transparent 1px 68px
+          var(--facet-secondary) 0 2px,
+          transparent 2px 68px
         )
         right / 53% 100% no-repeat;
     mask-image:
-      radial-gradient(ellipse 47% 39% at 16% 32%, #000 22%, transparent),
-      radial-gradient(ellipse 48% 44% at 88% 32%, #000 17%, transparent);
+      radial-gradient(ellipse 51% 53% at 16% 32%, #000 22%, transparent),
+      radial-gradient(ellipse 57% 54% at 88% 32%, #000 17%, transparent);
   }
   :root[data-layout="modern"] .topbar-shell {
     background: var(--navigation-surface);
@@ -409,7 +421,8 @@
   }
   :root[data-layout="modern"] .workspace-content > .worksheet,
   :root[data-layout="modern"] .workspace-content .workspace > fieldset > .panel,
-  :root[data-layout="modern"] .admin-workspace .workspace-content > .panel {
+  :root[data-layout="modern"] .admin-workspace .workspace-content > .panel,
+  :root[data-layout="modern"] main > .panel {
     backdrop-filter: var(--glass-filter);
   }
   :root[data-layout="modern"] .worksheet {
@@ -437,7 +450,7 @@
   :root[data-layout="modern"]:not([data-theme="contrast"])
     .learning-step
     .option {
-    background: var(--navigation-surface);
+    background: var(--tile-surface);
     box-shadow: var(--navigation-shadow);
     backdrop-filter: var(--glass-filter);
   }
@@ -445,7 +458,7 @@
     .learning-step
     .option.selected {
     border-color: var(--blue);
-    background: color-mix(in srgb, var(--blue-light) 72%, transparent);
+    background: var(--blue-selection);
     box-shadow: inset 0 2px 4px color-mix(in srgb, var(--blue) 18%, transparent);
   }
   :root[data-layout="modern"]:not([data-theme="contrast"])
@@ -453,25 +466,66 @@
     .wiss
     .option.selected {
     border-color: var(--purple);
-    background: color-mix(in srgb, var(--purple-light) 72%, transparent);
+    background: var(--purple-selection);
     box-shadow: inset 0 2px 4px
       color-mix(in srgb, var(--purple) 20%, transparent);
   }
   :root[data-layout="modern"] .context-grid > label {
     margin-bottom: 0;
   }
-  :root[data-layout="modern"]:not([data-theme="contrast"])
-    .context-grid
-    :is(input, select) {
-    background: color-mix(in srgb, var(--bg) 65%, transparent);
-    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--line) 56%, transparent);
+  /* The document already filters the backdrop. Nested surfaces only add a tint. */
+  :root[data-layout="modern"]:not([data-theme="contrast"]) {
+    & :is(.mechanism, .mode, .base-mechanic, .connection, .external-flow),
+    & .priority-panel .priority-list > li {
+      background: var(--tile-surface);
+    }
+    & :is(.mechanism.selected, .mode.selected),
+    & .priority-panel .priority-list > li.included {
+      background: var(--blue-selection);
+    }
+    & :is(
+      .steps button.active,
+      .primary-nav button[aria-current="page"],
+      .admin-tabs button[aria-current="page"]
+    ) {
+      background: var(--blue-selection);
+      color: var(--glass-blue-text);
+    }
+    & .base-safety {
+      background: color-mix(in srgb, var(--teal) 10%, var(--tile-surface));
+    }
+    & .context-grid :is(input, select),
+    & .worksheet
+      :is(.ProseMirror, .card-markdown, .card-edit-top input, .card-note textarea) {
+      background: var(--field-surface);
+    }
+    & .context-grid :is(input, select) {
+      box-shadow: inset 0 1px 2px color-mix(in srgb, var(--line) 56%, transparent);
+    }
+    & .context-grid input::placeholder {
+      opacity: 1;
+    }
+    & :is(
+      .option > small,
+      .mode > small,
+      .check,
+      .learning-group > h3,
+      .option .selection-indicator,
+      .mode .selection-indicator
+    ) {
+      color: var(--glass-blue-text);
+    }
+    & .wiss :is(.option > small, .option .selection-indicator),
+    & .learning-group.wiss > h3 {
+      color: var(--glass-purple-text);
+    }
   }
   :root[data-layout="modern"] .workspace-content .step-actions {
     margin-block: 0.9rem 0;
   }
   :root[data-layout="modern"] .worksheet .writing-card {
     position: relative;
-    background: var(--surface);
+    background: var(--tile-surface);
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 0.65rem 0.85rem 0.65rem 1.05rem;
