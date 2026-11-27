@@ -913,7 +913,16 @@ summary {
 }
 .project-library {
   display: grid;
-  gap: 1.35rem;
+  gap: 1rem;
+}
+.project-library-heading h1 {
+  font-size: clamp(1.65rem, 3.4vw, 2.65rem);
+}
+.project-library-heading > .project-library-actions {
+  flex-basis: 100%;
+}
+.project-library-heading .button {
+  padding: 0.45rem 0.7rem;
 }
 .project-library-actions {
   display: flex;
@@ -922,8 +931,11 @@ summary {
   gap: 0.25rem 0.5rem;
 }
 .project-library-section {
-  border-block-start: 1px solid var(--line);
-  padding-block-start: 0.9rem;
+  margin: 0;
+  padding: clamp(1rem, 3vw, 1.6rem);
+}
+.project-library-section > :last-child {
+  margin-bottom: 0;
 }
 .project-library-section h2 {
   font-size: 1.06rem;
@@ -1932,15 +1944,6 @@ html[data-input="pointer"] :focus {
 }
 
 @media (max-width: 640px) {
-  .preferences-menu > summary {
-    display: grid;
-    place-items: center;
-    width: 2.4rem;
-    height: 2.4rem;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
   .preferences-menu > summary::after {
     display: none;
   }

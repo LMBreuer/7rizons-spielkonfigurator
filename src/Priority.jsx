@@ -167,7 +167,7 @@ export default function Priority({
   return (
     <section className="panel priority-panel" ref={container}>
       <div className="section-title">
-        <h2>{t("Schritt 4: Übersicht")}</h2>
+        <h2 data-tour="priority">{t("Schritt 4: Übersicht")}</h2>
         <p>
           {t(
             "Sortieren Sie die Mechaniken nach Priorität und entfernen Sie, was außer den Kernelementen entfallen soll. Ziehen Sie am Griff ⠿ oder verwenden Sie die Pfeil-Buttons. Der Safety-Rahmen bleibt immer enthalten.",

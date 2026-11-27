@@ -649,8 +649,24 @@
   .topbar .preferences-menu > summary > span {
     display: none;
   }
-  .topbar .preferences-menu > summary {
+  .topbar .preferences-menu > summary,
+  .topbar .account-link,
+  :root[data-layout] .configurator-rail .project-menu > summary {
+    min-height: 44px;
     border-color: var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .topbar .preferences-menu > summary {
+    width: 44px;
+  }
+  .topbar .preferences-menu[open] > summary,
+  .topbar .account-link[aria-current="page"],
+  :root[data-layout] .configurator-rail .project-menu[open] > summary {
+    border-color: var(--blue);
+    background: var(--blue-light);
+    color: var(--blue);
   }
   .topbar .header-tools {
     position: relative;
@@ -675,9 +691,6 @@
     grid-column: 1 / -1;
   }
   .configurator-rail .mobile-step-jump select {
-    min-height: 44px;
-  }
-  .configurator-rail .project-menu > summary {
     min-height: 44px;
   }
   .configurator-rail .project-menu .menu-body {

@@ -2,11 +2,13 @@
 export const projectTour = [
   {
     target: "project-switcher",
+    screen: 1,
     title: "Projekte",
-    text: "Ihre Änderungen werden auf diesem Gerät im Browser gespeichert. Unter „Projekte“ wechseln Sie den Entwurf oder legen einen neuen an.",
+    text: "Beginnen Sie mit dem Seminarthema. Der Entwurf bleibt in diesem Browser. Unter „Projekte“ wechseln Sie den Entwurf oder legen einen neuen an.",
   },
   {
     target: "save-online",
+    screen: 1,
     reveal: true,
     online: true,
     title: "Online speichern",
@@ -26,6 +28,46 @@ export const projectTour = [
     offline: true,
     title: "Projekte verwalten",
     text: "Hier finden Sie Ihre Entwürfe auf diesem Gerät. Sie können Projekte als JSON herunterladen oder wieder importieren.",
+  },
+  {
+    target: "learning",
+    screen: 2,
+    title: "Lernerlebnisse",
+    text: "Wählen Sie aus, was die Teilnehmenden im Spiel erleben und dabei lernen sollen.",
+  },
+  {
+    target: "mechanics",
+    screen: 3,
+    title: "Mechaniken",
+    text: "Wählen Sie Spielmechaniken, die zu Ihren Lernerlebnissen passen.",
+  },
+  {
+    target: "priority",
+    screen: 4,
+    title: "Übersicht",
+    text: "Sortieren Sie die Mechaniken nach Priorität und wählen Sie aus, welche ins Arbeitsblatt kommen.",
+  },
+  {
+    target: "worksheet-menu",
+    fallbackTarget: "worksheet-entry",
+    screen: 5,
+    title: "Arbeitsblatt",
+    text: "Öffnen oder erstellen Sie das Arbeitsblatt aus Ihrer Auswahl. Im Menü „Arbeitsblatt“ können Sie später Blätter wechseln oder weitere anlegen.",
+  },
+  {
+    target: "add-card",
+    fallbackTarget: ["edit-worksheet", "worksheet-menu", "worksheet-entry"],
+    screen: 5,
+    title: "Karte hinzufügen",
+    text: "Gehen Sie im Arbeitsblatt zum passenden Kartentyp und wählen Sie „Karte hinzufügen“. Im Selbststudium öffnen Sie bei Bedarf zuerst „Arbeitsblatt bearbeiten“.",
+  },
+  {
+    target: "print-cards",
+    fallbackTarget: ["card-menu", "worksheet-menu", "worksheet-entry"],
+    reveal: true,
+    screen: 5,
+    title: "Karten drucken",
+    text: "Sobald eine Karte da ist, öffnen Sie „Karten → Karten drucken“. Dort wählen Sie Karten und Druckeinstellungen. Das ganze Blatt drucken Sie über „Arbeitsblatt drucken“.",
   },
 ];
 

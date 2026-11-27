@@ -1,14 +1,30 @@
 @media screen {
-  .tour-heading-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.3rem 0.8rem;
+  .tour-invitation {
+    position: fixed;
+    z-index: 7;
+    inset-inline-end: max(1rem, env(safe-area-inset-right));
+    inset-block-end: max(1rem, env(safe-area-inset-bottom));
+    width: min(22rem, calc(100% - 2rem));
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.9rem;
+    background: var(--surface);
+    box-shadow: 0 10px 30px #10182035;
   }
 
-  .tour-heading-row h1 {
-    margin: 0;
+  .tour-invitation h2 {
+    margin: 0 0 0.3rem;
+    font-size: 1.1rem;
+  }
+
+  .tour-invitation p {
+    margin-bottom: 0.6rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .tour-invitation .text-button {
+    padding-inline: 0.65rem;
   }
 
   h2[data-tour] {

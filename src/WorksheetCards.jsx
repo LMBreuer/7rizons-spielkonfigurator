@@ -464,6 +464,7 @@ export default function WorksheetCards({
             type="button"
             ref={addButton}
             className="button secondary add-card no-print"
+            data-tour="add-card"
             onClick={addCard}
           >
             + {t("Karte hinzufügen")}

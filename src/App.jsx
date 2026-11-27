@@ -67,7 +67,12 @@ import { download, jsonFilename } from "./downloads.js";
 import WorksheetExport from "./WorksheetExport.jsx";
 import Logo from "./Logo.jsx";
 import AppearanceSwitch from "./AppearanceSwitch.jsx";
-import GuidedTour, { TourButton } from "./GuidedTour.jsx";
+import GuidedTour, {
+  rememberTourIntro,
+  TourButton,
+  TourInvitation,
+  tourIntroSeen,
+} from "./GuidedTour.jsx";
 import { adminTour, projectTour } from "./tour-steps.js";
 import {
   APPEARANCE_KEY,
@@ -292,13 +297,7 @@ function runPrintMenuAction(event, action) {
   menu.querySelector("summary").focus();
   action();
 }
-function ConfiguratorHeading({
-  step,
-  projectTitle,
-  hasDocument,
-  startTour,
-  busy,
-}) {
+function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
   const intro = (
     <>
       {t("Gestalten Sie")} <Logo wordmark /> {t("für Ihre Lehre.")}
@@ -327,14 +326,11 @@ function ConfiguratorHeading({
           </>
         )}
       </div>
-      <div className="tour-heading-row">
-        <p className="configurator-subtitle">
-          {step === 1
-            ? t("Von der Spielidee zum Seminar")
-            : t("Schritt {0} von {1}", { 0: step, 1: steps.length })}
-        </p>
-        <TourButton onClick={startTour} disabled={busy} />
-      </div>
+      <p className="configurator-subtitle">
+        {step === 1
+          ? t("Von der Spielidee zum Seminar")
+          : t("Schritt {0} von {1}", { 0: step, 1: steps.length })}
+      </p>
     </header>
   );
 }
@@ -417,7 +413,9 @@ export default function App() {
   const resultDraft = activeWorksheet?.draft || draft;
   const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
   const projectOpenedAt = useRef(saved.openedAt || Date.now());
-  const [step, setStep] = useState(
+  const [tour, setTour] = useState(null);
+  const [offerTour, setOfferTour] = useState(() => !tourIntroSeen());
+  const [savedStep, setStep] = useState(
     !selfStudy &&
       saved.step === 5 &&
       !saved.worksheets.length &&
@@ -425,13 +423,14 @@ export default function App() {
       ? 4
       : saved.step || 1,
   );
+  const step = (!tour?.admin && projectTourSteps[tour?.index]?.screen) || savedStep;
   const [buildingSheet, setBuildingSheet] = useState(
     saved.buildingSheet === true,
   );
   const lastConfigStep = useRef(
     saved.configStep || (saved.step < 5 ? saved.step : 1),
   );
-  if (step < 5) lastConfigStep.current = step;
+  if (savedStep < 5) lastConfigStep.current = savedStep;
   const projectMenu = useRef(null);
   const sheetMenu = useRef(null);
   const cardImportField = useRef(null);
@@ -507,7 +506,6 @@ export default function App() {
   const [admin, setAdmin] = useState(false);
   const [superadmin, setSuperadmin] = useState(false);
   const [adminTab, setAdminTab] = useState("workshops");
-  const [tour, setTour] = useState(null);
   const [moderatedWorkshops, setModeratedWorkshops] = useState([]);
   const [moderation, setModeration] = useState(null);
   const [workshopLinks, setWorkshopLinks] = useState([]);
@@ -665,6 +663,7 @@ export default function App() {
       activeWorksheetId,
       preview,
       showingOriginal,
+      inTour: Boolean(tour),
     };
     let heading;
     if (changed)
@@ -677,11 +676,11 @@ export default function App() {
       showingOriginal !== (old.showingOriginal || false)
     )
       heading = mainRef.current?.querySelector(".worksheet h1");
-    if (heading) {
+    if (heading && !tour && !old.inTour) {
       heading.tabIndex = -1;
       heading.focus();
     }
-  }, [page, step, activeWorksheetId, preview, showingOriginal]);
+  }, [page, step, activeWorksheetId, preview, showingOriginal, tour]);
   useEffect(() => {
     document.documentElement.lang = language;
     document.title =
@@ -697,7 +696,7 @@ export default function App() {
         ...payload(),
         cloudRevision,
         openedAt: projectOpenedAt.current,
-        step,
+        step: savedStep,
         buildingSheet,
         configStep: lastConfigStep.current,
       }),
@@ -727,7 +726,7 @@ export default function App() {
     activeWorksheetId,
     request,
     cloudRevision,
-    step,
+    savedStep,
     buildingSheet,
   ]);
   useEffect(() => {
@@ -1702,6 +1701,23 @@ export default function App() {
       setPage("app");
     }
   }
+  function dismissTourInvitation() {
+    rememberTourIntro();
+    setOfferTour(false);
+  }
+  function startTour(event) {
+    const isAdminTour = page === "admin";
+    if (!isAdminTour) dismissTourInvitation();
+    showTourStep(0, {
+      admin: isAdminTour,
+      origin: page,
+      trigger: event.currentTarget,
+    });
+  }
+  function closeTour() {
+    if (!tour.admin && page !== tour.origin) setPage(tour.origin);
+    setTour(null);
+  }
   const notices = (
     <>
       {error && (
@@ -1781,7 +1797,7 @@ export default function App() {
       aria-label={t("Arbeitsblatt verwalten")}
     >
       <details className="switch-menu sheet-menu" ref={sheetMenu}>
-        <summary>
+        <summary data-tour="worksheet-menu">
           {t("Arbeitsblatt")}{" "}
           {activeWorksheet && worksheets.indexOf(activeWorksheet) + 1}
         </summary>
@@ -1914,6 +1930,7 @@ export default function App() {
           result.templateVariant !== "overview" && (
             <Button
               secondary
+              data-tour="edit-worksheet"
               onClick={() => {
                 setEditingId(canEditWorksheet ? null : activeWorksheetId);
               }}
@@ -1928,7 +1945,7 @@ export default function App() {
 
         {hasWorksheet && result.templateVariant !== "overview" && (
           <details className="switch-menu sheet-cards-menu">
-            <summary>{t("Karten")}</summary>
+            <summary data-tour="card-menu">{t("Karten")}</summary>
             <div className="menu-body">
               {!showingOriginal && (
                 <button
@@ -1958,6 +1975,7 @@ export default function App() {
                   </button>
                   <button
                     type="button"
+                    data-tour="print-cards"
                     onClick={(event) =>
                       runPrintMenuAction(event, () => setCardPrintOpen(true))
                     }
@@ -2219,10 +2237,6 @@ export default function App() {
                 step={step}
                 projectTitle={projectTitle}
                 hasDocument={Boolean(hasWorksheet || (step === 5 && preview))}
-                startTour={(event) =>
-                  showTourStep(0, { admin: false, trigger: event.currentTarget })
-                }
-                busy={busy}
               />
             }
             rail={
@@ -2436,7 +2450,7 @@ export default function App() {
                 {step === 2 && (
                   <Card className="learning-step">
                     <div className="section-title">
-                      <h2>{t("Schritt 2: Lernerlebnisse wählen")}</h2>
+                      <h2 data-tour="learning">{t("Schritt 2: Lernerlebnisse wählen")}</h2>
                     </div>
                     {["inhalt", "wiss"].map((group) => (
                       <section
@@ -2495,7 +2509,7 @@ export default function App() {
                 {step === 3 && (
                   <Card>
                     <div className="section-title">
-                      <h2>{t("Schritt 3: Mechaniken wählen")}</h2>
+                      <h2 data-tour="mechanics">{t("Schritt 3: Mechaniken wählen")}</h2>
                       <p>
                         {t(
                           "Wählen Sie zunächst alle Mechaniken aus, die für Ihr Seminar interessant sind. Oben stehen die Mechaniken mit einem primären Beitrag zu Ihren Lernerlebnissen und die Kernelemente. Weitere Mechaniken finden Sie darunter. In der Übersicht legen Sie die endgültige Auswahl fest. ",
@@ -2557,7 +2571,7 @@ export default function App() {
                 {step === 5 && (
                   <>
                     {!selfStudy && !result && !buildingSheet && (
-                      <Button onClick={() => goStep(5)}>
+                      <Button data-tour="worksheet-entry" onClick={() => goStep(5)}>
                         {t("Arbeitsblatt öffnen")}
                       </Button>
                     )}
@@ -2565,7 +2579,7 @@ export default function App() {
                       <Card className="worksheet-builder">
                         {sheetTools}
                         <div className="section-title">
-                          <h2 tabIndex={-1}>
+                          <h2 data-tour="worksheet-entry" tabIndex={-1}>
                             {worksheets.length
                               ? t("Weiteres Arbeitsblatt hinzufügen")
                               : t("Wählen Sie Ihren Weg.")}
@@ -3471,29 +3485,29 @@ export default function App() {
         )}
         {page === "archive" && (
           <section className="project-library">
-            <div className="editor-heading">
+            <div className="editor-heading project-library-heading">
               <h1 data-tour="project-archive">{t("Projekte verwalten")}</h1>
+              <Button
+                disabled={busy}
+                onClick={() => act(() => newConfiguration())}
+              >
+                {t("Neues Projekt")}
+              </Button>
               <div className="project-library-actions">
                 <button
-                  className="text-button"
+                  className="button secondary"
                   disabled={busy}
                   onClick={() => configImportRef.current?.click()}
                 >
                   {t("Projekt importieren")}
                 </button>
                 <button
-                  className="text-button"
+                  className="button secondary"
                   disabled={busy}
                   onClick={() => act(exportProject)}
                 >
                   {t("Aktuelles Projekt herunterladen")}
                 </button>
-                <Button
-                  disabled={busy}
-                  onClick={() => act(() => newConfiguration())}
-                >
-                  {t("Neues Projekt")}
-                </Button>
               </div>
             </div>
             <input
@@ -3533,7 +3547,7 @@ export default function App() {
                 </div>
               )}
             <section
-              className="project-library-section"
+              className="panel project-library-section"
               aria-labelledby="local-projects-heading"
             >
               <h2 id="local-projects-heading">{t("Auf diesem Gerät")}</h2>
@@ -3559,7 +3573,7 @@ export default function App() {
             </section>
             {cloud && (
               <section
-                className="project-library-section"
+                className="panel project-library-section"
                 aria-labelledby="online-projects-heading"
               >
                 <div className="editor-heading">
@@ -3977,17 +3991,7 @@ export default function App() {
         {page === "admin" && admin && (
           <WorkspaceLayout
             className="admin-workspace"
-            heading={
-              <div className="admin-title tour-heading-row">
-                <h1>{t("Administration")}</h1>
-                <TourButton
-                  onClick={(event) =>
-                    showTourStep(0, { admin: true, trigger: event.currentTarget })
-                  }
-                  disabled={busy}
-                />
-              </div>
-            }
+            heading={<h1 className="admin-title">{t("Administration")}</h1>}
             rail={
               <div className="admin-rail">
                 <nav
@@ -4487,6 +4491,13 @@ export default function App() {
           <InfoPage page={page} online={Boolean(cloud)} />
         )}
       </main>
+      {page === "app" && offerTour && !tour && (
+        <TourInvitation
+          onStart={startTour}
+          onDismiss={dismissTourInvitation}
+          disabled={busy}
+        />
+      )}
       {worksheetExport !== null && (
         <WorksheetExport
           text={worksheetExport}
@@ -4498,7 +4509,7 @@ export default function App() {
           steps={tour.admin ? adminTour : projectTourSteps}
           index={tour.index}
           onChange={showTourStep}
-          onClose={() => setTour(null)}
+          onClose={closeTour}
           returnFocus={tour.trigger}
         />
       )}
@@ -4514,6 +4525,9 @@ export default function App() {
           </p>
         </div>
         <div className="footer-links">
+          {["app", "archive", "admin"].includes(page) && (
+            <TourButton onClick={startTour} disabled={busy} />
+          )}
           <a
             href={`mailto:info@lmbreuer.de?subject=${encodeURIComponent("7’rizons · Feedback" + (page === "app" ? " · " + t(steps[step - 1]) : ""))}`}
           >

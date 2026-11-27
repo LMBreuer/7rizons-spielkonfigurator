@@ -10,6 +10,39 @@ export function TourButton({ onClick, disabled }) {
   );
 }
 
+const welcomeKey = "7rizons:tour-intro:v2";
+
+export function tourIntroSeen() {
+  try {
+    return localStorage.getItem(welcomeKey) === "seen";
+  } catch {
+    return false;
+  }
+}
+
+export function rememberTourIntro() {
+  try {
+    localStorage.setItem(welcomeKey, "seen");
+  } catch {}
+}
+
+export function TourInvitation({ onStart, onDismiss, disabled }) {
+  return (
+    <aside className="tour-invitation no-print" aria-labelledby="tour-invitation-title">
+      <h2 id="tour-invitation-title">{t("Neu im Konfigurator?")}</h2>
+      <p>{t("Die Kurztour führt vom ersten Projekt bis zu Ihren gedruckten Karten.")}</p>
+      <div className="tour-actions">
+        <button type="button" className="text-button" onClick={onDismiss}>
+          {t("Später")}
+        </button>
+        <button type="button" className="button" disabled={disabled} onClick={onStart}>
+          {t("Kurztour starten")}
+        </button>
+      </div>
+    </aside>
+  );
+}
+
 const edge = 12;
 const gap = 16;
 
@@ -69,24 +102,29 @@ export default function GuidedTour({
     return () => {
       dialog.close();
       if (returnFocus?.isConnected && !returnFocus.disabled) {
-        returnFocus.focus({ preventScroll: true });
+        returnFocus.focus();
         return;
       }
-      const main = document.getElementById("main-content");
-      const heading = main?.querySelector("h1") || main;
-      if (heading) {
-        heading.tabIndex = -1;
-        heading.focus({ preventScroll: true });
-      }
+      window.requestAnimationFrame(() => {
+        if (document.querySelector(".guided-tour[open]")) return;
+        const main = document.getElementById("main-content");
+        const heading = main?.querySelector("h1") || main;
+        if (heading) {
+          heading.tabIndex = -1;
+          heading.focus({ preventScroll: true });
+        }
+      });
     };
   }, [returnFocus]);
 
   useLayoutEffect(() => {
-    const target =
-      document.querySelector(`[data-tour="${step.target}"]`) ||
-      (step.fallbackTarget &&
-        document.querySelector(`[data-tour="${step.fallbackTarget}"]`));
-    const menu = step.reveal ? target?.closest("details") : null;
+    const target = [step.target].concat(step.fallbackTarget || [])
+      .map((id) => document.querySelector(`[data-tour="${id}"]`))
+      .find(Boolean);
+    const menu =
+      step.reveal && target?.dataset.tour === step.target
+        ? target.closest("details")
+        : null;
     const wasOpen = menu?.open;
     if (menu) menu.open = true;
 
