@@ -12,6 +12,19 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     await db.exec(
       `create schema auth; create table auth.users(id uuid primary key, email text, email_confirmed_at timestamptz); create role anon; create role authenticated; create role service_role bypassrls; create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to anon,authenticated,service_role; grant execute on function auth.uid() to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role; alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;`,
     );
+    await db.exec(`
+      create function auth.jwt() returns jsonb language sql stable as $$
+        select coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
+      $$;
+      create schema storage;
+      create table storage.buckets (
+        id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]
+      );
+      create table storage.objects (bucket_id text, name text);
+      alter table storage.objects enable row level security;
+      grant usage on schema storage to anon, authenticated;
+      grant select, insert on storage.objects to anon, authenticated;
+    `);
     const migrations = new URL("../supabase/migrations/", import.meta.url);
     for (const file of (await readdir(migrations))
       .filter((x) => x.endsWith(".sql"))
@@ -35,7 +48,13 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       ]);
       await db.exec("set role " + role);
     };
+    assert.equal(
+      (await db.query("select public from storage.buckets where id = 'card-originals'")).rows[0].public,
+      false,
+    );
+    await db.exec("insert into storage.objects values ('card-originals', 'weltenbau.jpg')");
     await identity("", "anon");
+    assert.equal((await db.query("select * from storage.objects")).rows.length, 0);
     await assert.rejects(
       () => db.query("select public.my_workshops()"),
       /permission denied/,
@@ -70,6 +89,16 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       "updated-ciphertext",
     );
     await identity(owner);
+    assert.equal((await db.query("select * from storage.objects")).rows.length, 1);
+    await assert.rejects(
+      () => db.exec("insert into storage.objects values ('card-originals', 'second.jpg')"),
+      /row-level security/,
+    );
+    await db.query("select set_config('request.jwt.claims', $1, false)", [
+      JSON.stringify({ is_anonymous: true }),
+    ]);
+    assert.equal((await db.query("select * from storage.objects")).rows.length, 0);
+    await db.query("select set_config('request.jwt.claims', '{}', false)");
     await assert.rejects(
       () => db.query("select * from public.scoped_provider_credentials"),
       /permission denied/,

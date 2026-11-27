@@ -1,44 +1,10 @@
-@font-face {
-  font-family: "Barlow Condensed";
-  src: url("/fonts/barlow-condensed/BarlowCondensed-Bold.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
 .deck-card-slot {
-  --deck-width: 63mm;
-  --deck-ratio: 63 / 88;
-  --deck-unit: 0.56cqi;
-  --deck-pad: 6.8cqi;
-  --deck-paper: #fff;
-  --deck-ink: #231f20;
-  --deck-muted: #4e5260;
+  --deck-width: 88mm;
+  --deck-unit: 0.4cqi;
   --deck-outline: #36384055;
-  --deck-back-accent: #2a6fb4;
   container-type: inline-size;
   width: min(100%, var(--deck-width));
-  aspect-ratio: var(--deck-ratio);
-}
-.deck-card-slot[data-orientation="landscape"] {
-  --deck-width: 88mm;
-  --deck-ratio: 88 / 63;
-  --deck-unit: 0.4cqi;
-  --deck-pad: 5cqi;
-}
-.deck-card-slot[data-design="rizons"] {
-  --deck-paper: #fff;
-  --deck-ink: #171717;
-}
-.deck-card-slot[data-paper="cream"] {
-  --deck-paper: #fbf4e5;
-}
-.deck-card-slot[data-paper="dark"] {
-  --deck-paper: #171f2a;
-  --deck-ink: #f7f5ef;
-  --deck-muted: #d9e0e8;
-  --deck-outline: #ffffff60;
-  --deck-back-accent: #61bde4;
+  aspect-ratio: 88 / 63;
 }
 .deck-card {
   box-sizing: border-box;
@@ -46,10 +12,9 @@
   isolation: isolate;
   overflow: hidden;
   height: 100%;
-  border-radius: calc(13 * var(--deck-unit));
-  padding: var(--deck-pad);
-  color: var(--deck-ink);
-  background: var(--deck-paper);
+  border-radius: 5.5cqi;
+  color: #171717;
+  background: #fff;
   box-shadow: inset 0 0 0 1px var(--deck-outline);
   print-color-adjust: exact;
   overflow-wrap: anywhere;
@@ -58,22 +23,22 @@
 }
 .deck-card-front {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: calc(6 * var(--deck-unit));
+  padding: 7cqi 10.5cqi;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 2.2cqi;
+}
+.deck-card-front:not(:has(.deck-card-title)) {
+  grid-template-rows: auto minmax(0, 1fr);
 }
 .deck-card-title {
-  font:
-    750 calc(var(--card-title-size, 16) * var(--deck-unit))/1.13 Manrope,
-    system-ui,
-    sans-serif;
-  text-wrap: balance;
+  font: 700 calc(var(--card-title-size, 16) * var(--deck-unit))/1.13 "Rizons Antonia", serif;
+  text-align: center;
+  text-wrap: pretty;
 }
 .deck-card-text {
   min-height: 0;
   overflow: hidden;
-  font:
-    400 calc(var(--card-font-size) * var(--deck-unit))/1.32 system-ui,
-    sans-serif;
+  font: 400 calc(var(--card-font-size) * var(--deck-unit))/1.34 "Rizons Antonia", serif;
   white-space: pre-wrap;
   hyphens: auto;
 }
@@ -90,32 +55,6 @@
   padding-inline-start: 1.15em;
 }
 .deck-card-type {
-  align-self: end;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  hyphens: auto;
-  color: var(--deck-muted);
-  font:
-    650 calc(var(--card-type-size, 8.5) * var(--deck-unit))/1.15 system-ui,
-    sans-serif;
-}
-.deck-card-frame,
-.deck-card-mark {
-  display: none;
-}
-
-[data-design="rizons"] .deck-card {
-  border-radius: 5.5cqi;
-}
-[data-design="rizons"] .deck-card-front {
-  padding: 7cqi 10.5cqi 7cqi;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 2.2cqi;
-}
-[data-design="rizons"] .deck-card-front:not(:has(.deck-card-title)) {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-[data-design="rizons"] .deck-card-type {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
@@ -126,8 +65,8 @@
   padding: 0.45em 0.85em;
   color: var(--card-accent-ink);
   background: var(--card-color);
-  font-family: "Rizons Exo", system-ui, sans-serif;
-  font-weight: 650;
+  font: 650 calc(var(--card-type-size, 8.5) * var(--deck-unit))/1.15 "Rizons Exo", sans-serif;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
 }
 .deck-card-header-icon {
@@ -135,252 +74,11 @@
   height: 1.25em;
   flex: 0 0 auto;
 }
-[data-design="rizons"] :is(.deck-card-title, .deck-card-text) {
-  font-family: "Rizons Antonia", Georgia, serif;
-}
-[data-design="rizons"] .deck-card-title {
-  font-weight: 700;
-  text-align: center;
-  text-wrap: pretty;
-}
-[data-design="rizons"] .deck-card-text {
-  line-height: 1.34;
-}
 .deck-card-instruction {
   font-style: italic;
 }
 .deck-card-text > :not(:first-child):is(.deck-card-introduction, .deck-card-instruction) {
   margin-block-start: 0.55em;
-}
-[data-design="rizons"] .deck-card-back {
-  color: #231f20;
-  background:
-    radial-gradient(ellipse at 15% 75%, #fff8, transparent 64%),
-    color-mix(in srgb, var(--deck-back-accent) 25%, #fff);
-}
-.deck-brand-name {
-  font: 700 7cqi/1 "Barlow Condensed", system-ui, sans-serif;
-  text-transform: uppercase;
-}
-.deck-brand-symbol {
-  width: 31cqi;
-  height: auto;
-}
-
-[data-design="minimal"] > .deck-card-front {
-  background: linear-gradient(
-    var(--card-color) 0 calc(8 * var(--deck-unit)),
-    var(--deck-paper) calc(8 * var(--deck-unit))
-  );
-  padding-block-start: calc(17 * var(--deck-unit));
-}
-[data-design="minimal"][data-orientation="landscape"] > .deck-card-front {
-  background: linear-gradient(
-    90deg,
-    var(--card-color) 0 calc(8 * var(--deck-unit)),
-    var(--deck-paper) calc(8 * var(--deck-unit))
-  );
-  padding: var(--deck-pad);
-  padding-inline-start: calc(20 * var(--deck-unit));
-}
-[data-design="minimal"] .deck-card-type {
-  padding-top: 0.45em;
-  border-top: 1px solid
-    color-mix(in srgb, var(--card-color) 47%, var(--deck-paper));
-}
-
-[data-design="retro"] .deck-card-front {
-  padding: calc(29 * var(--deck-unit)) calc(16 * var(--deck-unit))
-    calc(23 * var(--deck-unit));
-  text-align: center;
-}
-[data-design="retro"] .deck-card-title,
-[data-design="retro"] .deck-card-type {
-  font-family: Georgia, serif;
-}
-[data-design="retro"] .deck-card-type {
-  justify-self: center;
-}
-[data-design="retro"] .deck-card-frame {
-  display: block;
-  position: absolute;
-  pointer-events: none;
-  inset: calc(9 * var(--deck-unit));
-  border: 3px double var(--card-color);
-  border-radius: calc(5 * var(--deck-unit));
-}
-[data-design="retro"] .deck-card-frame::before,
-[data-design="retro"] .deck-card-frame::after {
-  content: "";
-  position: absolute;
-  inset: 3px 3px auto auto;
-  width: calc(18 * var(--deck-unit));
-  aspect-ratio: 1;
-  color: color-mix(in srgb, var(--card-color) 77%, var(--deck-ink));
-  background: repeating-radial-gradient(
-    circle at top right,
-    currentColor 0 0.8px,
-    transparent 0.8px 3px
-  );
-  clip-path: polygon(0 0, 100% 0, 100% 100%);
-}
-[data-design="retro"] .deck-card-frame::after {
-  inset: auto auto 3px 3px;
-  transform: rotate(180deg);
-}
-[data-design="retro"] .deck-card-mark {
-  display: block;
-  position: absolute;
-  inset: calc(6 * var(--deck-unit)) auto auto calc(6 * var(--deck-unit));
-  padding: 0 calc(3 * var(--deck-unit));
-  color: color-mix(in srgb, var(--card-color) 77%, var(--deck-ink));
-  background: var(--deck-paper);
-  font:
-    700 calc(16 * var(--deck-unit))/1 Georgia,
-    serif;
-}
-[data-design="retro"] .deck-card-mark-inverted {
-  inset: auto calc(6 * var(--deck-unit)) calc(6 * var(--deck-unit)) auto;
-  transform: rotate(180deg);
-}
-
-[data-design="future"] .deck-card-front:not([data-long-type]) {
-  grid-template-rows: auto minmax(0, 1fr) 0;
-  padding-inline-start: calc(30 * var(--deck-unit));
-}
-[data-design="future"] .deck-card-frame {
-  display: block;
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: color-mix(in srgb, var(--card-color) 49%, #17202b);
-  clip-path: polygon(
-    0 0,
-    52% 0,
-    44% 5%,
-    15% 5%,
-    12% 8%,
-    12% 44%,
-    10% 48%,
-    10% 91%,
-    15% 96%,
-    77% 96%,
-    83% 91%,
-    100% 91%,
-    100% 100%,
-    0 100%
-  );
-}
-[data-design="future"] .deck-card-front:not([data-long-type]) .deck-card-type {
-  position: absolute;
-  inset: 9% auto 11% 0;
-  width: 10%;
-  display: grid;
-  place-items: center;
-  white-space: normal;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  color: #fff;
-}
-
-[data-design="future"] .deck-card-front[data-long-type] {
-  padding-inline-start: calc(30 * var(--deck-unit));
-  padding-block-end: max(var(--deck-pad), 11%);
-}
-[data-design="future"] .deck-card-front[data-long-type] .deck-card-type {
-  text-align: end;
-}
-[data-design="split"] .deck-card-front {
-  padding: 0;
-  grid-template: minmax(37%, max-content) minmax(0, 1fr) auto / minmax(0, 1fr);
-  gap: 0;
-}
-[data-design="split"] .deck-card-title {
-  display: grid;
-  align-content: center;
-  padding: var(--deck-pad);
-  color: var(--card-accent-ink);
-  background: var(--card-color);
-}
-[data-design="split"] .deck-card-text {
-  padding: var(--deck-pad) var(--deck-pad) 0;
-}
-[data-design="split"] .deck-card-type {
-  text-align: end;
-  padding: calc(3 * var(--deck-unit)) var(--deck-pad) calc(8 * var(--deck-unit));
-}
-[data-design="split"][data-orientation="landscape"] .deck-card-front {
-  grid-template: minmax(0, 1fr) auto / 47% minmax(0, 1fr);
-}
-[data-design="split"][data-orientation="landscape"] .deck-card-title {
-  grid-area: 1 / 1 / 3 / 2;
-}
-[data-design="split"][data-orientation="landscape"] .deck-card-text {
-  grid-area: 1 / 2;
-}
-[data-design="split"][data-orientation="landscape"] .deck-card-type {
-  grid-area: 2 / 2;
-}
-
-[data-design="curve"] .deck-card-front {
-  background: var(--card-color);
-  padding-inline-end: 0;
-}
-[data-design="curve"] .deck-card-title,
-[data-design="curve"] .deck-card-type {
-  padding-inline-end: var(--deck-pad);
-  color: var(--card-accent-ink);
-}
-[data-design="curve"] .deck-card-type {
-  text-align: end;
-}
-[data-design="curve"] .deck-card-text {
-  padding: calc(12 * var(--deck-unit)) var(--deck-pad)
-    calc(10 * var(--deck-unit)) calc(19 * var(--deck-unit));
-  border-radius: calc(26 * var(--deck-unit)) 0 0 calc(26 * var(--deck-unit));
-  background: var(--deck-paper);
-  box-shadow: -2px 0
-    color-mix(in srgb, var(--card-accent-ink) 40%, var(--card-color));
-}
-
-.deck-card-back {
-  display: grid;
-  place-items: center;
-}
-.deck-card-back-center {
-  position: relative;
-  display: grid;
-  width: 100%;
-  justify-items: center;
-  text-align: center;
-  gap: calc(11 * var(--deck-unit));
-}
-.deck-card-logo {
-  display: block;
-  width: 72%;
-  height: auto;
-}
-[data-orientation="landscape"] .deck-card-logo {
-  width: 62%;
-}
-.deck-card-back-text {
-  white-space: pre-wrap;
-  color: var(--deck-muted);
-  font:
-    400 calc(10.5 * var(--deck-unit))/1.35 system-ui,
-    sans-serif;
-}
-.deck-card .deck-card-back-text :is(p, ul, ol, li) {
-  margin: 0;
-  color: inherit;
-  font-size: inherit;
-}
-.deck-card .deck-card-back-text p + p {
-  margin-top: 0.5em;
-}
-.deck-card .deck-card-back-text :is(ul, ol) {
-  padding: 0;
-  padding-inline-start: 1.2em;
 }
 .deck-card-cover {
   position: absolute;
@@ -389,66 +87,6 @@
   height: 100%;
   object-fit: cover;
 }
-.deck-card-signature {
-  position: absolute;
-  inset: auto 4% 4% auto;
-  width: 29%;
-  padding: 2%;
-  border-radius: 3px;
-  background: #fff;
-}
-.deck-card-signature .deck-card-logo {
-  width: 100%;
-}
-.deck-card-back[data-cover="text"]::before {
-  position: absolute;
-  content: "";
-  inset: 5%;
-  border-radius: calc(7 * var(--deck-unit));
-  border: 1px solid
-    color-mix(in srgb, var(--deck-back-accent) 46%, var(--deck-paper));
-}
-[data-design="minimal"] .deck-card-back[data-cover="text"]::before {
-  inset: auto 24% 9%;
-  height: 1px;
-  border: 0;
-  background: var(--deck-back-accent);
-}
-[data-design="retro"] .deck-card-back[data-cover="text"]::before {
-  border: 3px double var(--deck-back-accent);
-}
-[data-design="future"] .deck-card-back[data-cover="text"]::before,
-[data-design="future"] .deck-card-back[data-cover="text"]::after {
-  content: "";
-  position: absolute;
-  inset: 0 24% auto 0;
-  height: 7%;
-  border: 0;
-  border-radius: 0;
-  background: var(--deck-back-accent);
-  clip-path: polygon(0 0, 100% 0, 86% 100%, 0 100%);
-}
-[data-design="future"] .deck-card-back[data-cover="text"]::after {
-  inset: auto 0 0 24%;
-  transform: rotate(180deg);
-}
-[data-design="split"] .deck-card-back[data-cover="text"] {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--deck-back-accent) 17%, var(--deck-paper)) 50%,
-    var(--deck-paper) 50%
-  );
-}
-[data-design="curve"] .deck-card-back[data-cover="text"] {
-  background: var(--deck-back-accent);
-}
-[data-design="curve"] .deck-card-back[data-cover="text"]::before {
-  inset: 17% 0 17% 8%;
-  border: 0;
-  border-radius: calc(30 * var(--deck-unit)) 0 0 calc(30 * var(--deck-unit));
-  background: var(--deck-paper);
-}
-
 @media screen {
   .card-print {
     display: block;
@@ -541,11 +179,8 @@
   }
   .card-print-spread figure {
     min-width: 0;
-    width: min(100%, 63mm);
-    margin: 0;
-  }
-  .card-print-spread figure:has([data-orientation="landscape"]) {
     width: min(100%, 88mm);
+    margin: 0;
   }
   .card-print-spread figcaption {
     display: flex;
@@ -560,20 +195,12 @@
       inset 0 0 0 1px var(--deck-outline),
       0 6px 16px #131d313c;
   }
-  .card-print-design-options {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem 1rem;
-    margin: 0.9rem 0 0;
-  }
   .card-print-design {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.35rem 0.55rem;
-    margin: 0;
+    margin-block: 0.75rem 0;
   }
   .card-print-design select {
     width: auto;
@@ -627,41 +254,6 @@
   .card-print-compact-list {
     display: none;
   }
-  .card-print-back-options {
-    margin-block: 0.8rem;
-  }
-  .card-print-back-fields {
-    display: grid;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    justify-items: start;
-  }
-  .card-print-back-editor {
-    width: 100%;
-  }
-  .card-print-colors {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .card-print-colors label {
-    display: grid;
-    width: auto;
-  }
-  .card-print-colors input[type="color"] {
-    width: 44px;
-    height: 40px;
-    min-height: 40px;
-    padding: 4px;
-  }
-  .card-print-back-fields label:not(.card-print-colors label) {
-    width: 100%;
-    margin: 0;
-  }
-  .card-print-back-fields input[type="file"] {
-    height: auto;
-  }
   .card-print-editor-actions {
     align-items: center;
   }
@@ -700,20 +292,6 @@
   }
 }
 
-@media screen {
-  .card-brand-pack {
-    display: flex;
-    align-items: end;
-    flex-wrap: wrap;
-    gap: 0.35rem 1rem;
-    border-block-start: 1px solid var(--line);
-    padding-block: 0.7rem;
-  }
-  .card-brand-pack small {
-    color: var(--muted);
-  }
-}
-
 @media print {
   .card-print-editor::backdrop {
     display: none;
@@ -723,14 +301,10 @@
   }
   .card-print-page {
     display: grid;
-    grid-template-columns: repeat(2, 63mm);
-    grid-auto-rows: 88mm;
-    justify-content: center;
-    gap: 3mm;
-  }
-  .card-print-page[data-orientation="landscape"] {
     grid-template-columns: 88mm;
     grid-template-rows: repeat(3, 63mm);
+    justify-content: center;
+    gap: 3mm;
     /* Centre all rows on A4, including the 18 mm @page top margin. */
     padding-block-start: 33mm;
   }
@@ -749,7 +323,14 @@
     border-top: 1.5mm solid var(--card-color);
     print-color-adjust: exact;
     font-size: var(--extended-font-size);
+    font-family: "Rizons Antonia", serif;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+}
+.card-print-extended h2 {
+  font-family: inherit;
+}
+.card-print-extended > div:first-child {
+  font-family: "Rizons Exo", sans-serif;
 }

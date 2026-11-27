@@ -8,6 +8,7 @@ import {
 
 import CardAnswer, { GameCardText } from "./RichCardText.jsx";
 import CardGroupField from "./CardGroupField.jsx";
+import { loadOriginalCardAssets } from "./card-brand.js";
 
 const cardPalette = [
   ["#2a6fb4", "Blau"],
@@ -22,15 +23,9 @@ const cardPalette = [
 
 const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
 
-export async function printWorksheet(mode, reflectionId) {
-  const backLabelFont = '700 1em "Barlow Condensed"';
-  if (
-    mode === "cards" &&
-    document.querySelector(".card-print .deck-brand-name") &&
-    document.fonts &&
-    !document.fonts.check(backLabelFont)
-  ) {
-    await document.fonts.load(backLabelFont).catch(() => {});
+export async function printWorksheet(mode, reflectionId, accountId) {
+  if (mode === "cards" && !(await loadOriginalCardAssets(accountId))) {
+    throw new Error("Die Originalschriften und Rückseiten sind für diese Installation nicht verfügbar.");
   }
   const root = document.documentElement;
   const reflection =

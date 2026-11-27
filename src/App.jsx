@@ -6,6 +6,7 @@ import {
 } from "../supabase/functions/_shared/card-text.js";
 import { printWorksheet } from "./WorksheetCards.jsx";
 import CardPrintEditor from "./CardPrintEditor.jsx";
+import { resetOriginalCardAssets } from "./card-brand.js";
 import {
   exportCardFile,
   importCardFile,
@@ -791,6 +792,7 @@ export default function App() {
   }, [page, step]);
   useEffect(() => {
     let alive = true;
+    resetOriginalCardAssets(accountId);
     setAdmin(false);
     setSuperadmin(false);
     setAdminTab("workshops");
@@ -830,7 +832,7 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [session?.user.id]);
+  }, [accountId]);
   useEffect(() => {
     if (!cloud || !accountId) {
       setArchive(null);
@@ -3058,13 +3060,22 @@ export default function App() {
                   source={source}
                   worksheetId={activeWorksheetId}
                   cardPrint={cardPrint}
+                  cardPrintAccountId={accountId}
                 />
                 {cardPrintOpen && activeCards.length > 0 && (
                   <CardPrintEditor
                     cards={activeCards}
-                    cardType={(card) => worksheetTypeName(card.mechanismId)}
                     worksheetId={activeWorksheetId}
                     settings={cardPrint}
+                    accountId={accountId}
+                    onSignIn={
+                      cloud && !accountId
+                        ? () => {
+                            setCardPrintOpen(false);
+                            setPage("account");
+                          }
+                        : undefined
+                    }
                     onSettings={setCardPrint}
                     onCardGroup={
                       showingOriginal
@@ -3867,7 +3878,13 @@ export default function App() {
                       worksheetCards(activeSharedSheet.result).length > 0 && (
                         <Button
                           secondary
-                          onClick={() => printWorksheet("cards")}
+                          onClick={() => {
+                            if (cloud && !accountId) setPage("account");
+                            else
+                              act(() =>
+                                printWorksheet("cards", undefined, accountId),
+                              );
+                          }}
                         >
                           {t("Karten drucken")}
                         </Button>
@@ -3888,6 +3905,7 @@ export default function App() {
                 source={activeSharedSheet.source}
                 worksheetId={activeSharedSheet.id}
                 cardPrint={sharedProject.snapshot.cardPrint}
+                cardPrintAccountId={accountId}
               />
             )}
           </>

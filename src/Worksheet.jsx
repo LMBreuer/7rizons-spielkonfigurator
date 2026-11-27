@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import { displayDate } from "../supabase/functions/_shared/fields.js";
 import {
   cardTypeKey,
-  cardTypeName,
   worksheetCards,
 } from "../supabase/functions/_shared/card-text.js";
 import WorksheetCards from "./WorksheetCards.jsx";
@@ -20,6 +19,7 @@ export default function Worksheet({
   source,
   worksheetId,
   cardPrint = CARD_PRINT_DEFAULTS,
+  cardPrintAccountId,
   screenHeader,
   screenLanguage,
   onAnswer,
@@ -265,15 +265,9 @@ export default function Worksheet({
       {cards.length > 0 && (
         <PrintableCards
           cards={cards}
-          cardType={(card) =>
-            cardTypeName(
-              result,
-              card.mechanismId,
-              defaultType(card.mechanismId),
-            )
-          }
           worksheetId={worksheetId}
           settings={cardPrint}
+          accountId={cardPrintAccountId}
           t={t}
         />
       )}

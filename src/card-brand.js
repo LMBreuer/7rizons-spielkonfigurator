@@ -1,91 +1,118 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { CARD_GROUPS } from "../supabase/functions/_shared/card-groups.js";
-import { BRAND_CARD_DESIGN } from "../supabase/functions/_shared/card-print.js";
+import { cloud, unwrap } from "./cloud.js";
 
-export const lockCardDesign = import.meta.env?.VITE_LOCK_CARD_DESIGN === "true";
-
-export function effectiveCardPrint(settings) {
-  if (!lockCardDesign && settings.design !== BRAND_CARD_DESIGN) return settings;
-  return {
-    ...settings,
-    design: BRAND_CARD_DESIGN,
-    orientation: "landscape",
-    paper: "white",
-    back: "original",
-  };
-}
-
+const local = import.meta.env?.DEV === true;
+const localBase = (import.meta.env?.BASE_URL || "/") + "__card-originals/";
 const fontFiles = [
-  ["AntoniaH3-Regular.otf", "Rizons Antonia", { weight: "400" }],
-  ["AntoniaH3-Medium.otf", "Rizons Antonia", { weight: "500" }],
-  ["AntoniaH3-Bold.otf", "Rizons Antonia", { weight: "700" }],
-  [
-    "AntoniaH3-RegularItalic.otf",
-    "Rizons Antonia",
-    { weight: "400", style: "italic" },
-  ],
-  ["Exo2-VariableFont_wght.ttf", "Rizons Exo", { weight: "100 900" }],
+  ["antonia-regular", "Rizons Antonia", { weight: "400" }],
+  ["antonia-bold", "Rizons Antonia", { weight: "700" }],
+  ["antonia-italic", "Rizons Antonia", { weight: "400", style: "italic" }],
+  ["exo-2", "Rizons Exo", { weight: "100 900" }],
 ];
-let pack = null;
+
+let cached;
 const listeners = new Set();
+
 function subscribe(listener) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-const getPack = () => pack;
-
-export function useCardBrandPack() {
-  return useSyncExternalStore(subscribe, getPack);
+  return () => { listeners.delete(listener); };
 }
 
-export async function loadCardBrandPack(files) {
-  const fontsByName = new Map();
-  const backsByName = new Map();
-  for (const file of files) {
-    const path = (file.webkitRelativePath || file.name).normalize("NFC");
-    if (path.split("/").at(-2) === "9 Rückseiten") {
-      if (file.type === "image/jpeg")
-        backsByName.set(file.name.normalize("NFC"), file);
-    } else if (file.size <= 1_000_000) fontsByName.set(file.name, file);
-  }
-  const backs = Object.entries(CARD_GROUPS).map(([group, { label }]) => [
-    group,
-    backsByName.get((group === "inspiration" ? "Inspiration" : label) + ".jpg"),
-  ]);
-  if (
-    backs.some(([, file]) => !file) ||
-    fontFiles.some(([name]) => !fontsByName.has(name))
-  )
-    throw new Error("Bitte den vollständigen Ordner „7’rizons Assets“ wählen.");
-  const fonts = await Promise.all(
-    fontFiles.map(async ([name, family, descriptors]) =>
-      new FontFace(
-        family,
-        await fontsByName.get(name).arrayBuffer(),
-        descriptors,
-      ).load(),
-    ),
-  );
-  const originals = Object.fromEntries(
-    backs.map(([group, file]) => [group, URL.createObjectURL(file)]),
-  );
-  try {
-    await Promise.all(
-      Object.values(originals).map((url) => {
-        const image = new Image();
-        image.src = url;
-        return image.decode();
-      }),
-    );
-  } catch (error) {
-    for (const url of Object.values(originals)) URL.revokeObjectURL(url);
-    throw error;
-  }
-  if (pack) {
-    for (const url of Object.values(pack.backs)) URL.revokeObjectURL(url);
-    for (const font of pack.fonts) document.fonts.delete(font);
-  }
-  for (const font of fonts) document.fonts.add(font);
-  pack = { backs: originals, fonts };
+function notify() {
   for (const listener of listeners) listener();
+}
+
+function sourceFor(accountId) {
+  return local ? "local" : cloud && accountId;
+}
+
+function releaseAssets(entry) {
+  for (const font of entry.fonts) document.fonts.delete(font);
+  for (const url of Object.values(entry.backs)) URL.revokeObjectURL(url);
+}
+
+export function resetOriginalCardAssets(accountId) {
+  if (!cached || cached.source === sourceFor(accountId)) return;
+  releaseAssets(cached);
+  cached = undefined;
+  notify();
+}
+
+async function readAsset(name) {
+  if (!local) {
+    return unwrap(await cloud.storage.from("card-originals").download(name));
+  }
+  const response = await fetch(localBase + name);
+  if (!response.ok) throw new Error("Missing original card asset");
+  return response.blob();
+}
+
+export function loadOriginalCardAssets(accountId) {
+  resetOriginalCardAssets(accountId);
+  const source = sourceFor(accountId);
+  if (!source) return Promise.resolve(null);
+  if (cached && cached.value !== null) return cached.promise;
+
+  const entry = { source, fonts: [], backs: {}, value: undefined };
+  cached = entry;
+  entry.promise = (async () => {
+    try {
+      const [fonts, backs] = await Promise.all([
+        Promise.all(
+          fontFiles.map(async ([name, family, descriptors]) => {
+            const file = await readAsset(name + (local ? "" : ".woff2"));
+            return new FontFace(
+              family,
+              await file.arrayBuffer(),
+              descriptors,
+            ).load();
+          }),
+        ),
+        Promise.all(
+          Object.keys(CARD_GROUPS).map(async (group) => [
+            group,
+            await readAsset(group + ".jpg"),
+          ]),
+        ),
+      ]);
+      if (cached !== entry) return null;
+      entry.backs = Object.fromEntries(
+        backs.map(([group, file]) => [group, URL.createObjectURL(file)]),
+      );
+      await Promise.all(
+        Object.values(entry.backs).map(async (url) => {
+          const image = new Image();
+          image.src = url;
+          await image.decode();
+        }),
+      );
+      if (cached !== entry) return null;
+      entry.fonts = fonts;
+      for (const font of fonts) document.fonts.add(font);
+      entry.value = entry.backs;
+    } catch {
+      if (cached === entry) {
+        releaseAssets(entry);
+        entry.value = null;
+      }
+    }
+    if (cached !== entry) return null;
+    notify();
+    return entry.value;
+  })();
+  notify();
+  return entry.promise;
+}
+
+export function useOriginalCardBacks(accountId) {
+  const source = sourceFor(accountId);
+  const backs = useSyncExternalStore(subscribe, () => {
+    if (!source) return null;
+    return cached?.source === source ? cached.value : undefined;
+  });
+  useEffect(() => {
+    if (source) void loadOriginalCardAssets(accountId);
+  }, [accountId, source]);
+  return backs;
 }

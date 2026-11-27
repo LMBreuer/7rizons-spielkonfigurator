@@ -115,6 +115,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
   for (const [key, value] of Object.entries({
     window: dom.window,
     getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+    requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
     document: dom.window.document,
     navigator: dom.window.navigator,
     HTMLElement: dom.window.HTMLElement,
@@ -147,6 +148,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
   dom.window.document.elementFromPoint = () => null;
   // JSDOM has no pixel renderer; colours are measured separately above.
   dom.window.HTMLCanvasElement.prototype.getContext = () => null;
+  Object.defineProperty(dom.window.document, "fonts", { value: new Set() });
   dom.window.confirm = () => true;
   const temp = resolve("tests", `.a11y-${process.pid}.mjs`);
   let cleanup;
@@ -159,6 +161,13 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         `,
         resolveDir: process.cwd(),
       },
+      banner: {
+        js: `
+          const fetch = async () => new Response(new Uint8Array());
+          const FontFace = class { async load() { return this; } };
+          const Image = class { async decode() {} };
+        `,
+      },
       bundle: true,
       platform: "node",
       format: "esm",
@@ -168,6 +177,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       define: {
         "import.meta.env.VITE_SUPABASE_URL": "undefined",
         "import.meta.env.VITE_SUPABASE_ANON_KEY": "undefined",
+        "import.meta.env.DEV": "true",
       },
     });
     await writeFile(temp, bundled.outputFiles[0].contents);
@@ -686,19 +696,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       cardStudio.queryByRole("textbox", { name: "Einleitungstext" }),
       null,
     );
-    await user.selectOptions(
-      cardStudio.getByLabelText("Kartendesign"),
-      "future",
-    );
-    await user.selectOptions(cardStudio.getByLabelText("Format"), "landscape");
-    assert.equal(
-      JSON.parse(localStorage.getItem(key)).cardPrint.design,
-      "future",
-    );
-    assert.equal(
-      JSON.parse(localStorage.getItem(key)).cardPrint.orientation,
-      "landscape",
-    );
+    assert.equal(cardStudio.queryByLabelText("Kartendesign"), null);
+    assert.equal(cardStudio.queryByLabelText("Format"), null);
+    assert.equal(cardStudio.queryByText("Lokalen Assetordner laden"), null);
+    assert.match(cardStudio.getByRole("img", { name: "Anleitung" }).src, /^blob:/);
     await user.click(
       cardStudio.getByRole("button", { name: "Karten drucken" }),
     );

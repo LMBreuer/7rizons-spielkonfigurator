@@ -1,2 +1,8 @@
 import { defineConfig } from "vite";
-export default defineConfig({ base: "./", build: { assetsInlineLimit: 0 } });
+import localCardOriginals from "./scripts/local-card-originals.mjs";
+
+export default defineConfig({
+  base: "./",
+  build: { assetsInlineLimit: 0 },
+  plugins: [localCardOriginals()],
+});
