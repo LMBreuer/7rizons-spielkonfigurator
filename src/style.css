@@ -1885,7 +1885,7 @@ html[data-input="pointer"] :focus {
 .priority-panel .priority-list > li.included {
   border-left-color: var(--blue);
 }
-@media (max-width: 640px) {
+@media (max-width: 849px) {
   .topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1910,14 +1910,19 @@ html[data-input="pointer"] :focus {
   }
   .topbar .header-tools {
     grid-area: tools;
+    justify-self: end;
     gap: 0.4rem;
   }
   .topbar .primary-nav {
     grid-area: nav;
   }
   .topbar .primary-nav button {
-    padding: 0.5rem 0.6rem;
+    padding: 0.5rem;
+    min-height: 40px;
   }
+}
+
+@media (max-width: 640px) {
   .preferences-menu > summary {
     display: grid;
     place-items: center;
