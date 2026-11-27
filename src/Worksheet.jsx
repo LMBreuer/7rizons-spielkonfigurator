@@ -49,7 +49,7 @@ export default function Worksheet({
       {t(
         source?.kind === "template"
           ? "Aus Ihrer Auswahl mit festen Vorlagen erstellt."
-          : "Mit KI ausgearbeitet · fachlich noch zu prüfen.",
+          : "Mit KI ausgearbeitet.",
       )}
       {source?.provider &&
         ` ${source.provider} · ${source.model || t("manueller Import")}`}

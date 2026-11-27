@@ -1794,7 +1794,7 @@ export default function App() {
             }}
           >
             <Logo />
-            <small>{t("Spielkonfigurator · Prototyp")}</small>
+            <small>{t("Spielkonfigurator")}</small>
           </a>
           <nav className="primary-nav" aria-label={t("Hauptnavigation")}>
             <button
