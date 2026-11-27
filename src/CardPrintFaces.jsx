@@ -107,7 +107,7 @@ export function CardPrintFace({
                   src={(import.meta.env?.BASE_URL || "./") + "favicon.svg"}
                   alt=""
                 />
-                <strong>{groupLabel}</strong>
+                <strong className="deck-brand-name">{groupLabel}</strong>
               </div>
             )
           ) : settings.back === "image" ? (

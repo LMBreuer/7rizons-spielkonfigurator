@@ -25,7 +25,6 @@ const fontFiles = [
     { weight: "400", style: "italic" },
   ],
   ["Exo2-VariableFont_wght.ttf", "Rizons Exo", { weight: "100 900" }],
-  ["BarlowCondensed-ExtraBold.ttf", "Rizons Barlow", { weight: "800" }],
 ];
 let pack = null;
 const listeners = new Set();

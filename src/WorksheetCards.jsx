@@ -21,7 +21,16 @@ const cardPalette = [
 
 const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
 
-export function printWorksheet(mode, reflectionId) {
+export async function printWorksheet(mode, reflectionId) {
+  const backLabelFont = '700 1em "Barlow Condensed"';
+  if (
+    mode === "cards" &&
+    document.querySelector(".card-print .deck-brand-name") &&
+    document.fonts &&
+    !document.fonts.check(backLabelFont)
+  ) {
+    await document.fonts.load(backLabelFont).catch(() => {});
+  }
   const root = document.documentElement;
   const reflection =
     reflectionId && document.getElementById("reflection-" + reflectionId);

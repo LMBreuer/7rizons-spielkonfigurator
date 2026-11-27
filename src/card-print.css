@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Barlow Condensed";
+  src: url("/fonts/barlow-condensed/BarlowCondensed-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 .deck-card-slot {
   --deck-width: 63mm;
   --deck-ratio: 63 / 88;
@@ -137,8 +145,8 @@
     radial-gradient(ellipse at 15% 75%, #fff8, transparent 64%),
     color-mix(in srgb, var(--deck-back-accent) 25%, #fff);
 }
-[data-design="rizons"] .deck-card-back-center strong {
-  font: 800 7cqi/1 "Rizons Barlow", system-ui, sans-serif;
+.deck-brand-name {
+  font: 700 7cqi/1 "Barlow Condensed", system-ui, sans-serif;
   text-transform: uppercase;
 }
 .deck-brand-symbol {
