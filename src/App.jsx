@@ -7,6 +7,11 @@ import {
 import { printWorksheet } from "./WorksheetCards.jsx";
 import CardPrintEditor from "./CardPrintEditor.jsx";
 import {
+  exportCardFile,
+  importCardFile,
+  parseCardFile,
+} from "./card-exchange.js";
+import {
   readCardPrint,
   savedCardPrint,
 } from "../supabase/functions/_shared/card-print.js";
@@ -1697,8 +1702,7 @@ export default function App() {
     const name = printCardCatalog.find((item) => item.id === id)?.label;
     return cardTypeName(visibleResult, id, name ? t(name) : t("Spielkarte"));
   };
-  async function downloadCards(template) {
-    const { exportCardFile } = await import("./card-exchange.js");
+  function downloadCards(template) {
     const content = exportCardFile({
       result: visibleResult,
       worksheetId: activeWorksheetId,
@@ -1714,7 +1718,6 @@ export default function App() {
     );
   }
   async function loadCards(file) {
-    const { importCardFile, parseCardFile } = await import("./card-exchange.js");
     const json = parseCardFile(await fileText(file));
     const imported = importCardFile(json, result, activeWorksheetId, cardPrint);
     updateWorksheetResult((previous) => {
