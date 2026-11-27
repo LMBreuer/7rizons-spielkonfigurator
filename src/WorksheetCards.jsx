@@ -6,6 +6,17 @@ import {
 
 import CardAnswer from "./RichCardText.jsx";
 
+const cardPalette = [
+  ["#2a6fb4", "Blau"],
+  ["#1cb291", "Türkis"],
+  ["#7f598b", "Violett"],
+  ["#c84b50", "Rot"],
+  ["#8c8c8c", "Grau"],
+  ["#61bde4", "Hellblau"],
+  ["#b08f23", "Gold"],
+  ["#231f20", "Anthrazit"],
+];
+
 const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
 
 export function printWorksheet(mode, reflectionId) {
@@ -65,7 +76,9 @@ export default function WorksheetCards({
         mechanismId: mechanicId,
         title: "",
         text: "",
-        color: DEFAULT_CARD_COLOR,
+        color:
+          current.findLast((card) => card.mechanismId === mechanicId)?.color ??
+          DEFAULT_CARD_COLOR,
         notes: [],
       },
     ]);
@@ -189,17 +202,41 @@ export default function WorksheetCards({
                           }}
                         />
                       </label>
-                      <label className="card-color">
-                        {t("Randfarbe")}
-                        <input
-                          type="color"
-                          value={card.color}
-                          onChange={(e) => {
-                            const color = e.target.value;
-                            update(card.id, () => ({ color }));
-                          }}
-                        />
-                      </label>
+                      <fieldset className="card-color">
+                        <legend>{t("Randfarbe")}</legend>
+                        <div className="card-color-controls">
+                          <input
+                            type="color"
+                            aria-label={t("Eigene Farbe wählen")}
+                            value={card.color}
+                            onChange={(e) => {
+                              const color = e.target.value;
+                              update(card.id, () => ({ color }));
+                            }}
+                          />
+                          <div
+                            className="card-color-palette"
+                            role="group"
+                            aria-label={t("7’rizons-Farben")}
+                          >
+                            {cardPalette.map(([color, name]) => (
+                              <button
+                                type="button"
+                                key={color}
+                                aria-label={t(name)}
+                                title={t(name)}
+                                aria-pressed={
+                                  card.color.toLowerCase() === color
+                                }
+                                style={{ "--swatch": color }}
+                                onClick={() =>
+                                  update(card.id, () => ({ color }))
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </fieldset>
                     </div>
                     <div>
                       <span className="card-field-label">

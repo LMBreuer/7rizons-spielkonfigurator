@@ -1492,6 +1492,25 @@ html[data-input="pointer"] :focus {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) .card-heading,
+:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) .card-heading-small {
+  margin: 0.65em 0 0.3em;
+  color: inherit;
+  font-family: inherit;
+  font-size: 1.25em;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: normal;
+}
+:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) .card-heading-small {
+  font-size: 1.08em;
+}
+:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) hr {
+  border: 0;
+  border-top: 1px solid currentColor;
+  opacity: 0.55;
+  margin: 0.65em 0;
+}
 .card-editor .ProseMirror {
   min-height: 6rem;
   padding: 0.65rem;
@@ -2059,10 +2078,70 @@ html[data-input="pointer"] :focus {
 .card-edit-top input {
   background: var(--surface);
 }
+.card-color {
+  border: 0;
+  margin: 0 0 16px;
+  padding: 0;
+  min-width: 0;
+}
+.card-color legend {
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.card-color-controls,
+.card-color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.card-color-controls {
+  margin-block-start: 7px;
+}
 .card-color input {
   min-height: 44px;
   padding: 5px;
-  width: 100%;
+  width: 44px;
+  margin: 0 0.2rem 0 0;
+}
+.card-color-palette button {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+}
+.card-color-palette button::before {
+  content: "";
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.card-color-palette button:hover {
+  background: var(--surface2);
+}
+.card-color-palette button[aria-pressed="true"] {
+  border-color: var(--blue);
+  background: var(--blue-light);
+}
+@media (max-width: 640px) {
+  .card-edit-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .card-color-palette {
+    flex: 1 1 136px;
+  }
+  .card-color-palette button {
+    width: 34px;
+    height: 34px;
+  }
 }
 .card-field-label {
   display: block;

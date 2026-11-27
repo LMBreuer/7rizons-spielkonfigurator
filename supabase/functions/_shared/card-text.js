@@ -1,9 +1,20 @@
+const blocks = [
+  "paragraph",
+  "heading",
+  "horizontal_rule",
+  "bullet_list",
+  "ordered_list",
+];
+const inline = ["text", "hard_break"];
 const blockChildren = {
-  doc: ["paragraph", "bullet_list", "ordered_list"],
-  paragraph: ["text"],
+  doc: blocks,
+  paragraph: inline,
+  heading: inline,
+  horizontal_rule: [],
+  hard_break: [],
   bullet_list: ["list_item"],
   ordered_list: ["list_item"],
-  list_item: ["paragraph", "bullet_list", "ordered_list"],
+  list_item: blocks,
 };
 
 export function validCardText(value) {
@@ -42,7 +53,9 @@ export function validCardText(value) {
           ![
             "type",
             "content",
-            ...(node.type === "ordered_list" ? ["attrs"] : []),
+            ...(["ordered_list", "heading"].includes(node.type)
+              ? ["attrs"]
+              : []),
           ].includes(key),
       )
     )
@@ -57,14 +70,25 @@ export function validCardText(value) {
         node.attrs.order > 9999)
     )
       return false;
-    if (node.type === "paragraph") {
+    if (
+      node.type === "heading" &&
+      (!node.attrs ||
+        Object.keys(node.attrs).length !== 1 ||
+        !Number.isInteger(node.attrs.level) ||
+        node.attrs.level < 1 ||
+        node.attrs.level > 6)
+    )
+      return false;
+    if (node.type === "horizontal_rule" || node.type === "hard_break") {
+      length += 1;
+      return node.content === undefined && length <= 4001;
+    }
+    const textBlock = node.type === "paragraph" || node.type === "heading";
+    if (textBlock) {
       length += 1;
       if (node.content === undefined) return length <= 4001;
     }
-    if (
-      !Array.isArray(node.content) ||
-      (node.type !== "paragraph" && !node.content.length)
-    )
+    if (!Array.isArray(node.content) || (!textBlock && !node.content.length))
       return false;
     if (node.type === "list_item" && node.content[0]?.type !== "paragraph")
       return false;
@@ -81,22 +105,29 @@ export function plainCardText(value) {
   if (typeof value === "string") return value;
   if (!value) return "";
   if (value.type === "text") return value.text;
+  if (value.type === "horizontal_rule") return "---";
+  if (value.type === "hard_break") return "\n";
   return (value.content || [])
     .map(plainCardText)
-    .join(value.type === "paragraph" ? "" : "\n");
+    .join(["paragraph", "heading"].includes(value.type) ? "" : "\n");
 }
 
 export function cardMarkdown(value) {
-  if (typeof value !== "object" || !value) return value || "";
+  if (typeof value === "string") return value.replace(/[<>]/g, "\\$&");
+  if (!value) return "";
   if (value.type === "text") {
-    let text = value.text.replace(/[\\*_[\]`]/g, "\\$&");
+    let text = value.text.replace(/[\\*_[\]`<>]/g, "\\$&");
     for (const mark of value.marks || []) {
       const wrap = mark.type === "strong" ? "**" : "_";
       text = wrap + text + wrap;
     }
     return text;
   }
+  if (value.type === "horizontal_rule") return "---";
+  if (value.type === "hard_break") return "  \n";
   const children = (value.content || []).map(cardMarkdown);
+  if (value.type === "heading")
+    return "#".repeat(value.attrs.level) + " " + children.join("");
   if (value.type === "bullet_list" || value.type === "ordered_list")
     return children
       .map((text, index) => {

@@ -228,6 +228,54 @@
     border: 1px solid var(--line);
     border-radius: 7px 7px 0 0;
     background: var(--surface2);
+    gap: 0.1rem;
+  }
+  .editor-modes,
+  .editor-commands {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+  }
+  .editor-modes {
+    min-width: 0;
+    padding-inline-end: 0.25rem;
+  }
+  .editor-commands {
+    flex-wrap: wrap;
+  }
+  .editor-toolbar .editor-block-format {
+    width: auto;
+    min-height: 32px;
+    margin: 0 0.2rem 0 0;
+    padding: 0.25rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    background: var(--surface);
+  }
+  .card-editor .editor-toolbar .markdown-toggle {
+    width: auto;
+    margin-inline-start: auto;
+    padding-inline: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 650;
+  }
+  .card-editor .card-markdown {
+    display: block;
+    margin: 0;
+    border-top: 0;
+    border-radius: 0 0 7px 7px;
+    font-family: ui-monospace, monospace;
+    background: var(--surface);
+  }
+  .card-markdown-hint {
+    margin: 0.35rem 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .card-markdown-error {
+    margin: 0.35rem 0;
+    font-size: 0.8rem;
+    color: var(--red);
   }
   .card-editor .editor-toolbar button {
     display: inline-grid;
@@ -249,10 +297,6 @@
     border-color: var(--blue);
     background: var(--blue-light);
     color: var(--blue);
-  }
-  .editor-toolbar button:nth-child(3),
-  .editor-toolbar button:nth-child(5) {
-    margin-inline-start: 0.15rem;
   }
   .card-editor .ProseMirror {
     border-top: 0;
@@ -578,9 +622,25 @@
   .configurator-rail .project-menu .menu-body {
     max-width: calc(100vw - 3.4rem);
   }
+  .editor-modes {
+    width: 100%;
+    padding-inline-end: 0;
+    flex-wrap: wrap;
+  }
+  .editor-toolbar .editor-block-format {
+    min-height: 38px;
+    max-width: 100%;
+  }
+  .editor-commands {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    width: 100%;
+  }
   .card-editor .editor-toolbar button {
-    width: 34px;
-    min-height: 44px;
+    min-height: 40px;
+  }
+  .card-editor .editor-commands button {
+    width: 100%;
   }
 }
 @media screen and (forced-colors: active) {
