@@ -783,7 +783,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     assert.ok(screen.getByText("Im Browser gespeichert"));
     await user.click(screen.getByRole("button", { name: "Projekte verwalten" }));
     const downloadProject = screen.getByRole("button", {
-      name: "Aktuelles Projekt herunterladen",
+      name: "Aktuelles Projekt exportieren",
     });
     const createUrl = URL.createObjectURL;
     const clickAnchor = dom.window.HTMLAnchorElement.prototype.click;

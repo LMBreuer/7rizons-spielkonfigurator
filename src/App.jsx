@@ -37,7 +37,7 @@ import {
   importDecision,
 } from "./project-exchange.js";
 import { t, useLanguage, getLanguage } from "./i18n.js";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { cloud, unwrap, callFunction } from "./cloud.js";
 import {
   PROVIDERS,
@@ -223,30 +223,29 @@ function Button({ children, secondary = false, type = "button", ...props }) {
   );
 }
 function ProjectListRow({ title, detail, busy, onOpen, onDelete }) {
+  const detailId = useId();
   return (
     <div className="project-library-row">
-      <div>
+      <button
+        type="button"
+        className="text-button project-open"
+        disabled={busy}
+        onClick={onOpen}
+        aria-label={t("„{0}“ öffnen", { 0: title })}
+        aria-describedby={detail ? detailId : undefined}
+      >
         <strong>{title}</strong>
-        {detail && <small>{detail}</small>}
-      </div>
-      <div className="project-library-actions">
-        <button
-          className="text-button"
-          disabled={busy}
-          onClick={onOpen}
-          aria-label={t("„{0}“ öffnen", { 0: title })}
-        >
-          {t("Öffnen ")}
-        </button>
-        <button
-          className="text-button project-delete"
-          disabled={busy}
-          onClick={onDelete}
-          aria-label={t("„{0}“ löschen", { 0: title })}
-        >
-          {t("Löschen ")}
-        </button>
-      </div>
+        {detail && <small id={detailId}>{detail}</small>}
+      </button>
+      <button
+        type="button"
+        className="text-button project-delete"
+        disabled={busy}
+        onClick={onDelete}
+        aria-label={t("„{0}“ löschen", { 0: title })}
+      >
+        {t("Löschen ")}
+      </button>
     </div>
   );
 }
@@ -2163,7 +2162,9 @@ export default function App() {
             <button
               className="account-link"
               aria-current={
-                ["account", "archive"].includes(page) ? "page" : undefined
+                page === "account" || (page === "archive" && session)
+                  ? "page"
+                  : undefined
               }
               disabled={busy}
               onClick={() => {
@@ -3485,31 +3486,62 @@ export default function App() {
         )}
         {page === "archive" && (
           <section className="project-library">
-            <div className="editor-heading project-library-heading">
+            <header className="project-library-heading">
               <h1 data-tour="project-archive">{t("Projekte verwalten")}</h1>
-              <Button
-                disabled={busy}
-                onClick={() => act(() => newConfiguration())}
-              >
-                {t("Neues Projekt")}
-              </Button>
               <div className="project-library-actions">
                 <button
-                  className="button secondary"
+                  type="button"
+                  className="text-button project-create"
                   disabled={busy}
-                  onClick={() => configImportRef.current?.click()}
+                  onClick={() => act(() => newConfiguration())}
                 >
-                  {t("Projekt importieren")}
+                  <span aria-hidden="true">+</span> {t("Neues Projekt")}
                 </button>
                 <button
-                  className="button secondary"
+                  type="button"
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => configImportRef.current?.click()}
+                  aria-label={t("Projekt importieren")}
+                >
+                  {t("Import")}
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
                   disabled={busy}
                   onClick={() => act(exportProject)}
+                  aria-label={t("Aktuelles Projekt exportieren")}
                 >
-                  {t("Aktuelles Projekt herunterladen")}
+                  {t("Export")}
                 </button>
               </div>
-            </div>
+              {session &&
+                (workshops.some((w) => w.active) || workshopLinks.length > 0) && (
+                  <div className="project-library-actions">
+                    <button
+                      className="text-button"
+                      data-tour="project-workshop"
+                      disabled={busy}
+                      onClick={() => setPage("project-workshops")}
+                    >
+                      {t("Projekt einem Workshop zuordnen")}
+                    </button>
+                    {workshops
+                      .filter((w) => w.id === workshopId && w.active)
+                      .map((w) => (
+                        <button
+                          key={w.id}
+                          className="text-button"
+                          disabled={busy}
+                          onClick={() => act(() => newConfiguration(w.id))}
+                        >
+                          {t("Neues Projekt für {0}", { 0: w.title })}
+                        </button>
+                      ))}
+                  </div>
+                )}
+            </header>
             <input
               ref={configImportRef}
               hidden
@@ -3521,112 +3553,89 @@ export default function App() {
                 if (file) act(() => importProject(file));
               }}
             />
-            {session &&
-              (workshops.some((w) => w.active) || workshopLinks.length > 0) && (
-                <div className="project-library-actions">
-                  <button
-                    className="text-button"
-                    data-tour="project-workshop"
-                    disabled={busy}
-                    onClick={() => setPage("project-workshops")}
-                  >
-                    {t("Projekt einem Workshop zuordnen")}
-                  </button>
-                  {workshops
-                    .filter((w) => w.id === workshopId && w.active)
-                    .map((w) => (
-                      <button
-                        key={w.id}
-                        className="text-button"
-                        disabled={busy}
-                        onClick={() => act(() => newConfiguration(w.id))}
-                      >
-                        {t("Neues Projekt für {0}", { 0: w.title })}
-                      </button>
-                    ))}
-                </div>
-              )}
-            <section
-              className="panel project-library-section"
-              aria-labelledby="local-projects-heading"
-            >
-              <h2 id="local-projects-heading">{t("Auf diesem Gerät")}</h2>
-              {projects.map((project) => (
-                <ProjectListRow
-                  key={project.id}
-                  title={project.title || t("Unbenanntes Projekt")}
-                  detail={
-                    project.id === draft.id
-                      ? t("Aktuelles Projekt")
-                      : project.importCopy
-                        ? t("Importkopie")
-                        : ""
-                  }
-                  busy={busy}
-                  onOpen={() => act(() => openLocalProject(project.id))}
-                  onDelete={() => act(() => removeLocalProject(project))}
-                />
-              ))}
-              {!projects.length && (
-                <p className="muted">{t("Keine Projekte auf diesem Gerät.")}</p>
-              )}
-            </section>
-            {cloud && (
+            <div className="panel project-library-list">
               <section
-                className="panel project-library-section"
-                aria-labelledby="online-projects-heading"
+                className="project-library-section"
+                aria-labelledby="local-projects-heading"
               >
-                <div className="editor-heading">
-                  <h2 id="online-projects-heading">{t("Online-Projekte")}</h2>
-                  {accountId && (
-                    <button
-                      className="text-button"
-                      disabled={busy || archiveStatus === "loading"}
-                      onClick={refreshArchive}
-                    >
-                      {t("Aktualisieren")}
-                    </button>
-                  )}
-                </div>
-                {!accountId && (
-                  <button
-                    className="text-button"
-                    onClick={() => setPage("account")}
-                  >
-                    {t("Anmelden")}
-                  </button>
-                )}
-                {accountId && archiveStatus === "loading" && (
-                  <p role="status">{t("Online-Projekte werden geladen …")}</p>
-                )}
-                {accountId && archiveStatus === "error" && (
-                  <p role="alert">
-                    {t("Online-Projekte konnten nicht geladen werden.")}
-                  </p>
-                )}
-                {entries.map((project) => (
+                <h2 id="local-projects-heading">{t("Auf diesem Gerät")}</h2>
+                {projects.map((project) => (
                   <ProjectListRow
                     key={project.id}
                     title={project.title || t("Unbenanntes Projekt")}
                     detail={
-                      new Date(project.updated_at).toLocaleString(
-                        language === "en" ? "en-GB" : "de-AT",
-                      ) +
-                      t(" · Online-Version ") +
-                      project.revision
+                      project.id === draft.id
+                        ? t("Aktuelles Projekt")
+                        : project.importCopy
+                          ? t("Importkopie")
+                          : ""
                     }
                     busy={busy}
-                    onOpen={() => act(() => openOnlineProject(project.id))}
-                    onDelete={() => act(() => removeOnlineProject(project))}
+                    onOpen={() => act(() => openLocalProject(project.id))}
+                    onDelete={() => act(() => removeLocalProject(project))}
                   />
                 ))}
-                {accountId && archiveStatus === "ready" && !entries.length && (
-                  <p className="muted">
-                    {t("Noch keine Online-Entwürfe gespeichert.")}
-                  </p>
+                {!projects.length && (
+                  <p className="muted">{t("Keine Projekte auf diesem Gerät.")}</p>
                 )}
               </section>
-            )}
+              {cloud && (
+                <section
+                  className="project-library-section"
+                  aria-labelledby="online-projects-heading"
+                >
+                  <div className="editor-heading">
+                    <h2 id="online-projects-heading">{t("Online-Projekte")}</h2>
+                    {accountId && (
+                      <button
+                        className="text-button"
+                        disabled={busy || archiveStatus === "loading"}
+                        onClick={refreshArchive}
+                      >
+                        {t("Aktualisieren")}
+                      </button>
+                    )}
+                  </div>
+                  {!accountId && (
+                    <button
+                      className="text-button"
+                      onClick={() => setPage("account")}
+                    >
+                      {t("Anmelden")}
+                    </button>
+                  )}
+                  {accountId && archiveStatus === "loading" && (
+                    <p role="status">{t("Online-Projekte werden geladen …")}</p>
+                  )}
+                  {accountId && archiveStatus === "error" && (
+                    <p role="alert">
+                      {t("Online-Projekte konnten nicht geladen werden.")}
+                    </p>
+                  )}
+                  {entries.map((project) => (
+                    <ProjectListRow
+                      key={project.id}
+                      title={project.title || t("Unbenanntes Projekt")}
+                      detail={
+                        new Date(project.updated_at).toLocaleString(
+                          language === "en" ? "en-GB" : "de-AT",
+                        ) +
+                        t(" · Online-Version ") +
+                        project.revision
+                      }
+                      busy={busy}
+                      onOpen={() => act(() => openOnlineProject(project.id))}
+                      onDelete={() => act(() => removeOnlineProject(project))}
+                    />
+                  ))}
+                  {accountId && archiveStatus === "ready" && !entries.length && (
+                    <p className="muted">
+                      {t("Noch keine Online-Entwürfe gespeichert.")}
+                    </p>
+                  )}
+                </section>
+              )}
+            </div>
           </section>
         )}
         {page === "project-save" && session && (

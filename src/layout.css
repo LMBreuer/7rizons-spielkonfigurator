@@ -67,8 +67,10 @@
   .topbar .layout-picker button[aria-pressed="true"] {
     background: var(--blue-light);
     color: var(--blue);
-    border-color: var(--blue);
     font-weight: 700;
+  }
+  :root[data-theme="contrast"] .preferences-menu button[aria-pressed="true"] {
+    box-shadow: inset 0 0 0 1px var(--blue);
   }
 
   .configurator-intro {
@@ -420,6 +422,7 @@
   :root[data-layout="modern"] .workspace-content > .worksheet,
   :root[data-layout="modern"] .workspace-content .workspace > fieldset > .panel,
   :root[data-layout="modern"] .admin-workspace .workspace-content > .panel,
+  :root[data-layout="modern"] .project-library-list,
   :root[data-layout="modern"] main > .panel {
     backdrop-filter: var(--glass-filter);
   }
@@ -638,6 +641,29 @@
     box-shadow: none;
   }
 }
+@media screen and (max-width: 849px) {
+  .configurator-rail > .project-menu {
+    border-inline-start: 1px solid var(--line);
+    padding-inline-start: 0.2rem;
+  }
+  :root[data-layout] .configurator-rail .project-menu > summary,
+  .configurator-rail .mobile-step-jump select {
+    min-height: 44px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ink);
+  }
+  .configurator-rail .mobile-step-jump select {
+    padding: 0.35rem 0.3rem;
+    font-size: 0.85rem;
+  }
+  :root[data-layout] .configurator-rail .project-menu > summary:hover,
+  :root[data-layout] .configurator-rail .project-menu[open] > summary {
+    background: var(--blue-light);
+    color: var(--blue);
+  }
+}
 @media screen and (max-width: 640px) {
   .admin-workspace .admin-tabs {
     display: none;
@@ -650,23 +676,20 @@
     display: none;
   }
   .topbar .preferences-menu > summary,
-  .topbar .account-link,
-  :root[data-layout] .configurator-rail .project-menu > summary {
+  .topbar .account-link {
     min-height: 44px;
-    border-color: var(--line);
-    border-radius: 8px;
-    background: var(--surface);
-    color: var(--ink);
   }
   .topbar .preferences-menu > summary {
     width: 44px;
   }
-  .topbar .preferences-menu[open] > summary,
-  .topbar .account-link[aria-current="page"],
-  :root[data-layout] .configurator-rail .project-menu[open] > summary {
-    border-color: var(--blue);
-    background: var(--blue-light);
-    color: var(--blue);
+  .preferences-menu .background-picker select,
+  .topbar .preferences-menu .layout-picker button,
+  .topbar .preferences-menu .language-switch button {
+    min-height: 44px;
+  }
+  .topbar .preferences-menu .appearance-switch button {
+    width: 44px;
+    height: 44px;
   }
   .topbar .header-tools {
     position: relative;
@@ -689,9 +712,6 @@
   }
   .step-actions > .step-next {
     grid-column: 1 / -1;
-  }
-  .configurator-rail .mobile-step-jump select {
-    min-height: 44px;
   }
   .configurator-rail .project-menu .menu-body {
     max-width: calc(100vw - 3.4rem);
@@ -728,6 +748,9 @@
   .background-picker,
   .background-credit {
     display: none;
+  }
+  .preferences-menu button[aria-pressed="true"]:not(:focus-visible) {
+    outline: 1px solid Highlight;
   }
   :root[data-layout="modern"] .configurator-rail {
     box-shadow: none;
