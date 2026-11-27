@@ -305,6 +305,9 @@
   html:not([data-print]) main .worksheet .card-answer :last-child {
     margin-bottom: 0;
   }
+  html:not([data-print]) main .worksheet .reflection-sheet {
+    break-inside: avoid-page;
+  }
   html:not([data-print]) main .worksheet .provenance {
     border-top: 0.25mm solid var(--print-rule);
   }
