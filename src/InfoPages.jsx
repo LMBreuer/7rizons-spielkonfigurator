@@ -62,7 +62,12 @@ function PrivacyInfo({ online }) {
             <li>
               <strong>{t("Beim Online-Speichern.")}</strong>{" "}
               {t(
-                "Der gespeicherte Stand umfasst Ihre Eingaben, Auswahl, Arbeitsblätter und Kartentexte, gegebenenfalls einen vorbereiteten KI-Auftrag sowie Projekt-ID, Version und Änderungszeitpunkt. Der Stand ist Ihrem Konto zugeordnet. Die Superadministration sieht Projekttitel und Änderungsdatum. Für eine Freigabeanfrage kann sie einen Mailentwurf an Ihre Konto-Adresse öffnen. Eine Kopie der Inhalte erhält sie nach bestätigter Freigabe.",
+                "Der Online-Stand umfasst Ihre Eingaben, Auswahl, Arbeitsblätter, Karten und Notizen, gegebenenfalls einen vorbereiteten KI-Auftrag sowie Projekt-ID, Version und Änderungszeitpunkt. Beim Online-Speichern geben Sie diesen Stand für die Administration frei. Die Administration kann ihn einsehen, herunterladen und das Projekt Workshops zuordnen.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Bei älteren Online-Entwürfen sieht die Superadministration Titel und Änderungsdatum. Sie kann per E-Mail eine Kopie des Stands anfragen. Beim nächsten Online-Speichern entscheiden Sie, ob Sie das Projekt für die Administration freigeben.",
               )}
             </li>
           </>
@@ -81,7 +86,7 @@ function PrivacyInfo({ online }) {
           <ul>
             <li>
               {t(
-                "Wenn Sie ein Projekt einem Workshop zuordnen, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern.",
+                "Wenn Sie oder die Administration ein Projekt einem Workshop zuordnen, sieht dessen Moderation den Titel und das Änderungsdatum. Bei einer Abgabe erhält sie das gewählte Arbeitsblatt samt Kontextangaben, Notizen und Ergebnisblättern.",
               )}
             </li>
             <li>
@@ -92,7 +97,7 @@ function PrivacyInfo({ online }) {
           </ul>
           <p>
             {t(
-              "Sie können Freigaben widerrufen und Abgaben zurückziehen. Bereits heruntergeladene oder übernommene Kopien bleiben bei den Empfänger:innen.",
+              "Unter „Projekte → Projekte verwalten“ können Sie den Online-Stand löschen. Freigabelinks und einzelne Freigaben älterer Stände können Sie widerrufen und Workshop-Abgaben separat zurückziehen. Bereits heruntergeladene oder übernommene Kopien bleiben bei den Empfänger:innen.",
             )}
           </p>
         </>
@@ -169,7 +174,12 @@ function HelpInfo() {
       </p>
       <p>
         {t(
-          "Öffnen Sie das gewünschte Projekt und wählen Sie „Teilen“. Mit „Freigabelink erstellen“ geben Sie diesen Stand samt Arbeitsblättern frei. Spätere Änderungen bleiben privat, bis Sie den Link ersetzen.",
+          "Öffnen Sie das gewünschte Projekt und wählen Sie „Teilen“. Mit „Freigabelink erstellen“ teilen Sie diesen Stand samt Arbeitsblättern. Um spätere Änderungen über den Link sichtbar zu machen, erstellen Sie ihn erneut.",
+        )}
+      </p>
+      <p>
+        {t(
+          "Admins können unter „Administration → Mitglieder“ einen Workshop auswählen und Mitgliedern die Moderation übertragen. Zugeteilte Workshops erscheinen für Moderator:innen unter „Moderation“. Dort sehen sie die Liste der zugeordneten Projekte und eingereichte Arbeitsblätter.",
         )}
       </p>
       <h2 id="urheberrecht">{t("Eigene Karten und fremde Materialien")}</h2>

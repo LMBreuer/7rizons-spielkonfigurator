@@ -21,13 +21,102 @@ const accessLabels = {
   revoked: "Freigabe widerrufen",
 };
 
-export function AdminProjectList({ act, busy, openProject }) {
+function WorkshopAssignment({ project, workshops, act, busy, onChange }) {
+  const [selected, setSelected] = useState("");
+  const available = workshops.filter(
+    (workshop) =>
+      workshop.active && !project.workshop_ids.includes(workshop.id),
+  );
+  const assigned = workshops.filter((workshop) =>
+    project.workshop_ids.includes(workshop.id),
+  );
+  const change = (id, link) =>
+    act(async () => {
+      unwrap(
+        await cloud.rpc("admin_set_workshop_project", {
+          p_project: project.id,
+          p_workshop: id,
+          p_link: link,
+        }),
+      );
+      if (id === selected) setSelected("");
+      onChange(
+        link
+          ? [...project.workshop_ids, id]
+          : project.workshop_ids.filter((workshopId) => workshopId !== id),
+      );
+    });
+  return (
+    <details className="project-assignment">
+      <summary>
+        {t("Workshops zuordnen")} ({assigned.length})
+      </summary>
+      {assigned.map((workshop) => (
+        <div className="archive-row" key={workshop.id}>
+          <span>{workshop.title}</span>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy}
+            aria-label={t("Zuordnung zu „{0}“ lösen", { 0: workshop.title })}
+            onClick={() => change(workshop.id, false)}
+          >
+            {t("Zuordnung lösen")}
+          </button>
+        </div>
+      ))}
+      {available.length > 0 && (
+        <form
+          className="project-assignment-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (selected) change(selected, true);
+          }}
+        >
+          <label>
+            {t("Workshop")}
+            <select
+              value={selected}
+              onChange={(event) => setSelected(event.target.value)}
+              disabled={busy}
+            >
+              <option value="">{t("Workshop auswählen")}</option>
+              {available.map((workshop) => (
+                <option key={workshop.id} value={workshop.id}>
+                  {workshop.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="submit"
+            className="button secondary"
+            disabled={!selected || busy}
+          >
+            {t("Zuordnen")}
+          </button>
+        </form>
+      )}
+      {assigned.length === 0 && available.length === 0 && (
+        <p className="muted">{t("Keine aktiven Workshops verfügbar.")}</p>
+      )}
+    </details>
+  );
+}
+
+export function AdminProjectList({
+  act,
+  busy,
+  openProject,
+  superadmin,
+  workshops,
+}) {
   const [projects, setProjects] = useState(null);
   const [mail, setMail] = useState(null);
   const [more, setMore] = useState(false);
   const load = async (offset = 0) => {
     const rows = unwrap(
-      await cloud.rpc("superadmin_projects").range(offset, offset + 49),
+      await cloud.rpc("admin_projects").range(offset, offset + 49),
     );
     setProjects((previous) => (offset ? [...previous, ...rows] : rows));
     setMore(rows.length === 50);
@@ -40,85 +129,128 @@ export function AdminProjectList({ act, busy, openProject }) {
       <h2>{t("Online-Projekte")}</h2>
       <p className="muted">
         {t(
-          "Die Liste zeigt Titel und Änderungsdatum. Der Projektinhalt wird zugänglich, wenn die Person eine Freigabe bestätigt.",
+          "Hier können Sie online freigegebene Projekte öffnen und Workshops zuordnen.",
         )}
       </p>
       {projects?.length === 0 && <p>{t("Noch keine Online-Projekte.")}</p>}
       {projects?.map((project) => (
-        <div className="archive-row" key={project.id}>
-          <span>
-            <strong>{project.title}</strong>
-            <small>
-              {timestamp(project.updated_at)}
-              {project.status && " · " + t(accessLabels[project.status])}
-              {project.shared_revision != null &&
-                ` (${t("Stand {0}", { 0: project.shared_revision })})`}
-              {project.is_owner && " · " + t("Ihr Projekt")}
-            </small>
-          </span>
-          {project.status === "approved" ? (
-            <button
-              className="button secondary"
-              disabled={busy}
-              onClick={() =>
-                act(async () => {
-                  const snapshot = unwrap(
-                    await cloud.rpc("read_approved_project", {
-                      p_request: project.request_id,
-                    }),
-                  );
-                  openProject(project, snapshot);
-                })
-              }
-            >
-              {t("Freigegebenen Stand öffnen")}
-            </button>
-          ) : (
-            !project.is_owner && (
+        <section className="admin-project-row" key={project.id}>
+          <div className="archive-row">
+            <span>
+              <strong>{project.title}</strong>
+              <small>
+                {timestamp(project.updated_at)}
+                {!project.admin_access &&
+                  project.status &&
+                  " · " + t(accessLabels[project.status])}
+                {!project.admin_access &&
+                  project.shared_revision != null &&
+                  ` (${t("Stand {0}", { 0: project.shared_revision })})`}
+                {!project.admin_access &&
+                  !project.is_owner &&
+                  !project.status &&
+                  " · " + t("Bisheriger privater Entwurf")}
+                {project.is_owner && " · " + t("Ihr Projekt")}
+              </small>
+            </span>
+            {project.admin_access || project.is_owner ? (
               <button
                 className="button secondary"
                 disabled={busy}
                 onClick={() =>
                   act(async () => {
-                    const address = unwrap(
-                      await cloud.rpc("request_project_access", {
+                    const snapshot = unwrap(
+                      await cloud.rpc("read_admin_project", {
                         p_project: project.id,
                       }),
                     );
-                    const subject = t("Projektfreigabe für 7’rizons");
-                    const body =
-                      t(
-                        "Können Sie den gespeicherten Stand von „{0}“ in 7’rizons für mich freigeben?",
-                        { 0: project.title },
-                      ) +
-                      "\n\n" +
-                      t(
-                        "Öffnen Sie in Ihrem Konto die Freigabeanfragen. Dort können Sie zustimmen oder ablehnen.",
-                      ) +
-                      "\n" +
-                      appUrl({ view: "account" });
-                    setMail({
-                      id: project.id,
-                      href: `mailto:${encodeURIComponent(address)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
-                    });
-                    await load();
+                    openProject(project, snapshot);
                   })
                 }
               >
-                {t(
-                  project.status === "pending"
-                    ? "Mail erneut vorbereiten"
-                    : "Freigabe anfragen",
-                )}
+                {t("Projekt öffnen")}
               </button>
-            )
+            ) : project.status === "approved" ? (
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    const snapshot = unwrap(
+                      await cloud.rpc("read_approved_project", {
+                        p_request: project.request_id,
+                      }),
+                    );
+                    openProject(project, snapshot);
+                  })
+                }
+              >
+                {t("Freigegebenen Stand öffnen")}
+              </button>
+            ) : (
+              superadmin && (
+                <button
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    act(async () => {
+                      const address = unwrap(
+                        await cloud.rpc("request_project_access", {
+                          p_project: project.id,
+                        }),
+                      );
+                      const subject = t("Projektfreigabe für 7’rizons");
+                      const body =
+                        t(
+                          "Können Sie den gespeicherten Stand von „{0}“ in 7’rizons für mich freigeben?",
+                          { 0: project.title },
+                        ) +
+                        "\n\n" +
+                        t(
+                          "Öffnen Sie in Ihrem Konto die Freigabeanfragen. Dort können Sie zustimmen oder ablehnen.",
+                        ) +
+                        "\n" +
+                        appUrl({ view: "account" });
+                      setMail({
+                        id: project.id,
+                        href: `mailto:${encodeURIComponent(address)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+                      });
+                      await load();
+                    })
+                  }
+                >
+                  {t(
+                    project.status === "pending"
+                      ? "Mail erneut vorbereiten"
+                      : "Freigabe anfragen",
+                  )}
+                </button>
+              )
+            )}
+            {!project.admin_access && mail?.id === project.id && (
+              <a className="button secondary" href={mail.href}>
+                {t("Mailentwurf öffnen")}
+              </a>
+            )}
+          </div>
+          {project.admin_access && (
+            <WorkshopAssignment
+              project={project}
+              workshops={workshops}
+              act={act}
+              busy={busy}
+              onChange={(ids) =>
+                setProjects((items) =>
+                  items.map((item) =>
+                    item.id === project.id
+                      ? { ...item, workshop_ids: ids }
+                      : item,
+                  ),
+                )
+              }
+            />
           )}
-          {mail?.id === project.id && (
-            <a className="button secondary" href={mail.href}>
-              {t("Mailentwurf öffnen")}
-            </a>
-          )}
-        </div>
+        </section>
       ))}
       {more && (
         <button

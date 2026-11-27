@@ -449,6 +449,7 @@ test("database migration enforces private drafts, admin roles, explicit submissi
       (await first("select content from public.app_settings")).content,
       content,
     );
+
     await identity(owner);
     assert.deepEqual(
       (await first("select public.workshop_content($1) content", [follows]))
@@ -511,6 +512,120 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     assert.deepEqual(
       (await first("select content from public.app_settings")).content,
       content,
+    );
+    const managed = "00000000-0000-4000-8000-000000000011";
+    const saveManaged =
+      "select public.save_configuration_for_administration($1,$2,$3,$4) revision";
+    const readManaged = "select public.read_admin_project($1) project";
+    const assign = "select public.admin_set_workshop_project($1,$2,$3)";
+    const snapshot = {
+      draft: { id: managed },
+      worksheets: [{ title: "Example" }],
+    };
+    await assert.rejects(
+      () => sql(saveManaged, [managed, 0, "Workshop project", snapshot]),
+      /permission denied/,
+    );
+    await assert.rejects(
+      () => sql("select * from public.admin_projects()"),
+      /permission denied/,
+    );
+    await identity(owner);
+    assert.equal(
+      (
+        await first(
+          "select admin_shared_at from public.configurations where id=$1",
+          [config],
+        )
+      ).admin_shared_at,
+      null,
+    );
+    assert.equal(
+      (await first(saveManaged, [managed, 0, "Workshop project", snapshot]))
+        .revision,
+      1,
+    );
+    await assert.rejects(
+      () => sql(saveManaged, [managed, 0, "Stale", {}]),
+      /Online-Stand wurde geändert/,
+    );
+    await identity(admin);
+    await sql("select public.set_account_admin($1,true)", [other]);
+    const { id: externalWorkshop } = await first(
+      "insert into public.workshops(title,join_code) values('Project check','qrstuvwxyzabcdef') returning id",
+    );
+    await sql(
+      "select public.set_roster_role($1,'moderator@example.test','moderator')",
+      [externalWorkshop],
+    );
+    await identity(other);
+    assert.deepEqual(
+      await sql("select id,admin_access from public.admin_projects()"),
+      [{ id: managed, admin_access: true }],
+    );
+    assert.deepEqual((await first(readManaged, [managed])).project, snapshot);
+    await assert.rejects(
+      () => sql(readManaged, [config]),
+      /Projektinhalt nicht freigegeben/,
+    );
+    await assert.rejects(
+      () => sql(assign, [config, externalWorkshop, true]),
+      /Projektinhalt nicht freigegeben/,
+    );
+    assert.deepEqual(await sql("select id from public.configurations"), []);
+    await sql(assign, [managed, externalWorkshop, true]);
+    await sql(assign, [managed, externalWorkshop, true]);
+    assert.deepEqual(
+      (
+        await first(
+          "select workshop_ids from public.admin_projects() where id=$1",
+          [managed],
+        )
+      ).workshop_ids,
+      [externalWorkshop],
+    );
+    await identity(owner);
+    assert.deepEqual(
+      await sql(
+        "select workshop_id from public.my_workshop_project_links($1)",
+        [managed],
+      ),
+      [{ workshop_id: externalWorkshop }],
+    );
+    assert.equal(
+      (await sql("select * from public.my_workshops()")).some(
+        ({ id }) => id === externalWorkshop,
+      ),
+      false,
+    );
+    await identity(admin);
+    await sql("select public.set_account_admin($1,false)", [other]);
+    await identity(other);
+    const managedRow = await first(
+      "select * from public.list_workshop_projects($1)",
+      [externalWorkshop],
+    );
+    assert.equal(managedRow.id, managed);
+    assert.equal(managedRow.payload, undefined);
+    await assert.rejects(
+      () => sql("select * from public.admin_projects()"),
+      /Nur Administration/,
+    );
+    await assert.rejects(
+      () => sql(readManaged, [managed]),
+      /Nur Administration/,
+    );
+    await assert.rejects(
+      () => sql(assign, [managed, externalWorkshop, false]),
+      /Nur Administration/,
+    );
+    await identity(admin);
+    await sql(assign, [managed, externalWorkshop, false]);
+    assert.deepEqual(
+      await sql("select * from public.list_workshop_projects($1)", [
+        externalWorkshop,
+      ]),
+      [],
     );
   } finally {
     await db.close();

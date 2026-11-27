@@ -51,7 +51,10 @@ import {
   createWorksheet,
 } from "../supabase/functions/_shared/domain.js";
 import { trackInputMethod } from "./focus.js";
-import { priorityOf } from "../supabase/functions/_shared/priority.js";
+import {
+  orderedMechanisms,
+  priorityOf,
+} from "../supabase/functions/_shared/priority.js";
 import Priority from "./Priority.jsx";
 import Worksheet from "./Worksheet.jsx";
 import ContextField from "./ContextField.jsx";
@@ -69,6 +72,8 @@ const API_KEY_GUIDES = {
   anthropic: "https://platform.claude.com/docs/en/get-api-key",
   gemini: "https://ai.google.dev/gemini-api/docs/api-key",
 };
+const onlineAccessNotice =
+  "Beim Online-Speichern geben Sie dieses Projekt samt Arbeitsblättern für die Administration frei. Sie kann es einsehen und Workshops zuordnen. Die Workshopmoderation sieht bei einer Zuordnung den Titel und das Änderungsdatum.";
 
 function ApiKeyHelp({ provider }) {
   return (
@@ -319,6 +324,41 @@ function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
     </header>
   );
 }
+function AdminConfigurationSummary({ draft }) {
+  const { LE, MK } = catalogFor(draft);
+  const selection = [
+    [
+      t("Lernerlebnisse"),
+      priorityOf(draft).learningOrder.filter((id) =>
+        draft.learning.includes(id),
+      ),
+      LE,
+    ],
+    [t("Mechaniken"), orderedMechanisms(draft), MK],
+  ];
+  return (
+    <details>
+      <summary>{t("Konfiguration ansehen")}</summary>
+      {selection.map(([label, ids, catalog]) => (
+        <section key={label}>
+          <h2>{label}</h2>
+          {ids.length ? (
+            <ol>
+              {ids.map((id) => (
+                <li key={id}>
+                  {t(catalog.find((item) => item.id === id)?.label || id)}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p>{t("Keine Auswahl")}</p>
+          )}
+        </section>
+      ))}
+    </details>
+  );
+}
+
 export default function App() {
   const [language, setLanguage] = useLanguage();
   useEffect(() => trackInputMethod(), []);
@@ -778,7 +818,7 @@ export default function App() {
     }));
     cloud
       .from("configurations")
-      .select("id,title,revision,updated_at")
+      .select("id,title,revision,updated_at,admin_shared_at")
       .eq("owner_id", accountId)
       .order("updated_at", { ascending: false })
       .abortSignal(request.signal)
@@ -973,10 +1013,19 @@ export default function App() {
     } catch {}
     setMessage(t("Sie sind dem Workshop beigetreten."));
   }
-  async function saveOnline() {
+  async function saveOnline({ confirmed = false } = {}) {
     if (!session) throw new Error(t("Bitte zuerst anmelden."));
+    if (
+      !confirmed &&
+      !onlineById.get(draft.id)?.admin_shared_at &&
+      !window.confirm(
+        `${t(onlineAccessNotice)}\n\n${t("Projekt online speichern?")}`,
+      )
+    ) {
+      return null;
+    }
     const rev = unwrap(
-      await cloud.rpc("save_configuration", {
+      await cloud.rpc("save_configuration_for_administration", {
         p_id: draft.id,
         p_revision: cloudRevision,
         p_title: (
@@ -989,7 +1038,7 @@ export default function App() {
     );
     setCloudRevision(rev);
     refreshArchive();
-    setMessage(t("Entwurf und Arbeitsblätter sind privat online gespeichert."));
+    setMessage(t("Projekt und Arbeitsblätter wurden online gespeichert."));
     return rev;
   }
   function addWorksheet(
@@ -1399,7 +1448,7 @@ export default function App() {
       !accountId ||
       !window.confirm(
         t(
-          "Diesen privaten Online-Entwurf löschen? Bestehende Workshop-Abgaben bleiben separat erhalten.",
+          "Diesen Online-Entwurf löschen? Bestehende Workshop-Abgaben bleiben separat erhalten.",
         ),
       )
     )
@@ -1502,7 +1551,7 @@ export default function App() {
     setCredentials(data.credentials);
   }
   async function changeWorkshopLink(id, link) {
-    if (link) await saveOnline();
+    if (link && !(await saveOnline())) return;
     unwrap(
       await cloud.rpc("set_workshop_project", {
         p_workshop: id,
@@ -1569,6 +1618,7 @@ export default function App() {
   }
   async function publishProjectShare() {
     const revision = await saveOnline();
+    if (!revision) return;
     const token = unwrap(
       await cloud.rpc("create_project_share", {
         p_project: draft.id,
@@ -1578,16 +1628,21 @@ export default function App() {
     setProjectShare({ token, shared_revision: revision });
     setMessage(t("Freigabelink erstellt."));
   }
-  function openApprovedProject(project, payload) {
+  function openAdminProject(project, payload) {
     const snapshot = readSnapshot(payload);
     setSharedProject({
       title: project.title,
       project: payload,
       snapshot,
-      stand: project.shared_revision,
+      stand:
+        project.admin_access || project.is_owner
+          ? project.revision
+          : project.shared_revision,
+      currentOnlineStand: project.admin_access || project.is_owner,
+      adminAccountId: accountId,
     });
     setSharedSheetId(snapshot.activeWorksheetId || "");
-    setPage("superadmin-project");
+    setPage("admin-project");
   }
   function downloadSharedProject(title, snapshot) {
     download(
@@ -1600,7 +1655,7 @@ export default function App() {
     (w) => w.id === sharedSheetId,
   );
   const adminSections = [
-    ...(superadmin ? [["projects", t("Projekte")]] : []),
+    ["projects", t("Projekte")],
     ["workshops", t("Workshops")],
     ["submissions", t("Abgaben")],
     ["credentials", t("KI-Zugänge")],
@@ -1951,16 +2006,26 @@ export default function App() {
               <button
                 disabled={busy}
                 aria-current={
-                  ["admin", "superadmin-project"].includes(page)
-                    ? "page"
-                    : undefined
+                  ["admin", "admin-project"].includes(page) ? "page" : undefined
                 }
                 onClick={() => {
-                  setAdminTab(superadmin ? "projects" : "workshops");
+                  setAdminTab("projects");
                   act(loadAdmin);
                 }}
               >
                 {t("Administration")}
+              </button>
+            )}
+            {session && !admin && moderatedWorkshops.length > 0 && (
+              <button
+                aria-current={
+                  ["moderation-home", "moderation"].includes(page)
+                    ? "page"
+                    : undefined
+                }
+                onClick={() => setPage("moderation-home")}
+              >
+                {t("Moderation")}
               </button>
             )}
           </nav>
@@ -2999,7 +3064,7 @@ export default function App() {
                       disabled={busy || !workshopId || !submissionConsent}
                       onClick={() =>
                         act(async () => {
-                          await saveOnline();
+                          if (!(await saveOnline())) return;
                           unwrap(
                             await cloud.rpc("submit_configuration", {
                               p_workshop: workshopId,
@@ -3482,12 +3547,13 @@ export default function App() {
         {page === "project-save" && session && (
           <Card>
             <h1>{t("„{0}“ online speichern", { 0: projectTitle })}</h1>
+            <p>{t(onlineAccessNotice)}</p>
             <div className="actions">
               <Button
                 disabled={busy}
                 onClick={() =>
                   act(async () => {
-                    await saveOnline();
+                    await saveOnline({ confirmed: true });
                     setPage("app");
                     window.history.replaceState(
                       null,
@@ -3595,7 +3661,9 @@ export default function App() {
           </Card>
         )}
         {(page === "shared-project" ||
-          (page === "superadmin-project" && superadmin)) && (
+          (page === "admin-project" &&
+            admin &&
+            sharedProject?.adminAccountId === accountId)) && (
           <>
             <Card className="no-print">
               <h1>{sharedProject?.title || t("Geteiltes Projekt")}</h1>
@@ -3611,7 +3679,12 @@ export default function App() {
               {sharedProject && (
                 <>
                   <p>
-                    {t("Freigegebener Stand {0}", { 0: sharedProject.stand })}
+                    {t(
+                      sharedProject.currentOnlineStand
+                        ? "Online-Version {0}"
+                        : "Freigegebener Stand {0}",
+                      { 0: sharedProject.stand },
+                    )}
                   </p>
                   {sharedProject.snapshot.worksheets.length > 0 && (
                     <label>
@@ -3628,7 +3701,8 @@ export default function App() {
                       </select>
                     </label>
                   )}
-                  {!sharedProject.snapshot.worksheets.length && (
+                  {(page === "admin-project" ||
+                    !sharedProject.snapshot.worksheets.length) && (
                     <dl className="shared-context">
                       {[
                         ["thema", "Thema"],
@@ -3648,6 +3722,11 @@ export default function App() {
                           </div>
                         ))}
                     </dl>
+                  )}
+                  {page === "admin-project" && (
+                    <AdminConfigurationSummary
+                      draft={sharedProject.snapshot.draft}
+                    />
                   )}
                   <div className="actions">
                     {page === "shared-project" && (
@@ -3699,7 +3778,7 @@ export default function App() {
                           {t("Karten drucken")}
                         </Button>
                       )}
-                    {page === "superadmin-project" && (
+                    {page === "admin-project" && (
                       <Button secondary onClick={() => setPage("admin")}>
                         {t("Zurück zur Projektübersicht")}
                       </Button>
@@ -3727,36 +3806,53 @@ export default function App() {
                 "Die Moderation sieht Titel und Änderungsdatum. Arbeitsblätter können Sie gesondert abgeben.",
               )}
             </p>
-            {workshops
-              .filter(
+            {[
+              ...workshopLinks.map((link) => ({
+                id: link.workshop_id,
+                title: link.title,
+                linked: true,
+              })),
+              ...workshops.filter(
                 (w) =>
-                  w.active ||
-                  workshopLinks.some((link) => link.workshop_id === w.id),
-              )
-              .map((w) => {
-                const linked = workshopLinks.some(
-                  (link) => link.workshop_id === w.id,
-                );
-                return (
-                  <div className="archive-row" key={w.id}>
-                    <span>{w.title}</span>
-                    <Button
-                      secondary
-                      disabled={busy}
-                      onClick={() =>
-                        act(() => changeWorkshopLink(w.id, !linked))
-                      }
-                    >
-                      {t(linked ? "Zuordnung entfernen" : "Projekt zuordnen")}
-                    </Button>
-                  </div>
-                );
-              })}
+                  w.active &&
+                  !workshopLinks.some((link) => link.workshop_id === w.id),
+              ),
+            ].map((w) => (
+              <div className="archive-row" key={w.id}>
+                <span>{w.title}</span>
+                <Button
+                  secondary
+                  disabled={busy}
+                  onClick={() => act(() => changeWorkshopLink(w.id, !w.linked))}
+                >
+                  {t(w.linked ? "Zuordnung entfernen" : "Projekt zuordnen")}
+                </Button>
+              </div>
+            ))}
             <Button secondary onClick={openConfigurator}>
               {t("Zum Konfigurator")}
             </Button>
           </Card>
         )}
+        {page === "moderation-home" &&
+          session &&
+          moderatedWorkshops.length > 0 && (
+            <Card>
+              <h1>{t("Meine moderierten Workshops")}</h1>
+              <div className="actions">
+                {moderatedWorkshops.map((workshop) => (
+                  <Button
+                    key={workshop.id}
+                    secondary
+                    disabled={busy}
+                    onClick={() => act(() => loadModeration(workshop))}
+                  >
+                    {workshop.title}
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          )}
         {page === "moderation" && session && moderation && (
           <Card>
             <h1>{moderation.workshop.title}</h1>
@@ -3843,12 +3939,14 @@ export default function App() {
               </div>
             }
           >
-            {adminTab === "projects" && superadmin && (
+            {adminTab === "projects" && (
               <Card>
                 <AdminProjectList
                   act={act}
                   busy={busy}
-                  openProject={openApprovedProject}
+                  openProject={openAdminProject}
+                  superadmin={superadmin}
+                  workshops={adminWorkshops}
                 />
               </Card>
             )}
@@ -4249,7 +4347,7 @@ export default function App() {
                 <h2>{t("Abgaben an die Moderation")}</h2>
                 <p>
                   {t(
-                    "Hier erscheinen nur ausdrücklich eingereichte Stände, keine privaten Entwürfe. ",
+                    "Hier erscheinen ausdrücklich eingereichte Arbeitsblätter. Online-Projekte finden Sie unter „Projekte“. ",
                   )}
                 </p>
                 <SubmissionList
