@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import en from "../supabase/functions/_shared/locales/en.json" with { type: "json" };
 import { translate } from "../supabase/functions/_shared/translations.js";
 import { LE, MK } from "../supabase/functions/_shared/catalog.js";
+import { adminTour, projectTour } from "../src/tour-steps.js";
 import {
   newDraft,
   templateResult,
@@ -37,6 +38,10 @@ test("English dictionary covers the complete catalogue and keeps interpolation/d
     translate("Topic entered by a participant", "en"),
     "Topic entered by a participant",
   );
+  for (const { title, text } of [...adminTour, ...projectTour]) {
+    assert.ok(Object.hasOwn(en, title), title);
+    assert.ok(Object.hasOwn(en, text), text);
+  }
 });
 test("English no-AI output, Markdown and AI request preserve language and topic", () => {
   const d = {
@@ -66,6 +71,7 @@ test("all explicitly translated literal UI strings have an English entry", async
     "src/InfoPages.jsx",
     "src/ContentEditor.jsx",
     "src/ContentLibrary.jsx",
+    "src/GuidedTour.jsx",
     "src/Members.jsx",
     "src/ProjectModeration.jsx",
     "src/Priority.jsx",

@@ -66,6 +66,8 @@ import ContextField from "./ContextField.jsx";
 import { jsonFilename } from "./downloads.js";
 import Logo from "./Logo.jsx";
 import AppearanceSwitch from "./AppearanceSwitch.jsx";
+import GuidedTour, { TourButton } from "./GuidedTour.jsx";
+import { adminTour, projectTour } from "./tour-steps.js";
 import {
   APPEARANCE_KEY,
   BACKGROUND_KEY,
@@ -81,6 +83,9 @@ const API_KEY_GUIDES = {
 };
 const onlineAccessNotice =
   "Beim Online-Speichern geben Sie dieses Projekt samt Arbeitsblättern für die Administration frei. Sie kann es einsehen und Workshops zuordnen. Die Workshopmoderation sieht bei einer Zuordnung den Titel und das Änderungsdatum.";
+const projectTourSteps = projectTour.filter((step) =>
+  cloud ? !step.offline : !step.online,
+);
 
 function ApiKeyHelp({ provider }) {
   return (
@@ -294,7 +299,13 @@ function runPrintMenuAction(event, action) {
   menu.querySelector("summary").focus();
   action();
 }
-function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
+function ConfiguratorHeading({
+  step,
+  projectTitle,
+  hasDocument,
+  startTour,
+  busy,
+}) {
   const intro = (
     <>
       {t("Gestalten Sie")} <Logo wordmark /> {t("für Ihre Lehre.")}
@@ -323,11 +334,14 @@ function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
           </>
         )}
       </div>
-      <p className="configurator-subtitle">
-        {step === 1
-          ? t("Von der Spielidee zum Seminar")
-          : t("Schritt {0} von {1}", { 0: step, 1: steps.length })}
-      </p>
+      <div className="tour-heading-row">
+        <p className="configurator-subtitle">
+          {step === 1
+            ? t("Von der Spielidee zum Seminar")
+            : t("Schritt {0} von {1}", { 0: step, 1: steps.length })}
+        </p>
+        <TourButton onClick={startTour} disabled={busy} />
+      </div>
     </header>
   );
 }
@@ -429,6 +443,7 @@ export default function App() {
   const cardImportField = useRef(null);
   useEffect(() => {
     function closeMenus(event) {
+      if (event.target.closest?.(".guided-tour")) return;
       const escape = event.type === "keydown" && event.key === "Escape";
       if (event.type === "keydown" && !escape) return;
       for (const menu of document.querySelectorAll(
@@ -498,6 +513,7 @@ export default function App() {
   const [admin, setAdmin] = useState(false);
   const [superadmin, setSuperadmin] = useState(false);
   const [adminTab, setAdminTab] = useState("workshops");
+  const [tour, setTour] = useState(null);
   const [moderatedWorkshops, setModeratedWorkshops] = useState([]);
   const [moderation, setModeration] = useState(null);
   const [workshopLinks, setWorkshopLinks] = useState([]);
@@ -786,6 +802,7 @@ export default function App() {
     setAdmin(false);
     setSuperadmin(false);
     setAdminTab("workshops");
+    setTour((current) => (current?.admin ? null : current));
     setModeratedWorkshops([]);
     setModeration(null);
     setCredentials([]);
@@ -1679,6 +1696,18 @@ export default function App() {
     ["members", t("Mitglieder")],
     ["settings", t("KI-Einstellungen")],
   ];
+  function showTourStep(index, current = tour) {
+    const step = (current.admin ? adminTour : projectTourSteps)[index];
+    if (!step) return;
+    setTour({ ...current, index });
+    if (step.section) {
+      if (adminTab !== step.section) act(() => openAdminSection(step.section));
+    } else if (step.archive) {
+      if (page !== "archive") openArchive();
+    } else if (page !== "app") {
+      setPage("app");
+    }
+  }
   const notices = (
     <>
       {error && (
@@ -2186,6 +2215,10 @@ export default function App() {
                 step={step}
                 projectTitle={projectTitle}
                 hasDocument={Boolean(hasWorksheet || (step === 5 && preview))}
+                startTour={(event) =>
+                  showTourStep(0, { admin: false, trigger: event.currentTarget })
+                }
+                busy={busy}
               />
             }
             rail={
@@ -2203,7 +2236,7 @@ export default function App() {
                     }
                   }}
                 >
-                  <summary>{t("Projekte")}</summary>
+                  <summary data-tour="project-switcher">{t("Projekte")}</summary>
                   <div className="menu-body">
                     <section className="project-current">
                       <strong>{projectTitle}</strong>
@@ -2216,6 +2249,7 @@ export default function App() {
                     {cloud && (
                       <>
                         <button
+                          data-tour="save-online"
                           disabled={busy}
                           onClick={() => {
                             projectMenu.current.open = false;
@@ -3434,7 +3468,7 @@ export default function App() {
         {page === "archive" && (
           <section className="project-library">
             <div className="editor-heading">
-              <h1>{t("Projekte verwalten")}</h1>
+              <h1 data-tour="project-archive">{t("Projekte verwalten")}</h1>
               <div className="project-library-actions">
                 <button
                   className="text-button"
@@ -3474,6 +3508,7 @@ export default function App() {
                 <div className="project-library-actions">
                   <button
                     className="text-button"
+                    data-tour="project-workshop"
                     disabled={busy}
                     onClick={() => setPage("project-workshops")}
                   >
@@ -3938,7 +3973,17 @@ export default function App() {
         {page === "admin" && admin && (
           <WorkspaceLayout
             className="admin-workspace"
-            heading={<h1 className="admin-title">{t("Administration")}</h1>}
+            heading={
+              <div className="admin-title tour-heading-row">
+                <h1>{t("Administration")}</h1>
+                <TourButton
+                  onClick={(event) =>
+                    showTourStep(0, { admin: true, trigger: event.currentTarget })
+                  }
+                  disabled={busy}
+                />
+              </div>
+            }
             rail={
               <div className="admin-rail">
                 <nav
@@ -4240,7 +4285,7 @@ export default function App() {
                       maxLength={200}
                     />
                   </label>
-                  <Button type="submit" disabled={busy}>
+                  <Button type="submit" disabled={busy} data-tour="admin-workshops">
                     {t("Workshop anlegen ")}
                   </Button>
                 </form>
@@ -4382,7 +4427,7 @@ export default function App() {
             )}
             {adminTab === "submissions" && (
               <Card>
-                <h2>{t("Abgaben an die Moderation")}</h2>
+                <h2 data-tour="admin-submissions">{t("Abgaben an die Moderation")}</h2>
                 <p>
                   {t(
                     "Hier erscheinen ausdrücklich eingereichte Arbeitsblätter. Online-Projekte finden Sie unter „Projekte“. ",
@@ -4438,6 +4483,15 @@ export default function App() {
           <InfoPage page={page} online={Boolean(cloud)} />
         )}
       </main>
+      {tour && (!tour.admin || (admin && page === "admin")) && (
+        <GuidedTour
+          steps={tour.admin ? adminTour : projectTourSteps}
+          index={tour.index}
+          onChange={showTourStep}
+          onClose={() => setTour(null)}
+          returnFocus={tour.trigger}
+        />
+      )}
       <footer className="footer no-print">
         <div className="footer-credit">
           <p>

@@ -254,7 +254,7 @@ export default function Members({ workshops, superadmin, act, busy }) {
   return (
     <section className="panel">
       <h2>{t("Mitglieder")}</h2>
-      <label className="member-scope">
+      <label className="member-scope" data-tour="admin-members">
         {t("Mitglieder anzeigen")}
         <select value={scope} onChange={(e) => setScope(e.target.value)}>
           {superadmin && (

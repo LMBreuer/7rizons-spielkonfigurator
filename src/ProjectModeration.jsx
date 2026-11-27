@@ -126,7 +126,7 @@ export function AdminProjectList({
   }, []);
   return (
     <>
-      <h2>{t("Online-Projekte")}</h2>
+      <h2 data-tour="admin-projects">{t("Online-Projekte")}</h2>
       <p className="muted">
         {t(
           "Hier können Sie online freigegebene Projekte öffnen und Workshops zuordnen.",
