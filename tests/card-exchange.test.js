@@ -26,6 +26,7 @@ test("a card deck round-trips types, Markdown, notes, card colors and print sett
     id: crypto.randomUUID(),
     mechanismId: "m72",
     title: "Zwei Seiten",
+    group: "beziehungen",
     text: parseCardMarkdown(
       "## Situation\n\n**Beispiel**\n\n---\n\n## Anweisung",
     ).toJSON(),
@@ -55,6 +56,7 @@ test("a card deck round-trips types, Markdown, notes, card colors and print sett
     cardPrint: savedCardPrint(settings),
   });
   assert.deepEqual(snapshot.worksheets[0].result.cardTypes, result.cardTypes);
+  assert.equal(snapshot.worksheets[0].result.cards[0].group, "beziehungen");
   assert.deepEqual(snapshot.cardPrint.backText, backText);
   const ctx = {
     result,
@@ -87,6 +89,7 @@ test("a card deck round-trips types, Markdown, notes, card colors and print sett
   assert.notEqual(copy.added[0].id, card.id);
   assert.equal(copy.added[0].title, "Andere Karte");
   const template = exportCardFile({ ...ctx, template: true });
+  assert.ok(template.availableGroups.some(({ group }) => group === "einstieg"));
   assert.equal(template.cards[0].id, undefined);
   assert.match(template.cards[0].textMarkdown, /\n\n---\n\n## Instruction/);
   assert.equal(template.settings.backTextMarkdown, undefined);

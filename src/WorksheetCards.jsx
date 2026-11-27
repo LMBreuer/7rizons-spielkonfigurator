@@ -6,6 +6,7 @@ import {
 } from "../supabase/functions/_shared/card-text.js";
 
 import CardAnswer from "./RichCardText.jsx";
+import CardGroupField from "./CardGroupField.jsx";
 
 const cardPalette = [
   ["#2a6fb4", "Blau"],
@@ -265,6 +266,11 @@ export default function WorksheetCards({
                         </div>
                       </fieldset>
                     </div>
+                    <CardGroupField
+                      card={card}
+                      onChange={(group) => update(card.id, () => ({ group }))}
+                      t={t}
+                    />
                     <div>
                       <span className="card-field-label">
                         {t("Kartentext")}

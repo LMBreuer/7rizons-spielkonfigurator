@@ -13,6 +13,10 @@ import {
   readCardPrint,
 } from "../supabase/functions/_shared/card-print.js";
 import {
+  CARD_GROUPS,
+  cardGroup,
+} from "../supabase/functions/_shared/card-groups.js";
+import {
   cardDocument,
   parseCardMarkdown,
   serializeCardMarkdown,
@@ -58,6 +62,15 @@ export function exportCardFile({
         paper: ["white", "cream", "dark"],
         fontSizePt: CARD_PRINT_SIZES,
       },
+      availableGroups: Object.entries(CARD_GROUPS).map(
+        ([group, { label }]) => ({
+          group,
+          label: t(label),
+        }),
+      ),
+      cardGroupInstructions: t(
+        "Wählen Sie für die Rückseite einer Karte optional eine group aus availableGroups. Ohne group wird die Rückseite aus der Mechanik abgeleitet.",
+      ),
     }),
     availableTypes,
     ...((template || result.cardTypes) && { types: result.cardTypes || {} }),
@@ -74,6 +87,7 @@ export function exportCardFile({
       ? [
           {
             mechanismId: availableTypes[0].mechanismId,
+            group: cardGroup(availableTypes[0]),
             title: t("Beispielkarte"),
             textMarkdown: [
               "## " + t("Situation"),
@@ -90,9 +104,10 @@ export function exportCardFile({
           },
         ]
       : worksheetCards(result).map(
-          ({ id, mechanismId, title, text, color, notes }) => ({
+          ({ id, mechanismId, title, text, color, notes, group }) => ({
             id,
             mechanismId,
+            ...(group !== undefined && { group }),
             title,
             textMarkdown: markdownFor(text),
             color,
@@ -105,7 +120,10 @@ export function exportCardFile({
 
 export function parseCardFile(text) {
   const input = text.trim();
-  const fence = /^\x60\x60\x60(?:json)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60\x60\x60$/i.exec(input);
+  const fence =
+    /^\x60\x60\x60(?:json)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60\x60\x60$/i.exec(
+      input,
+    );
   try {
     return JSON.parse(fence?.[1] ?? input);
   } catch (error) {
@@ -128,6 +146,7 @@ function textFromMarkdown(value) {
 function sameCard(a, b) {
   return (
     a.mechanismId === b.mechanismId &&
+    cardGroup(a) === cardGroup(b) &&
     a.title === b.title &&
     a.color.toLowerCase() === b.color.toLowerCase() &&
     markdownFor(a.text) === markdownFor(b.text) &&
@@ -158,8 +177,7 @@ export function importCardFile(raw, result, worksheetId, currentSettings) {
   for (const item of raw.cards) {
     if (!object(item)) throw new Error("Ungültige Spielkarten.");
     const id = item.id ?? crypto.randomUUID();
-    if (seen.has(id))
-      throw new Error("Ungültige oder doppelte Kartenkennung.");
+    if (seen.has(id)) throw new Error("Ungültige oder doppelte Kartenkennung.");
     seen.add(id);
     const mechanismId =
       item.mechanismId === undefined && targets.length === 1
@@ -174,6 +192,7 @@ export function importCardFile(raw, result, worksheetId, currentSettings) {
         {
           id,
           mechanismId,
+          group: item.group,
           title: item.title,
           text: textFromMarkdown(item.textMarkdown),
           color: item.color ?? DEFAULT_CARD_COLOR,

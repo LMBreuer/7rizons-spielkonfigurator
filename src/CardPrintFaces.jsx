@@ -1,8 +1,14 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import {
+  BRAND_CARD_DESIGN,
   cardPrintStyle,
   defaultBackColor,
 } from "../supabase/functions/_shared/card-print.js";
+import {
+  CARD_GROUPS,
+  cardGroup,
+} from "../supabase/functions/_shared/card-groups.js";
+import { effectiveCardPrint, useCardBrandPack } from "./card-brand.js";
 import CardAnswer from "./RichCardText.jsx";
 import Logo from "./Logo.jsx";
 
@@ -55,12 +61,19 @@ export function CardPrintFace({
   back = false,
   style,
   t,
+  brandPack,
 }) {
   const look = cardPrintStyle(settings, worksheetId, card);
+  const branded = settings.design === BRAND_CARD_DESIGN;
+  const group = cardGroup(card);
+  const { label, color } = CARD_GROUPS[group];
+  const groupLabel = t(label);
+  const originalBack = brandPack?.backs[group];
   const longType =
     [...type].length * look.type >
     (settings.orientation === "landscape" ? 245 : 340);
   const dark = settings.paper === "dark";
+  const colorToPrint = branded ? color : look.color;
   return (
     <div
       className="deck-card-slot"
@@ -71,15 +84,33 @@ export function CardPrintFace({
         back
           ? {
               ...style,
-              "--deck-back-accent":
-                settings.backColor || defaultBackColor(settings.paper),
+              "--deck-back-accent": branded
+                ? color
+                : settings.backColor || defaultBackColor(settings.paper),
             }
           : style
       }
     >
       {back ? (
         <div className="deck-card deck-card-back" data-cover={settings.back}>
-          {settings.back === "image" ? (
+          {branded ? (
+            originalBack ? (
+              <img
+                className="deck-card-cover"
+                src={originalBack}
+                alt={groupLabel}
+              />
+            ) : (
+              <div className="deck-card-back-center">
+                <img
+                  className="deck-brand-symbol"
+                  src={(import.meta.env?.BASE_URL || "./") + "favicon.svg"}
+                  alt=""
+                />
+                <strong>{groupLabel}</strong>
+              </div>
+            )
+          ) : settings.back === "image" ? (
             <>
               <img
                 className="deck-card-cover"
@@ -107,8 +138,8 @@ export function CardPrintFace({
           data-card-id={card.id}
           data-long-type={longType || undefined}
           style={{
-            "--card-color": look.color,
-            "--card-accent-ink": accentInk(look.color),
+            "--card-color": colorToPrint,
+            "--card-accent-ink": accentInk(colorToPrint),
             "--card-font-size": look.body,
             "--card-title-size": look.title,
             "--card-type-size": look.type,
@@ -124,18 +155,29 @@ export function CardPrintFace({
           >
             {type[0]}
           </span>
-          <div className="deck-card-title">{cardTitle(card, t)}</div>
+          {branded && <div className="deck-card-type">{groupLabel}</div>}
+          {(!branded || card.title.trim()) && (
+            <div className="deck-card-title">{cardTitle(card, t)}</div>
+          )}
           <div className="deck-card-text">
             <CardAnswer value={card.text} />
           </div>
-          <div className="deck-card-type">{type}</div>
+          {!branded && <div className="deck-card-type">{type}</div>}
         </div>
       )}
     </div>
   );
 }
 
-export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
+export function PrintableCards({
+  cards,
+  cardType,
+  worksheetId,
+  settings: rawSettings,
+  t,
+}) {
+  const brandPack = useCardBrandPack();
+  const settings = effectiveCardPrint(rawSettings);
   const probe = useRef(null);
   const [oversized, setOversized] = useState([]);
   const [backTooLong, setBackTooLong] = useState(false);
@@ -153,7 +195,7 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
     // The print faces have a fixed size, but the browser can finish loading fonts after layout.
     document.fonts?.addEventListener("loadingdone", measure);
     return () => document.fonts?.removeEventListener("loadingdone", measure);
-  }, [cards, settings, cardType]);
+  }, [cards, rawSettings, cardType, brandPack]);
 
   const columns = settings.orientation === "portrait" ? 2 : 1;
   const perPage = columns === 2 ? 4 : 3;
@@ -168,6 +210,7 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
       card={card}
       type={cardType(card)}
       t={t}
+      brandPack={brandPack}
       settings={
         back && backTooLong && !measure
           ? { ...settings, backText: "" }
@@ -196,6 +239,7 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
           <div
             className="card-print-page"
             data-orientation={settings.orientation}
+            data-design={settings.design}
           >
             {batch.map((card, index) => face(card, index, false))}
           </div>
@@ -203,6 +247,7 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
             <div
               className="card-print-page"
               data-orientation={settings.orientation}
+              data-design={settings.design}
             >
               {batch.map((card, index) => face(card, index, true))}
             </div>
@@ -216,12 +261,19 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
             className="card-print-page card-print-extended"
             key={card.id}
             style={{
-              "--card-color": cardPrintStyle(settings, worksheetId, card).color,
+              "--card-color":
+                settings.design === BRAND_CARD_DESIGN
+                  ? CARD_GROUPS[cardGroup(card)].color
+                  : cardPrintStyle(settings, worksheetId, card).color,
               "--extended-font-size":
                 cardPrintStyle(settings, worksheetId, card).body + "pt",
             }}
           >
-            <div>{cardType(card)}</div>
+            <div>
+              {settings.design === BRAND_CARD_DESIGN
+                ? t(CARD_GROUPS[cardGroup(card)].label)
+                : cardType(card)}
+            </div>
             <h2>{cardTitle(card, t)}</h2>
             <CardAnswer value={card.text} />
           </section>

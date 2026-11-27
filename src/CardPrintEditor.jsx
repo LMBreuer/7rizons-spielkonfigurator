@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
+  BRAND_CARD_DESIGN,
   CARD_PRINT_FONT,
   CARD_PRINT_SIZES,
   cardPrintStyle,
@@ -15,6 +16,17 @@ import {
   cardTitle,
 } from "./CardPrintFaces.jsx";
 import { printWorksheet } from "./WorksheetCards.jsx";
+import CardGroupField from "./CardGroupField.jsx";
+import {
+  CARD_GROUPS,
+  cardGroup,
+} from "../supabase/functions/_shared/card-groups.js";
+import {
+  effectiveCardPrint,
+  loadCardBrandPack,
+  lockCardDesign,
+  useCardBrandPack,
+} from "./card-brand.js";
 
 const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
 const fontLabels = {
@@ -24,6 +36,7 @@ const fontLabels = {
 };
 
 const designLabels = {
+  [BRAND_CARD_DESIGN]: "7’rizons-Design",
   minimal: "Minimalistisch",
   retro: "Retro",
   future: "Futuristisch",
@@ -57,22 +70,29 @@ export default function CardPrintEditor({
   cards,
   cardType,
   worksheetId,
-  settings,
+  settings: rawSettings,
   onSettings,
+  onCardGroup,
   onClose,
   t,
   language,
 }) {
   const dialog = useRef(null);
+  const packInput = useRef(null);
   const front = useRef(null);
   const back = useRef(null);
   const pendingImage = useRef(0);
+  const brandPack = useCardBrandPack();
+  const settings = effectiveCardPrint(rawSettings);
+  const branded = settings.design === BRAND_CARD_DESIGN;
   const [selected, setSelected] = useState(cards[0]?.id);
   const [imageError, setImageError] = useState("");
   const [overflow, setOverflow] = useState(false);
   const [backOverflow, setBackOverflow] = useState(false);
   const [readingImage, setReadingImage] = useState(false);
   const [editingBack, setEditingBack] = useState(false);
+  const [packLoading, setPackLoading] = useState(false);
+  const [packError, setPackError] = useState("");
   const card = cards.find((item) => item.id === selected) || cards[0];
   const fontKey = cardFontKey(worksheetId, card.id);
   const look = cardPrintStyle(settings, worksheetId, card);
@@ -132,7 +152,29 @@ export default function CardPrintEditor({
       resize?.disconnect();
       document.fonts?.removeEventListener("loadingdone", measure);
     };
-  }, [card, settings]);
+  }, [card, rawSettings, brandPack]);
+
+  async function loadPack(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+    setPackLoading(true);
+    setPackError("");
+    try {
+      await loadCardBrandPack(files);
+    } catch (error) {
+      setPackError(
+        t(
+          error.message ===
+            "Bitte den vollständigen Ordner „7’rizons Assets“ wählen."
+            ? error.message
+            : "Der lokale Assetordner konnte nicht geladen werden.",
+        ),
+      );
+    } finally {
+      setPackLoading(false);
+    }
+  }
 
   async function upload(event) {
     const file = event.target.files?.[0];
@@ -183,27 +225,31 @@ export default function CardPrintEditor({
         </button>
       </header>
       <div className="card-print-editor-options">
-        <label>
-          {t("Format")}
-          <select
-            value={settings.orientation}
-            onChange={(e) => set({ orientation: e.target.value })}
-          >
-            <option value="portrait">{t("Hochformat")}</option>
-            <option value="landscape">{t("Querformat")}</option>
-          </select>
-        </label>
-        <label>
-          {t("Kartenhintergrund")}
-          <select
-            value={settings.paper}
-            onChange={(e) => set({ paper: e.target.value })}
-          >
-            <option value="white">{t("Weiß")}</option>
-            <option value="cream">{t("Creme")}</option>
-            <option value="dark">{t("Dunkel")}</option>
-          </select>
-        </label>
+        {!branded && (
+          <label>
+            {t("Format")}
+            <select
+              value={settings.orientation}
+              onChange={(e) => set({ orientation: e.target.value })}
+            >
+              <option value="portrait">{t("Hochformat")}</option>
+              <option value="landscape">{t("Querformat")}</option>
+            </select>
+          </label>
+        )}
+        {!branded && (
+          <label>
+            {t("Kartenhintergrund")}
+            <select
+              value={settings.paper}
+              onChange={(e) => set({ paper: e.target.value })}
+            >
+              <option value="white">{t("Weiß")}</option>
+              <option value="cream">{t("Creme")}</option>
+              <option value="dark">{t("Dunkel")}</option>
+            </select>
+          </label>
+        )}
         {Object.entries(fontLabels).map(([name, label]) => (
           <label className="card-font-control" key={name}>
             <span>
@@ -223,25 +269,27 @@ export default function CardPrintEditor({
             />
           </label>
         ))}
-        <div className="card-print-colors">
-          <label>
-            {t("Designfarbe vorne")}
-            <input
-              type="color"
-              value={look.color}
-              onChange={(event) => changeStyle({ color: event.target.value })}
-            />
-          </label>
-          {settings.cardStyles?.[fontKey]?.color && (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => changeStyle({ color: undefined })}
-            >
-              {t("Kartenfarbe übernehmen")}
-            </button>
-          )}
-        </div>
+        {!branded && (
+          <div className="card-print-colors">
+            <label>
+              {t("Designfarbe vorne")}
+              <input
+                type="color"
+                value={look.color}
+                onChange={(event) => changeStyle({ color: event.target.value })}
+              />
+            </label>
+            {settings.cardStyles?.[fontKey]?.color && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => changeStyle({ color: undefined })}
+              >
+                {t("Kartenfarbe übernehmen")}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="card-print-editor-workspace">
         <label className="card-print-compact-list">
@@ -259,7 +307,7 @@ export default function CardPrintEditor({
             <figure ref={front}>
               <figcaption>{t("Vorderseite")}</figcaption>
               <CardPrintFace
-                {...{ card, settings, worksheetId, t }}
+                {...{ card, settings, worksheetId, t, brandPack }}
                 type={cardType(card)}
               />
             </figure>
@@ -267,31 +315,45 @@ export default function CardPrintEditor({
               <figcaption>
                 {t("Rückseite")}{" "}
                 <span>
-                  {settings.orientation === "portrait"
-                    ? "63 × 88 mm"
-                    : "88 × 63 mm"}
+                  {branded
+                    ? `${new Intl.NumberFormat(language).format(97.7)} × ${new Intl.NumberFormat(language).format(71.6)} mm`
+                    : settings.orientation === "portrait"
+                      ? "63 × 88 mm"
+                      : "88 × 63 mm"}
                 </span>
               </figcaption>
               <CardPrintFace
-                {...{ card, settings, worksheetId, t }}
+                {...{ card, settings, worksheetId, t, brandPack }}
                 type={cardType(card)}
                 back
               />
             </figure>
           </div>
-          <label className="card-print-design">
-            {t("Kartendesign")}
-            <select
-              value={settings.design}
-              onChange={(e) => set({ design: e.target.value })}
-            >
-              {Object.entries(designLabels).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {t(label)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="card-print-design-options">
+            {!lockCardDesign && (
+              <label className="card-print-design">
+                {t("Kartendesign")}
+                <select
+                  value={settings.design}
+                  onChange={(e) => set({ design: e.target.value })}
+                >
+                  {Object.entries(designLabels).map(([id, label]) => (
+                    <option key={id} value={id}>
+                      {t(label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {branded && onCardGroup && (
+              <CardGroupField
+                className="card-print-design"
+                card={card}
+                onChange={(group) => onCardGroup(card.id, group)}
+                t={t}
+              />
+            )}
+          </div>
           {overflow && (
             <p className="card-print-warning" role="status">
               {t(
@@ -320,87 +382,123 @@ export default function CardPrintEditor({
                   aria-pressed={item.id === card.id}
                   onClick={() => setSelected(item.id)}
                   style={{
-                    "--list-card-color": cardPrintStyle(
-                      settings,
-                      worksheetId,
-                      item,
-                    ).color,
+                    "--list-card-color": branded
+                      ? CARD_GROUPS[cardGroup(item)].color
+                      : cardPrintStyle(settings, worksheetId, item).color,
                   }}
                 >
                   <strong>{cardTitle(item, t)}</strong>
-                  <small>{cardType(item)}</small>
+                  <small>
+                    {branded
+                      ? t(CARD_GROUPS[cardGroup(item)].label)
+                      : cardType(item)}
+                  </small>
                 </button>
               </li>
             ))}
           </ul>
         </section>
       </div>
-      <details
-        className="card-print-back-options"
-        onToggle={(event) => setEditingBack(event.currentTarget.open)}
-      >
-        <summary>{t("Rückseite bearbeiten")}</summary>
-        <div className="card-print-back-fields">
-          {editingBack && (
-            <div className="card-print-back-editor">
-              <div className="card-field-label">
-                {t("Text auf der Rückseite")}
-              </div>
-              <React.Suspense fallback={null}>
-                <CardEditor
-                  label={t("Text auf der Rückseite")}
-                  t={t}
-                  autoFocus={false}
-                  value={settings.backText}
-                  onChange={(backText) => set({ backText, back: "text" })}
-                />
-              </React.Suspense>
-            </div>
-          )}
-          <div className="card-print-colors">
-            <label>
-              {t("Designfarbe hinten")}
-              <input
-                type="color"
-                value={settings.backColor || defaultBackColor(settings.paper)}
-                onChange={(event) => set({ backColor: event.target.value })}
-              />
-            </label>
-            {settings.backColor && (
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => set({ backColor: "" })}
-              >
-                {t("Standardfarbe übernehmen")}
-              </button>
+      {branded ? (
+        <div className="card-brand-pack">
+          <input
+            ref={packInput}
+            type="file"
+            webkitdirectory=""
+            hidden
+            onChange={loadPack}
+          />
+          <button
+            type="button"
+            className="button secondary"
+            disabled={packLoading}
+            onClick={() => packInput.current?.click()}
+          >
+            {t(
+              brandPack ? "Assetordner wechseln" : "Lokalen Assetordner laden",
             )}
-          </div>
-          <label>
-            {t("Bild auf der Rückseite")}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              disabled={readingImage}
-              onChange={upload}
-            />
-          </label>
-          {settings.backImage && (
-            <button
-              className="button secondary"
-              type="button"
-              onClick={() => set({ back: "text", backImage: "" })}
-            >
-              {t("Bild entfernen")}
-            </button>
-          )}
-          {imageError && (
+          </button>
+          <small role="status">
+            {t(
+              brandPack
+                ? "Originalschrift und Originalrückseiten geladen."
+                : "Mit dem Assetordner verwendet der Druck die Originalschrift und die Originalrückseiten.",
+            )}
+          </small>
+          {packError && (
             <p className="card-print-warning" role="alert">
-              {imageError}
+              {packError}
             </p>
           )}
         </div>
-      </details>
+      ) : (
+        <details
+          className="card-print-back-options"
+          onToggle={(event) => setEditingBack(event.currentTarget.open)}
+        >
+          <summary>{t("Rückseite bearbeiten")}</summary>
+          <div className="card-print-back-fields">
+            {editingBack && (
+              <div className="card-print-back-editor">
+                <div className="card-field-label">
+                  {t("Text auf der Rückseite")}
+                </div>
+                <React.Suspense fallback={null}>
+                  <CardEditor
+                    label={t("Text auf der Rückseite")}
+                    t={t}
+                    autoFocus={false}
+                    value={settings.backText}
+                    onChange={(backText) => set({ backText, back: "text" })}
+                  />
+                </React.Suspense>
+              </div>
+            )}
+            <div className="card-print-colors">
+              <label>
+                {t("Designfarbe hinten")}
+                <input
+                  type="color"
+                  value={settings.backColor || defaultBackColor(settings.paper)}
+                  onChange={(event) => set({ backColor: event.target.value })}
+                />
+              </label>
+              {settings.backColor && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => set({ backColor: "" })}
+                >
+                  {t("Standardfarbe übernehmen")}
+                </button>
+              )}
+            </div>
+            <label>
+              {t("Bild auf der Rückseite")}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={readingImage}
+                onChange={upload}
+              />
+            </label>
+            {settings.backImage && (
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => set({ back: "text", backImage: "" })}
+              >
+                {t("Bild entfernen")}
+              </button>
+            )}
+            {imageError && (
+              <p className="card-print-warning" role="alert">
+                {imageError}
+              </p>
+            )}
+          </div>
+        </details>
+      )}
       <footer className="card-print-editor-actions">
         <label className="checkbox">
           <input
@@ -418,7 +516,7 @@ export default function CardPrintEditor({
         <button
           type="button"
           className="button"
-          disabled={readingImage}
+          disabled={readingImage || packLoading}
           onClick={() => printWorksheet("cards")}
         >
           {t("Karten drucken")}

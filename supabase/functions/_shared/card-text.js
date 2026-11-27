@@ -1,3 +1,5 @@
+import { isCardGroup } from "./card-groups.js";
+
 const blocks = [
   "paragraph",
   "heading",
@@ -203,6 +205,7 @@ export function validateWorksheetCards(cards, mechanisms) {
       card.title.length > 120 ||
       !validCardText(card.text) ||
       !isCardColor(card.color) ||
+      (card.group !== undefined && !isCardGroup(card.group)) ||
       !Array.isArray(card.notes) ||
       !card.notes.every(
         (note) => typeof note === "string" && note.length <= 4000,
@@ -211,8 +214,16 @@ export function validateWorksheetCards(cards, mechanisms) {
       throw new Error("Ungültige Spielkarten.");
     }
     ids.add(card.id);
-    const { id, mechanismId, title, text, color, notes } = card;
-    return { id, mechanismId, title, text, color, notes: [...notes] };
+    const { id, mechanismId, title, text, color, notes, group } = card;
+    return {
+      id,
+      mechanismId,
+      title,
+      text,
+      color,
+      notes: [...notes],
+      ...(group !== undefined && { group }),
+    };
   });
 }
 

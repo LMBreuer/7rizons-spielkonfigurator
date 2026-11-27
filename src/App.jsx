@@ -944,6 +944,27 @@ export default function App() {
       ),
     );
   }
+  function updateWorksheetCards(update) {
+    updateWorksheetResult((previous) => {
+      const { playtest } = previous.answers || {};
+      const cards = update(worksheetCards(previous));
+      const ids = new Set(cards.map((card) => card.id));
+      return {
+        ...previous,
+        cards,
+        ...(previous.notes
+          ? {
+              notes: previous.notes.map((note) =>
+                note.after && !ids.has(note.after)
+                  ? { ...note, after: undefined }
+                  : note,
+              ),
+            }
+          : {}),
+        answers: playtest !== undefined ? { playtest } : {},
+      };
+    });
+  }
   function workshopSheet() {
     const match = [activeWorksheet, ...worksheets].find(
       (w) =>
@@ -2709,31 +2730,7 @@ export default function App() {
                       )}
                     </>
                   }
-                  onCards={
-                    canEditWorksheet
-                      ? (update) =>
-                          updateWorksheetResult((previous) => {
-                            const { playtest } = previous.answers || {};
-                            const cards = update(worksheetCards(previous));
-                            const ids = new Set(cards.map((card) => card.id));
-                            return {
-                              ...previous,
-                              cards,
-                              ...(previous.notes
-                                ? {
-                                    notes: previous.notes.map((note) =>
-                                      note.after && !ids.has(note.after)
-                                        ? { ...note, after: undefined }
-                                        : note,
-                                    ),
-                                  }
-                                : {}),
-                              answers:
-                                playtest !== undefined ? { playtest } : {},
-                            };
-                          })
-                      : undefined
-                  }
+                  onCards={canEditWorksheet ? updateWorksheetCards : undefined}
                   onCardType={
                     canEditWorksheet
                       ? (id, value) =>
@@ -2789,6 +2786,16 @@ export default function App() {
                     worksheetId={activeWorksheetId}
                     settings={cardPrint}
                     onSettings={setCardPrint}
+                    onCardGroup={
+                      showingOriginal
+                        ? undefined
+                        : (id, group) =>
+                            updateWorksheetCards((cards) =>
+                              cards.map((card) =>
+                                card.id === id ? { ...card, group } : card,
+                              ),
+                            )
+                    }
                     onClose={() => setCardPrintOpen(false)}
                     t={t}
                     language={language}

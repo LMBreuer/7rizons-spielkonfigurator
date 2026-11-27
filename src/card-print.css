@@ -18,6 +18,13 @@
   --deck-unit: 0.4cqi;
   --deck-pad: 5cqi;
 }
+.deck-card-slot[data-design="rizons"] {
+  --deck-width: 277pt;
+  --deck-ratio: 277 / 203;
+  --deck-unit: 0.361cqi;
+  --deck-paper: #fff;
+  --deck-ink: #171717;
+}
 .deck-card-slot[data-paper="cream"] {
   --deck-paper: #fbf4e5;
 }
@@ -90,6 +97,53 @@
 .deck-card-frame,
 .deck-card-mark {
   display: none;
+}
+
+[data-design="rizons"] .deck-card {
+  border-radius: 5.5cqi;
+}
+[data-design="rizons"] .deck-card-front {
+  padding: 8.5cqi 12cqi 7cqi;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 2.2cqi;
+}
+[data-design="rizons"] .deck-card-front:not(:has(.deck-card-title)) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+[data-design="rizons"] .deck-card-type {
+  justify-self: center;
+  align-self: start;
+  border-radius: 999px;
+  padding: 0.45em 0.85em;
+  color: var(--card-accent-ink);
+  background: var(--card-color);
+  font-family: "Rizons Exo", system-ui, sans-serif;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+[data-design="rizons"] :is(.deck-card-title, .deck-card-text) {
+  font-family: "Rizons Antonia", Georgia, serif;
+}
+[data-design="rizons"] .deck-card-title {
+  font-weight: 700;
+  text-wrap: pretty;
+}
+[data-design="rizons"] .deck-card-text {
+  line-height: 1.34;
+}
+[data-design="rizons"] .deck-card-back {
+  color: #231f20;
+  background:
+    radial-gradient(ellipse at 15% 75%, #fff8, transparent 64%),
+    color-mix(in srgb, var(--deck-back-accent) 25%, #fff);
+}
+[data-design="rizons"] .deck-card-back-center strong {
+  font: 800 7cqi/1 "Rizons Barlow", system-ui, sans-serif;
+  text-transform: uppercase;
+}
+.deck-brand-symbol {
+  width: 31cqi;
+  height: auto;
 }
 
 [data-design="minimal"] > .deck-card-front {
@@ -472,6 +526,9 @@
   .card-print-spread figure:has([data-orientation="landscape"]) {
     width: min(100%, 88mm);
   }
+  .card-print-spread figure:has([data-design="rizons"]) {
+    width: min(100%, 277pt);
+  }
   .card-print-spread figcaption {
     display: flex;
     justify-content: space-between;
@@ -485,12 +542,20 @@
       inset 0 0 0 1px var(--deck-outline),
       0 6px 16px #131d313c;
   }
-  .card-print-design {
+  .card-print-design-options {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.5rem 1rem;
     margin: 0.9rem 0 0;
+  }
+  .card-print-design {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.55rem;
+    margin: 0;
   }
   .card-print-design select {
     width: auto;
@@ -558,7 +623,7 @@
   }
   .card-print-colors {
     display: flex;
-    align-items: end;
+    align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
   }
@@ -617,6 +682,20 @@
   }
 }
 
+@media screen {
+  .card-brand-pack {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    border-block-start: 1px solid var(--line);
+    padding-block: 0.7rem;
+  }
+  .card-brand-pack small {
+    color: var(--muted);
+  }
+}
+
 @media print {
   .card-print-editor::backdrop {
     display: none;
@@ -634,6 +713,10 @@
   .card-print-page[data-orientation="landscape"] {
     grid-template-columns: 88mm;
     grid-auto-rows: 63mm;
+  }
+  .card-print-page[data-design="rizons"] {
+    grid-template-columns: 277pt;
+    grid-auto-rows: 203pt;
   }
   .card-print-page + .card-print-page {
     break-before: page;

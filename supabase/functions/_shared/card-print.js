@@ -1,8 +1,9 @@
 import { isCardColor, validCardText } from "./card-text.js";
 
 const emptyMap = Object.freeze({});
+export const BRAND_CARD_DESIGN = "rizons";
 export const CARD_PRINT_DEFAULTS = Object.freeze({
-  design: "minimal",
+  design: BRAND_CARD_DESIGN,
   orientation: "portrait",
   paper: "white",
   back: "text",
@@ -22,6 +23,7 @@ export const CARD_PRINT_SIZES = Object.freeze({
 export const CARD_PRINT_FONT = CARD_PRINT_SIZES.body.default;
 export const CARD_PRINT_IMAGE_LIMIT = 360000;
 export const CARD_PRINT_DESIGNS = [
+  BRAND_CARD_DESIGN,
   "minimal",
   "retro",
   "future",
@@ -74,7 +76,9 @@ export function readCardPrint(value) {
       cardStyles[key] = style;
   }
   return {
-    design: CARD_PRINT_DESIGNS.includes(raw.design) ? raw.design : "minimal",
+    design: CARD_PRINT_DESIGNS.includes(raw.design)
+      ? raw.design
+      : CARD_PRINT_DEFAULTS.design,
     orientation: raw.orientation === "landscape" ? "landscape" : "portrait",
     paper: ["cream", "dark"].includes(raw.paper) ? raw.paper : "white",
     back: raw.back === "image" && backImage ? "image" : "text",
