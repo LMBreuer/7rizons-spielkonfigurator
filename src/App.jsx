@@ -1464,14 +1464,8 @@ export default function App() {
     );
   }
   async function loadCards(file) {
-    let json;
-    try {
-      json = JSON.parse(await fileText(file));
-    } catch (error) {
-      if (!(error instanceof SyntaxError)) throw error;
-      throw new Error(t("Die Karten-Datei enthält kein gültiges JSON."));
-    }
-    const { importCardFile } = await import("./card-exchange.js");
+    const { importCardFile, parseCardFile } = await import("./card-exchange.js");
+    const json = parseCardFile(await fileText(file));
     const imported = importCardFile(json, result, activeWorksheetId, cardPrint);
     updateWorksheetResult((previous) => {
       const { playtest } = previous.answers || {};
@@ -1652,17 +1646,27 @@ export default function App() {
                 </button>
               )}
               {activeCards.length > 0 && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={(event) =>
-                    runPrintMenuAction(event, () =>
-                      act(() => downloadCards(false)),
-                    )
-                  }
-                >
-                  {t("Karten als JSON exportieren")}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={(event) =>
+                      runPrintMenuAction(event, () =>
+                        act(() => downloadCards(false)),
+                      )
+                    }
+                  >
+                    {t("Karten als JSON exportieren")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) =>
+                      runPrintMenuAction(event, () => setCardPrintOpen(true))
+                    }
+                  >
+                    {t("Karten drucken")}
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -1678,7 +1682,7 @@ export default function App() {
               <input
                 ref={cardImportField}
                 type="file"
-                accept=".json,application/json"
+                accept=".json,.txt,.md,application/json,text/plain,text/markdown"
                 hidden
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -1689,32 +1693,11 @@ export default function App() {
             </div>
           </details>
         )}
-        {hasWorksheet &&
-          (activeCards.length ? (
-            <details className="switch-menu sheet-print-menu">
-              <summary>{t("Drucken")}</summary>
-              <div className="menu-body">
-                <button
-                  type="button"
-                  onClick={(e) => runPrintMenuAction(e, () => printWorksheet())}
-                >
-                  {t("Arbeitsblatt drucken")}
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) =>
-                    runPrintMenuAction(e, () => setCardPrintOpen(true))
-                  }
-                >
-                  {t("Karten drucken")}
-                </button>
-              </div>
-            </details>
-          ) : (
-            <Button secondary onClick={() => printWorksheet()}>
-              {t("Drucken")}
-            </Button>
-          ))}
+        {hasWorksheet && (
+          <Button secondary onClick={() => printWorksheet()}>
+            {t("Arbeitsblatt drucken")}
+          </Button>
+        )}
       </div>
     </div>
   );

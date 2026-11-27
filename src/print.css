@@ -197,6 +197,9 @@
   html[data-print="reflection"] main .worksheet .reflection-print-title {
     display: block;
   }
+  html[data-print="reflection"] main .worksheet .reflection-heading {
+    display: none;
+  }
   html[data-print="reflection"] main .worksheet .worksheet-reflections,
   html[data-print="reflection"] main .worksheet .reflection-sheet {
     margin: 0;
@@ -221,6 +224,7 @@
   html:not([data-print]) main .worksheet {
     --print-accent: #245789;
     --print-rule: #c7d1dc;
+    --print-muted: #465363;
     color: #231f20;
     print-color-adjust: exact;
     font:
@@ -231,8 +235,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 3mm;
-    border-bottom: 0.45mm solid var(--print-accent);
+    padding-bottom: 2.5mm;
+    border-bottom: 0.35mm solid var(--print-accent);
     color: var(--print-accent);
     font-weight: 650;
     break-after: avoid-page;
@@ -240,27 +244,40 @@
   html:not([data-print]) .worksheet-print-logo {
     width: 30mm;
     height: auto;
+    flex-shrink: 0;
+  }
+  html:not([data-print]) .worksheet-print-brand > div {
+    text-align: end;
+    margin-inline-start: 6mm;
+  }
+  html:not([data-print]) .worksheet-print-brand small {
+    display: block;
+    color: var(--print-muted);
+    font-size: 7.5pt;
+    font-weight: 400;
   }
   html:not([data-print]) main .worksheet > .eyebrow {
     display: none;
   }
   html:not([data-print]) main .worksheet h1 {
-    margin: 5mm 0 3mm;
-    font-size: 23pt;
-    line-height: 1.13;
+    margin: 5mm 0 2.5mm;
+    font-size: 21pt;
+    line-height: 1.15;
     font-weight: 750;
     letter-spacing: -0.035em;
+    text-wrap: balance;
     break-after: avoid-page;
   }
   html:not([data-print]) main .worksheet .intro {
     margin: 0 0 4mm;
     font-size: 10.5pt;
-    color: #434e5a;
+    color: var(--print-muted);
   }
   html:not([data-print]) main .worksheet .metadata {
-    gap: 2.5mm 7mm;
-    margin: 4mm 0;
-    padding: 3mm 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2mm 5mm;
+    margin: 3.5mm 0;
+    padding: 2.5mm 0;
     border-block: 0.25mm solid var(--print-rule);
   }
   html:not([data-print]) main .worksheet .metadata dt {
@@ -270,6 +287,10 @@
   }
   html:not([data-print]) main .worksheet .metadata dd {
     font-size: 10pt;
+  }
+  html:not([data-print]) main .worksheet > section {
+    padding-top: 0;
+    border-block-start: 0;
   }
   html:not([data-print]) main .worksheet h2 {
     font-size: 14pt;
@@ -281,14 +302,26 @@
     padding-top: 2.5mm;
     border-top: 0.25mm solid var(--print-rule);
   }
+  html:not([data-print]) main .worksheet .worksheet-mechanism > h3 {
+    margin-block-start: 0;
+  }
   html:not([data-print]) main .worksheet .mechanism-guide {
-    padding: 2mm 0 2mm 3mm;
-    margin: 3mm 0;
+    padding: 1.5mm 0 1.5mm 3mm;
+    margin: 2.5mm 0;
     border: 0;
     border-inline-start: 0.5mm solid var(--print-rule);
     border-radius: 0;
     background: transparent;
     break-inside: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .mechanism-guide h4 {
+    margin: 0 0 1mm;
+  }
+  html:not([data-print]) main .worksheet .mechanism-guide > p {
+    margin-block-end: 1.5mm;
+  }
+  html:not([data-print]) main .worksheet .mechanism-guide > p:last-of-type {
+    margin-block-end: 0;
   }
   html:not([data-print]) main .worksheet .writing-card {
     margin: 2.5mm 0;
@@ -298,17 +331,69 @@
     border-radius: 1.25mm;
   }
   html:not([data-print]) main .worksheet .worksheet-card-type-label {
-    color: #454e58;
+    color: var(--print-muted);
     font-size: 8.5pt;
     break-after: avoid-page;
   }
   html:not([data-print]) main .worksheet .card-answer :last-child {
     margin-bottom: 0;
   }
-  html:not([data-print]) main .worksheet .reflection-sheet {
+  html:not([data-print]) main .worksheet .card-answer :is(.card-heading, .card-heading-small, hr) {
+    break-after: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .worksheet-safety {
+    border-inline-start: 0.7mm solid var(--teal);
+    padding: 0.5mm 0 0.5mm 3mm;
     break-inside: avoid-page;
   }
+  html:not([data-print]) main .worksheet .worksheet-safety h2 {
+    margin-block-start: 0;
+    color: var(--teal);
+  }
+  html:not([data-print]) main .worksheet .worksheet-safety p {
+    margin-block-end: 0;
+  }
+  html:not([data-print]) main .worksheet .worksheet-next li {
+    break-inside: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .playtest-notes {
+    margin: 3mm 0;
+    break-inside: avoid-page;
+    padding: 0;
+    border-block-start: 0;
+  }
+  html:not([data-print]) main .worksheet .playtest-notes p {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  html:not([data-print]) main .worksheet .playtest-notes h3 {
+    margin: 0;
+  }
+  html:not([data-print]) .worksheet-print-lines span {
+    display: block;
+    height: 5.5mm;
+    border-bottom: 0.2mm solid var(--print-rule);
+  }
+  html:not([data-print]) main .worksheet .reflection-heading {
+    display: block;
+    break-after: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .reflection-sheet {
+    padding: 2.5mm 3mm;
+    border-color: var(--print-rule);
+    border-radius: 1.25mm;
+    break-inside: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .reflection-sheet h3 {
+    margin: 0;
+    font-size: 11pt;
+  }
+  html:not([data-print]) main .worksheet .reflection-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2mm 5mm;
+    margin-block-start: 2mm;
+  }
   html:not([data-print]) main .worksheet .provenance {
-    border-top: 0.25mm solid var(--print-rule);
+    display: none;
   }
 }

@@ -7,6 +7,8 @@ import {
 import {
   cardFontKey,
   CARD_PRINT_DEFAULTS,
+  CARD_PRINT_DESIGNS,
+  CARD_PRINT_SIZES,
   cardPrintStyle,
   readCardPrint,
 } from "../supabase/functions/_shared/card-print.js";
@@ -48,8 +50,14 @@ export function exportCardFile({
     schemaVersion: 1,
     ...(template && {
       instructions: t(
-        "Geben Sie ausschließlich ein JSON-Objekt in diesem Format zurück. Verwenden Sie eine mechanismId aus availableTypes. Schreiben Sie den Kartentext als Markdown in textMarkdown. Eine Trennlinie ist eine eigene Zeile mit --- und Leerzeilen davor und danach. Lassen Sie id für neue Karten weg.",
+        "Ersetzen Sie die Beispielkarte in cards durch alle gewünschten Karten. Geben Sie ein einziges gültiges JSON-Objekt zurück und übernehmen Sie kind und schemaVersion. Verwenden Sie pro Karte genau eine mechanismId aus availableTypes. Schreiben Sie den Kartentext als Markdown in textMarkdown. Setzen Sie eine Trennlinie als --- in eine eigene Zeile mit Leerzeilen davor und danach. Lassen Sie id für neue Karten weg. Nutzen Sie für Farben das Format #RRGGBB und für Schriftgrößen die Wertebereiche in format.",
       ),
+      format: {
+        design: CARD_PRINT_DESIGNS,
+        orientation: ["portrait", "landscape"],
+        paper: ["white", "cream", "dark"],
+        fontSizePt: CARD_PRINT_SIZES,
+      },
     }),
     availableTypes,
     ...((template || result.cardTypes) && { types: result.cardTypes || {} }),
@@ -93,6 +101,17 @@ export function exportCardFile({
           }),
         ),
   };
+}
+
+export function parseCardFile(text) {
+  const input = text.trim();
+  const fence = /^\x60\x60\x60(?:json)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n\x60\x60\x60$/i.exec(input);
+  try {
+    return JSON.parse(fence?.[1] ?? input);
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    throw new Error("Die Karten-Datei enthält kein gültiges JSON.");
+  }
 }
 
 function textFromMarkdown(value) {

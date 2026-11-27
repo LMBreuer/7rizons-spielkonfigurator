@@ -21,11 +21,13 @@ export default function Reflections({ items, title, onChange, t }) {
     );
   }
   return (
-    <section className="worksheet-reflections">
-      <div className="card-title-row no-print">
+    <section
+      className={items.length ? "worksheet-reflections" : "worksheet-reflections no-print"}
+    >
+      <div className="card-title-row reflection-heading">
         <h2>{t("Ergebnisblätter zum Probelauf")}</h2>
         {onChange && (
-          <button type="button" className="button secondary" onClick={add}>
+          <button type="button" className="button secondary no-print" onClick={add}>
             + {t("Ergebnisblatt hinzufügen")}
           </button>
         )}

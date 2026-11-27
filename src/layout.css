@@ -143,10 +143,6 @@
   .sheet-actions:empty {
     display: none;
   }
-  .sheet-print-menu .menu-body {
-    left: auto;
-    right: 0;
-  }
   .sheet-menu .menu-body {
     width: min(28rem, calc(100vw - 4.25rem));
   }

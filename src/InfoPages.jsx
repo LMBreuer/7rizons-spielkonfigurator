@@ -152,7 +152,7 @@ function HelpInfo() {
         </li>
         <li>
           {t(
-            "Unter „Projekte“ können Sie Ihr ganzes Projekt als JSON-Datei herunterladen und später wieder importieren. Am Arbeitsblatt öffnet „Drucken“ die A4-Druckvorschau des Browsers. Dort können Sie das Blatt auch als PDF speichern. Unter „Drucken → Karten drucken“ können Sie Format, Design und Rückseite der Karten einstellen und einen eigenen Ausschneidebogen drucken. Die Notizen stehen im Arbeitsblatt. Im Arbeitsblatt-Menü finden Sie den Markdown-Export.",
+            "„Arbeitsblatt drucken“ öffnet die A4-Druckvorschau mit der Möglichkeit, als PDF zu speichern. Unter „Karten“ finden Sie den Kartendruck, den JSON-Import und -Export sowie eine Vorlage für eigene Karten. Das gesamte Projekt können Sie unter „Projekte“ als JSON sichern. Den Markdown-Export finden Sie im Arbeitsblatt-Menü.",
           )}
         </li>
       </ol>

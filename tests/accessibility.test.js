@@ -362,7 +362,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       printCalls += 1;
     };
     await user.click(
-      screen.getByRole("button", { name: "Drucken", exact: true }),
+      screen.getByRole("button", { name: "Arbeitsblatt drucken", exact: true }),
     );
     assert.equal(printCalls, 1);
     await audit("generated worksheet");
@@ -634,7 +634,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("button", { name: "Arbeitsblatt bearbeiten" }),
     );
     assert.equal(screen.getByLabelText("Notiz 1").value, "Notiztext");
-    const cardPrintMenu = document.querySelector(".sheet-print-menu");
+    const cardPrintMenu = document.querySelector(".sheet-cards-menu");
     assert.ok(cardPrintMenu.closest(".worksheet-screen-header.no-print"));
     await user.click(cardPrintMenu.querySelector("summary"));
     assert.ok(screen.getByRole("button", { name: "Arbeitsblatt drucken" }));

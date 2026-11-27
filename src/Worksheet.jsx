@@ -42,6 +42,19 @@ export default function Worksheet({
   });
   const overview = result.templateVariant === "overview";
   const guided = result.templateVariant === "guided";
+  const playtestNotes = result.answers?.playtest;
+  const blankPlaytestNotes = !playtestNotes?.trim() && !result.reflections?.length;
+  const worksheetOrigin = (
+    <>
+      {t(
+        source?.kind === "template"
+          ? "Aus Ihrer Auswahl mit festen Vorlagen erstellt."
+          : "Mit KI ausgearbeitet · fachlich noch zu prüfen.",
+      )}
+      {source?.provider &&
+        ` ${source.provider} · ${source.model || t("manueller Import")}`}
+    </>
+  );
   const isBase = (m) =>
     Boolean(
       MK.find((x) => x.id === m.mechanismId)?.basis &&
@@ -60,7 +73,10 @@ export default function Worksheet({
       )}
       <div className="worksheet-print-brand">
         <Logo className="worksheet-print-logo" inverse={false} />
-        <span>{t("Arbeitsblatt")}</span>
+        <div>
+          <strong>{t(overview ? "Übersicht" : "Arbeitsblatt")}</strong>
+          <small>{worksheetOrigin}</small>
+        </div>
       </div>
       <div className="eyebrow">{t("7’rizons · Ihr Seminar-Hack")}</div>
       <h1 tabIndex={-1}>{result.title}</h1>
@@ -179,22 +195,28 @@ export default function Worksheet({
             />
           </section>
         )}
-      <section>
+      <section className="worksheet-safety">
         <h2>{t("Safety-Rahmen")}</h2>
         <p>
           {overview ? t(MK.find((m) => m.id === "m91").kurz) : t(blocks.safety)}
         </p>
       </section>
       {!overview && (
-        <section>
+        <section className="worksheet-next">
           <h2>{t(guided ? "Probelauf" : "Nächste Schritte")}</h2>
           <ul>
             {result.nextSteps.map((text, i) => (
               <li key={i}>{text}</li>
             ))}
           </ul>
-          {guided && (onAnswer || result.answers?.playtest) && (
-            <section className="playtest-notes">
+          {guided && (onAnswer || playtestNotes?.trim() || blankPlaytestNotes) && (
+            <section
+              className={[
+                "playtest-notes",
+                blankPlaytestNotes && !onAnswer && "print-notes",
+                !blankPlaytestNotes && !playtestNotes?.trim() && "no-print",
+              ].filter(Boolean).join(" ")}
+            >
               <h3>{t("Notizen zum Probelauf")}</h3>
               {onAnswer && (
                 <label className="no-print">
@@ -202,16 +224,25 @@ export default function Worksheet({
                   <textarea
                     rows={3}
                     maxLength={4000}
-                    value={result.answers?.playtest || ""}
+                    value={playtestNotes || ""}
                     onChange={(e) => onAnswer("playtest", e.target.value)}
                   />
                 </label>
               )}
-              {result.answers?.playtest && (
+              {playtestNotes?.trim() ? (
                 <p className={onAnswer ? "print-notes" : ""}>
-                  {result.answers?.playtest}
+                  {playtestNotes}
                 </p>
-              )}
+              ) : blankPlaytestNotes ? (
+                <div
+                  className="worksheet-print-lines print-notes"
+                  aria-hidden="true"
+                >
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ) : null}
             </section>
           )}
           <p>{t(blocks.closing)}</p>
@@ -226,13 +257,7 @@ export default function Worksheet({
         />
       )}
       <p className="provenance">
-        {t(
-          source?.kind === "template"
-            ? "Aus Ihrer Auswahl mit festen Vorlagen erstellt."
-            : "Mit KI ausgearbeitet · fachlich noch zu prüfen.",
-        )}{" "}
-        {source?.provider &&
-          `${source.provider} · ${source.model || t("manueller Import")}`}{" "}
+        {worksheetOrigin}{" "}
         {t(
           "· Spielkonfigurator by Harald Eckmüller · Webapp-Umsetzung unterstützt durch LMB",
         )}
