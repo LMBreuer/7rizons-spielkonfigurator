@@ -27,3 +27,19 @@ export function jsonFilename(
     : "konfiguration";
   return `7rizons-${category}${name ? "_" + name : ""}_${timestamp}.json`;
 }
+
+export function download(text, name, type = "text/plain") {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.hidden = true;
+  document.body.append(link);
+  try {
+    link.click();
+  } finally {
+    link.remove();
+    // Mobile download prompts can keep the file URL waiting for confirmation.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+}

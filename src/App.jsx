@@ -63,7 +63,8 @@ import {
 import Priority from "./Priority.jsx";
 import Worksheet from "./Worksheet.jsx";
 import ContextField from "./ContextField.jsx";
-import { jsonFilename } from "./downloads.js";
+import { download, jsonFilename } from "./downloads.js";
+import WorksheetExport from "./WorksheetExport.jsx";
 import Logo from "./Logo.jsx";
 import AppearanceSwitch from "./AppearanceSwitch.jsx";
 import GuidedTour, { TourButton } from "./GuidedTour.jsx";
@@ -191,14 +192,6 @@ function stored() {
     pendingRequest: null,
     cloudRevision: 0,
   };
-}
-function download(text, name, type = "text/plain") {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const fileText = async (file) => {
   if (!file) return "";
@@ -410,6 +403,7 @@ export default function App() {
   const [request, setRequest] = useState(saved.pendingRequest || null);
   const [editingId, setEditingId] = useState(null);
   const [originalId, setOriginalId] = useState(null);
+  const [worksheetExport, setWorksheetExport] = useState(null);
   const activeWorksheet =
     worksheets.find((w) => w.id === activeWorksheetId) || null;
   const result = activeWorksheet?.result || null;
@@ -1881,20 +1875,30 @@ export default function App() {
             </button>
           )}
           {hasWorksheet && (
-            <button
-              type="button"
-              onClick={() => {
-                sheetMenu.current.open = false;
-                sheetMenu.current.querySelector("summary").focus();
-                download(
-                  markdown(resultDraft, visibleResult),
-                  "7rizons-arbeitsblatt.md",
-                  "text/markdown",
-                );
-              }}
-            >
-              {t("Markdown herunterladen ")}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  download(
+                    markdown(resultDraft, visibleResult),
+                    "7rizons-arbeitsblatt.md",
+                    "text/markdown;charset=utf-8",
+                  )
+                }
+              >
+                {t("Markdown herunterladen ")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sheetMenu.current.open = false;
+                  sheetMenu.current.querySelector("summary").focus();
+                  setWorksheetExport(markdown(resultDraft, visibleResult));
+                }}
+              >
+                {t("Markdown anzeigen und kopieren")}
+              </button>
+            </>
           )}
         </div>
       </details>
@@ -4483,6 +4487,12 @@ export default function App() {
           <InfoPage page={page} online={Boolean(cloud)} />
         )}
       </main>
+      {worksheetExport !== null && (
+        <WorksheetExport
+          text={worksheetExport}
+          onClose={() => setWorksheetExport(null)}
+        />
+      )}
       {tour && (!tour.admin || (admin && page === "admin")) && (
         <GuidedTour
           steps={tour.admin ? adminTour : projectTourSteps}
