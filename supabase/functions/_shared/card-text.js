@@ -142,6 +142,35 @@ export function cardMarkdown(value) {
 }
 
 export const DEFAULT_CARD_COLOR = "#2a6fb4";
+export const CARD_TYPE_LIMIT = 120;
+export const cardTypeKey = (id) => id ?? "unassigned";
+export const isCardColor = (color) =>
+  typeof color === "string" && /^#[a-f0-9]{6}$/i.test(color);
+
+export function cardTypeName(result, mechanicId, defaultName) {
+  return result.cardTypes?.[cardTypeKey(mechanicId)] || defaultName;
+}
+
+export function validateCardTypes(value, mechanisms) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Ungültige Kartentypen.");
+  const allowed = new Set(
+    mechanisms.length
+      ? mechanisms.map((mechanic) => mechanic.mechanismId)
+      : ["unassigned"],
+  );
+  const result = {};
+  for (const [id, label] of Object.entries(value)) {
+    if (
+      !allowed.has(id) ||
+      typeof label !== "string" ||
+      label.length > CARD_TYPE_LIMIT
+    )
+      throw new Error("Ungültige Kartentypen.");
+    if (label.trim()) result[id] = label.trim();
+  }
+  return result;
+}
 
 // Read old numbered answers as individual cards until the worksheet is edited.
 export function worksheetCards(result) {
@@ -173,8 +202,7 @@ export function validateWorksheetCards(cards, mechanisms) {
       typeof card.title !== "string" ||
       card.title.length > 120 ||
       !validCardText(card.text) ||
-      typeof card.color !== "string" ||
-      !/^#[a-f0-9]{6}$/i.test(card.color) ||
+      !isCardColor(card.color) ||
       !Array.isArray(card.notes) ||
       !card.notes.every(
         (note) => typeof note === "string" && note.length <= 4000,
@@ -222,16 +250,18 @@ function validEntryId(id) {
 }
 
 export function worksheetEdits(result) {
-  const { answers, cards, notes, reflections } = result;
+  const { answers, cards, cardTypes, notes, reflections } = result;
   return {
     ...(answers !== undefined ? { answers } : {}),
     ...(cards !== undefined ? { cards } : {}),
+    ...(cardTypes !== undefined ? { cardTypes } : {}),
     ...(notes !== undefined ? { notes } : {}),
     ...(reflections !== undefined ? { reflections } : {}),
   };
 }
 
 export function resultWithWorksheetEdits(result, edits) {
-  const { answers, cards, notes, reflections, ...generated } = result;
+  const { answers, cards, cardTypes, notes, reflections, ...generated } =
+    result;
   return { ...generated, ...edits };
 }

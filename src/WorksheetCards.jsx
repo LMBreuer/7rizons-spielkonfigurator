@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import {
   DEFAULT_CARD_COLOR,
+  CARD_TYPE_LIMIT,
   worksheetCards,
 } from "../supabase/functions/_shared/card-text.js";
 
@@ -57,6 +58,9 @@ export default function WorksheetCards({
   cards,
   notes,
   mechanicId,
+  defaultType,
+  customType,
+  onCardType,
   onCards,
   onNotes,
   t,
@@ -175,6 +179,29 @@ export default function WorksheetCards({
   if (!onCards && !onNotes && !cards.length && !notes.length) return null;
   return (
     <div className="worksheet-cards">
+      {onCardType && (
+        <label className="worksheet-card-type no-print">
+          {t("Kartentyp")}
+          <input
+            type="text"
+            value={customType}
+            placeholder={defaultType}
+            maxLength={CARD_TYPE_LIMIT}
+            onChange={(event) => onCardType(event.target.value)}
+          />
+        </label>
+      )}
+      {(customType || cards.length > 0) && (
+        <p
+          className={
+            onCardType
+              ? "worksheet-card-type-label print-notes"
+              : "worksheet-card-type-label"
+          }
+        >
+          <strong>{t("Kartentyp")}</strong> {customType || defaultType}
+        </p>
+      )}
       {renderNotes(undefined)}
       {cards.map((card) => {
         const editing = Boolean(onCards) && openId === card.id;

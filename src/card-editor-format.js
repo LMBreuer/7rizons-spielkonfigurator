@@ -106,3 +106,17 @@ const serializer = new MarkdownSerializer(
 export function serializeCardMarkdown(doc) {
   return serializer.serialize(doc);
 }
+
+export function cardDocument(value) {
+  if (typeof value !== "string") return cardEditorSchema.nodeFromJSON(value);
+  const paragraphs = value
+    .split("\n")
+    .map((line) =>
+      cardEditorSchema.node(
+        "paragraph",
+        null,
+        line ? cardEditorSchema.text(line) : null,
+      ),
+    );
+  return cardEditorSchema.node("doc", null, paragraphs);
+}

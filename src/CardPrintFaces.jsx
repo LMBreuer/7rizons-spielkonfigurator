@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import {
-  CARD_PRINT_FONT,
-  cardFontKey,
+  cardPrintStyle,
+  defaultBackColor,
 } from "../supabase/functions/_shared/card-print.js";
 import CardAnswer from "./RichCardText.jsx";
 import Logo from "./Logo.jsx";
@@ -23,6 +23,21 @@ function accentInk(hex) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179 ? "#000" : "#fff";
 }
 
+export function cardBackOverflows(face) {
+  const text = face?.querySelector(".deck-card-back-text");
+  if (!text || !face.clientHeight) return false;
+  const inner = face.querySelector(".deck-card-back-center");
+  const boundary = face.getBoundingClientRect();
+  const content = inner.getBoundingClientRect();
+  const inset = face.closest('[data-design="curve"]')
+    ? boundary.height * 0.17
+    : parseFloat(getComputedStyle(face).paddingTop);
+  return (
+    content.top < boundary.top + inset - 1 ||
+    content.bottom > boundary.bottom - inset + 1
+  );
+}
+
 export function cardTextOverflows(face) {
   const text = face?.querySelector(".deck-card-text");
   if (!text || !text.clientWidth) return false;
@@ -41,8 +56,10 @@ export function CardPrintFace({
   style,
   t,
 }) {
-  const fontSize =
-    settings.fontSizes[cardFontKey(worksheetId, card.id)] ?? CARD_PRINT_FONT;
+  const look = cardPrintStyle(settings, worksheetId, card);
+  const longType =
+    [...type].length * look.type >
+    (settings.orientation === "landscape" ? 245 : 340);
   const dark = settings.paper === "dark";
   return (
     <div
@@ -50,7 +67,15 @@ export function CardPrintFace({
       data-orientation={settings.orientation}
       data-design={settings.design}
       data-paper={settings.paper}
-      style={style}
+      style={
+        back
+          ? {
+              ...style,
+              "--deck-back-accent":
+                settings.backColor || defaultBackColor(settings.paper),
+            }
+          : style
+      }
     >
       {back ? (
         <div className="deck-card deck-card-back" data-cover={settings.back}>
@@ -69,7 +94,9 @@ export function CardPrintFace({
             <div className="deck-card-back-center">
               <Logo className="deck-card-logo" inverse={dark} />
               {settings.backText && (
-                <div className="deck-card-back-text">{settings.backText}</div>
+                <div className="deck-card-back-text">
+                  <CardAnswer value={settings.backText} />
+                </div>
               )}
             </div>
           )}
@@ -78,10 +105,13 @@ export function CardPrintFace({
         <div
           className="deck-card deck-card-front"
           data-card-id={card.id}
+          data-long-type={longType || undefined}
           style={{
-            "--card-color": card.color,
-            "--card-accent-ink": accentInk(card.color),
-            "--card-font-size": fontSize,
+            "--card-color": look.color,
+            "--card-accent-ink": accentInk(look.color),
+            "--card-font-size": look.body,
+            "--card-title-size": look.title,
+            "--card-type-size": look.type,
           }}
         >
           <span className="deck-card-frame" aria-hidden="true" />
@@ -108,18 +138,22 @@ export function CardPrintFace({
 export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
   const probe = useRef(null);
   const [oversized, setOversized] = useState([]);
+  const [backTooLong, setBackTooLong] = useState(false);
   useLayoutEffect(() => {
     function measure() {
       const next = [...probe.current.querySelectorAll(".deck-card-front")]
         .filter(cardTextOverflows)
         .map((node) => node.dataset.cardId);
       setOversized((old) => (old.join(":") === next.join(":") ? old : next));
+      setBackTooLong(
+        cardBackOverflows(probe.current.querySelector(".deck-card-back")),
+      );
     }
     measure();
     // The print faces have a fixed size, but the browser can finish loading fonts after layout.
     document.fonts?.addEventListener("loadingdone", measure);
     return () => document.fonts?.removeEventListener("loadingdone", measure);
-  }, [cards, settings]);
+  }, [cards, settings, cardType]);
 
   const columns = settings.orientation === "portrait" ? 2 : 1;
   const perPage = columns === 2 ? 4 : 3;
@@ -128,13 +162,17 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
   for (let index = 0; index < fitting.length; index += perPage) {
     batches.push(fitting.slice(index, index + perPage));
   }
-  const face = (card, index, back) => (
+  const face = (card, index, back, measure = false) => (
     <CardPrintFace
-      key={card.id}
+      key={card.id + (back ? "-back" : "")}
       card={card}
       type={cardType(card)}
       t={t}
-      settings={settings}
+      settings={
+        back && backTooLong && !measure
+          ? { ...settings, backText: "" }
+          : settings
+      }
       worksheetId={worksheetId}
       back={back}
       style={{
@@ -148,6 +186,10 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
     <div className="card-print">
       <div className="card-print-measure" ref={probe}>
         {cards.map((card, index) => face(card, index, false))}
+        {settings.includeBacks &&
+          settings.back === "text" &&
+          settings.backText &&
+          face(cards[0], 0, true, true)}
       </div>
       {batches.map((batch) => (
         <React.Fragment key={batch[0].id}>
@@ -174,10 +216,9 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
             className="card-print-page card-print-extended"
             key={card.id}
             style={{
-              "--card-color": card.color,
+              "--card-color": cardPrintStyle(settings, worksheetId, card).color,
               "--extended-font-size":
-                (settings.fontSizes[cardFontKey(worksheetId, card.id)] ??
-                  CARD_PRINT_FONT) + "pt",
+                cardPrintStyle(settings, worksheetId, card).body + "pt",
             }}
           >
             <div>{cardType(card)}</div>
@@ -185,6 +226,19 @@ export function PrintableCards({ cards, cardType, worksheetId, settings, t }) {
             <CardAnswer value={card.text} />
           </section>
         ))}
+      {settings.includeBacks && backTooLong && (
+        <section
+          className="card-print-page card-print-extended"
+          style={{
+            "--card-color":
+              settings.backColor || defaultBackColor(settings.paper),
+            "--extended-font-size": "10.5pt",
+          }}
+        >
+          <h2>{t("Text auf der Rückseite")}</h2>
+          <CardAnswer value={settings.backText} />
+        </section>
+      )}
     </div>
   );
 }

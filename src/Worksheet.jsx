@@ -1,10 +1,15 @@
 import React, { useMemo } from "react";
 import { displayDate } from "../supabase/functions/_shared/fields.js";
-import { worksheetCards } from "../supabase/functions/_shared/card-text.js";
+import {
+  cardTypeKey,
+  cardTypeName,
+  worksheetCards,
+} from "../supabase/functions/_shared/card-text.js";
 import WorksheetCards from "./WorksheetCards.jsx";
 import { PrintableCards } from "./CardPrintFaces.jsx";
 import { CARD_PRINT_DEFAULTS } from "../supabase/functions/_shared/card-print.js";
 import Reflections from "./Reflections.jsx";
+import Logo from "./Logo.jsx";
 import { translate } from "../supabase/functions/_shared/translations.js";
 
 import { catalogFor } from "../supabase/functions/_shared/content.js";
@@ -19,6 +24,7 @@ export default function Worksheet({
   screenLanguage,
   onAnswer,
   onCards,
+  onCardType,
   onNotes,
   onReflections,
 }) {
@@ -28,6 +34,12 @@ export default function Worksheet({
   const cards = useMemo(() => worksheetCards(result), [result]);
   const notes = result.notes || [];
   const mechanicName = (id) => t(MK.find((item) => item.id === id)?.label);
+  const defaultType = (id) => mechanicName(id) || t("Spielkarte");
+  const typeProps = (id) => ({
+    defaultType: defaultType(id),
+    customType: result.cardTypes?.[cardTypeKey(id)] || "",
+    onCardType: onCardType ? (value) => onCardType(id, value) : undefined,
+  });
   const overview = result.templateVariant === "overview";
   const guided = result.templateVariant === "guided";
   const isBase = (m) =>
@@ -46,6 +58,10 @@ export default function Worksheet({
           {screenHeader}
         </div>
       )}
+      <div className="worksheet-print-brand">
+        <Logo className="worksheet-print-logo" inverse={false} />
+        <span>{t("Arbeitsblatt")}</span>
+      </div>
       <div className="eyebrow">{t("7’rizons · Ihr Seminar-Hack")}</div>
       <h1 tabIndex={-1}>{result.title}</h1>
       {result.introduction && <p className="intro">{result.introduction}</p>}
@@ -136,6 +152,7 @@ export default function Worksheet({
                       )}
                       onNotes={onNotes}
                       mechanicId={m.mechanismId}
+                      {...typeProps(m.mechanismId)}
                       onCards={onCards}
                       t={t}
                     />
@@ -156,6 +173,7 @@ export default function Worksheet({
               notes={notes}
               onNotes={onNotes}
               mechanicId={null}
+              {...typeProps(null)}
               onCards={onCards}
               t={t}
             />
@@ -222,7 +240,13 @@ export default function Worksheet({
       {cards.length > 0 && (
         <PrintableCards
           cards={cards}
-          cardType={(card) => mechanicName(card.mechanismId) || t("Spielkarte")}
+          cardType={(card) =>
+            cardTypeName(
+              result,
+              card.mechanismId,
+              defaultType(card.mechanismId),
+            )
+          }
           worksheetId={worksheetId}
           settings={cardPrint}
           t={t}

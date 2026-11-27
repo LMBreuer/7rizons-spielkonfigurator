@@ -51,7 +51,7 @@
 }
 .deck-card-title {
   font:
-    750 calc(16 * var(--deck-unit))/1.13 Manrope,
+    750 calc(var(--card-title-size, 16) * var(--deck-unit))/1.13 Manrope,
     system-ui,
     sans-serif;
   text-wrap: balance;
@@ -79,9 +79,12 @@
 }
 .deck-card-type {
   align-self: end;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
   color: var(--deck-muted);
   font:
-    650 calc(8.7 * var(--deck-unit))/1.15 system-ui,
+    650 calc(var(--card-type-size, 8.5) * var(--deck-unit))/1.15 system-ui,
     sans-serif;
 }
 .deck-card-frame,
@@ -166,7 +169,7 @@
   transform: rotate(180deg);
 }
 
-[data-design="future"] .deck-card-front {
+[data-design="future"] .deck-card-front:not([data-long-type]) {
   grid-template-rows: auto minmax(0, 1fr) 0;
   padding-inline-start: calc(30 * var(--deck-unit));
 }
@@ -193,7 +196,7 @@
     0 100%
   );
 }
-[data-design="future"] .deck-card-type {
+[data-design="future"] .deck-card-front:not([data-long-type]) .deck-card-type {
   position: absolute;
   inset: 9% auto 11% 0;
   width: 10%;
@@ -205,16 +208,24 @@
   color: #fff;
 }
 
+[data-design="future"] .deck-card-front[data-long-type] {
+  padding-inline-start: calc(30 * var(--deck-unit));
+  padding-block-end: max(var(--deck-pad), 11%);
+}
+[data-design="future"] .deck-card-front[data-long-type] .deck-card-type {
+  text-align: end;
+}
 [data-design="split"] .deck-card-front {
   padding: 0;
-  grid-template: 37% minmax(0, 1fr) auto / minmax(0, 1fr);
+  grid-template: minmax(37%, max-content) minmax(0, 1fr) auto / minmax(0, 1fr);
   gap: 0;
-  background: linear-gradient(var(--card-color) 37%, var(--deck-paper) 37%);
 }
 [data-design="split"] .deck-card-title {
-  align-self: center;
-  padding-inline: var(--deck-pad);
+  display: grid;
+  align-content: center;
+  padding: var(--deck-pad);
   color: var(--card-accent-ink);
+  background: var(--card-color);
 }
 [data-design="split"] .deck-card-text {
   padding: var(--deck-pad) var(--deck-pad) 0;
@@ -225,11 +236,6 @@
 }
 [data-design="split"][data-orientation="landscape"] .deck-card-front {
   grid-template: minmax(0, 1fr) auto / 47% minmax(0, 1fr);
-  background: linear-gradient(
-    90deg,
-    var(--card-color) 47%,
-    var(--deck-paper) 47%
-  );
 }
 [data-design="split"][data-orientation="landscape"] .deck-card-title {
   grid-area: 1 / 1 / 3 / 2;
@@ -288,6 +294,18 @@
   font:
     400 calc(10.5 * var(--deck-unit))/1.35 system-ui,
     sans-serif;
+}
+.deck-card .deck-card-back-text :is(p, ul, ol, li) {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.deck-card .deck-card-back-text p + p {
+  margin-top: 0.5em;
+}
+.deck-card .deck-card-back-text :is(ul, ol) {
+  padding: 0;
+  padding-inline-start: 1.2em;
 }
 .deck-card-cover {
   position: absolute;
@@ -535,7 +553,26 @@
     margin-top: 0.75rem;
     justify-items: start;
   }
-  .card-print-back-fields label {
+  .card-print-back-editor {
+    width: 100%;
+  }
+  .card-print-colors {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .card-print-colors label {
+    display: grid;
+    width: auto;
+  }
+  .card-print-colors input[type="color"] {
+    width: 44px;
+    height: 40px;
+    min-height: 40px;
+    padding: 4px;
+  }
+  .card-print-back-fields label:not(.card-print-colors label) {
     width: 100%;
     margin: 0;
   }

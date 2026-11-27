@@ -13,6 +13,7 @@ import { validCardText } from "../supabase/functions/_shared/card-text.js";
 
 import {
   cardEditorSchema as schema,
+  cardDocument,
   parseCardMarkdown,
   serializeCardMarkdown,
 } from "./card-editor-format.js";
@@ -111,18 +112,7 @@ export default function CardEditor({
     redo: false,
   });
   useLayoutEffect(() => {
-    const doc =
-      typeof value === "string"
-        ? schema.node(
-            "doc",
-            null,
-            value
-              .split("\n")
-              .map((line) =>
-                schema.node("paragraph", null, line ? schema.text(line) : null),
-              ),
-          )
-        : schema.nodeFromJSON(value);
+    const doc = cardDocument(value);
     const editor = new EditorView(host.current, {
       attributes: {
         role: "textbox",

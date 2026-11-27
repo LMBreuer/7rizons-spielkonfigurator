@@ -1,4 +1,6 @@
 import {
+  cardTypeKey,
+  cardTypeName,
   worksheetCards,
   worksheetEdits,
 } from "../supabase/functions/_shared/card-text.js";
@@ -336,6 +338,7 @@ export default function App() {
   if (step < 5) lastConfigStep.current = step;
   const projectMenu = useRef(null);
   const sheetMenu = useRef(null);
+  const cardImportField = useRef(null);
   useEffect(() => {
     function closeMenus(event) {
       const escape = event.type === "keydown" && event.key === "Escape";
@@ -1382,12 +1385,55 @@ export default function App() {
   const hasWorksheet = step === 5 && result && !buildingSheet && !preview;
   const activeCards = hasWorksheet ? worksheetCards(visibleResult) : [];
   const printCardCatalog = hasWorksheet ? catalogFor(resultDraft).MK : [];
-  const printCardType = (card) => {
-    const name = printCardCatalog.find(
-      (item) => item.id === card.mechanismId,
-    )?.label;
-    return name ? t(name) : t("Spielkarte");
+  const worksheetTypeName = (id) => {
+    const name = printCardCatalog.find((item) => item.id === id)?.label;
+    return cardTypeName(visibleResult, id, name ? t(name) : t("Spielkarte"));
   };
+  async function downloadCards(template) {
+    const { exportCardFile } = await import("./card-exchange.js");
+    const content = exportCardFile({
+      result: visibleResult,
+      worksheetId: activeWorksheetId,
+      settings: cardPrint,
+      typeName: worksheetTypeName,
+      template,
+      t,
+    });
+    download(
+      JSON.stringify(content, null, 2),
+      jsonFilename(projectTitle, template ? "kartenvorlage" : "karten"),
+      "application/json",
+    );
+  }
+  async function loadCards(file) {
+    let json;
+    try {
+      json = JSON.parse(await fileText(file));
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      throw new Error(t("Die Karten-Datei enthält kein gültiges JSON."));
+    }
+    const { importCardFile } = await import("./card-exchange.js");
+    const imported = importCardFile(json, result, activeWorksheetId, cardPrint);
+    updateWorksheetResult((previous) => {
+      const { playtest } = previous.answers || {};
+      return {
+        ...previous,
+        cards: [...worksheetCards(previous), ...imported.added],
+        ...(Object.keys(imported.types).length
+          ? { cardTypes: imported.types }
+          : {}),
+        answers: playtest === undefined ? {} : { playtest },
+      };
+    });
+    setCardPrint(imported.settings);
+    setMessage(
+      t("{0} Karten importiert, {1} bereits vorhanden.", {
+        0: imported.added.length,
+        1: imported.skipped,
+      }),
+    );
+  }
   const sheetTools = step === 5 && worksheets.length > 0 && (
     <div
       className="sheet-tools no-print"
@@ -1530,6 +1576,61 @@ export default function App() {
             </Button>
           )}
 
+        {hasWorksheet && result.templateVariant !== "overview" && (
+          <details className="switch-menu sheet-cards-menu">
+            <summary>{t("Karten")}</summary>
+            <div className="menu-body">
+              {!showingOriginal && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={(event) =>
+                    runPrintMenuAction(event, () =>
+                      cardImportField.current?.click(),
+                    )
+                  }
+                >
+                  {t("Karten importieren")}
+                </button>
+              )}
+              {activeCards.length > 0 && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={(event) =>
+                    runPrintMenuAction(event, () =>
+                      act(() => downloadCards(false)),
+                    )
+                  }
+                >
+                  {t("Karten als JSON exportieren")}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={(event) =>
+                  runPrintMenuAction(event, () =>
+                    act(() => downloadCards(true)),
+                  )
+                }
+              >
+                {t("JSON-Vorlage für Karten")}
+              </button>
+              <input
+                ref={cardImportField}
+                type="file"
+                accept=".json,application/json"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) act(() => loadCards(file));
+                }}
+              />
+            </div>
+          </details>
+        )}
         {hasWorksheet &&
           (activeCards.length ? (
             <details className="switch-menu sheet-print-menu">
@@ -2561,6 +2662,21 @@ export default function App() {
                           })
                       : undefined
                   }
+                  onCardType={
+                    canEditWorksheet
+                      ? (id, value) =>
+                          updateWorksheetResult((previous) => {
+                            const cardTypes = { ...previous.cardTypes };
+                            if (value.trim())
+                              cardTypes[cardTypeKey(id)] = value;
+                            else delete cardTypes[cardTypeKey(id)];
+                            const { cardTypes: _, ...rest } = previous;
+                            return Object.keys(cardTypes).length
+                              ? { ...rest, cardTypes }
+                              : rest;
+                          })
+                      : undefined
+                  }
                   onNotes={
                     canEditWorksheet
                       ? (update) =>
@@ -2597,7 +2713,7 @@ export default function App() {
                 {cardPrintOpen && activeCards.length > 0 && (
                   <CardPrintEditor
                     cards={activeCards}
-                    cardType={printCardType}
+                    cardType={(card) => worksheetTypeName(card.mechanismId)}
                     worksheetId={activeWorksheetId}
                     settings={cardPrint}
                     onSettings={setCardPrint}

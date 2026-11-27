@@ -1492,8 +1492,22 @@ html[data-input="pointer"] :focus {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) .card-heading,
-:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) .card-heading-small {
+:is(
+    .card-answer,
+    .ProseMirror,
+    .deck-card-text,
+    .deck-card-back-text,
+    .card-print-extended
+  )
+  .card-heading,
+:is(
+    .card-answer,
+    .ProseMirror,
+    .deck-card-text,
+    .deck-card-back-text,
+    .card-print-extended
+  )
+  .card-heading-small {
   margin: 0.65em 0 0.3em;
   color: inherit;
   font-family: inherit;
@@ -1502,10 +1516,24 @@ html[data-input="pointer"] :focus {
   line-height: 1.2;
   letter-spacing: normal;
 }
-:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) .card-heading-small {
+:is(
+    .card-answer,
+    .ProseMirror,
+    .deck-card-text,
+    .deck-card-back-text,
+    .card-print-extended
+  )
+  .card-heading-small {
   font-size: 1.08em;
 }
-:is(.card-answer, .ProseMirror, .deck-card-text, .card-print-extended) hr {
+:is(
+    .card-answer,
+    .ProseMirror,
+    .deck-card-text,
+    .deck-card-back-text,
+    .card-print-extended
+  )
+  hr {
   border: 0;
   border-top: 1px solid currentColor;
   opacity: 0.55;
@@ -1724,6 +1752,20 @@ html[data-input="pointer"] :focus {
 .sheet-tools .button {
   min-height: 2rem;
   background: transparent;
+}
+.sheet-cards-menu .menu-body {
+  inset-inline: auto 0;
+}
+@media (max-width: 640px) {
+  .sheet-tools {
+    position: relative;
+  }
+  .sheet-tools .sheet-cards-menu {
+    position: static;
+  }
+  .sheet-cards-menu .menu-body {
+    max-width: 100%;
+  }
 }
 .project-menu > summary {
   background: var(--surface);
@@ -2032,6 +2074,24 @@ html[data-input="pointer"] :focus {
   margin-top: 0.7rem;
 }
 
+.worksheet-card-type {
+  max-width: 27rem;
+  margin: 0 0 0.2rem;
+}
+.worksheet-card-type-label {
+  color: var(--muted);
+  font-size: 0.85em;
+  margin: 0 0 0.3rem;
+}
+.worksheet-card-type-label strong {
+  margin-inline-end: 0.4em;
+}
+.worksheet-card-type input::placeholder {
+  opacity: 1;
+}
+.worksheet-print-brand {
+  display: none;
+}
 .worksheet-cards {
   display: grid;
   gap: 0.8rem;

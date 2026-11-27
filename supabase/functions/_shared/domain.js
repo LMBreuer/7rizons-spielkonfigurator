@@ -3,6 +3,8 @@ import {
   cardMarkdown,
   worksheetCards,
   validateWorksheetCards,
+  validateCardTypes,
+  cardTypeName,
   notesForWorksheet,
   resultWithWorksheetEdits,
 } from "./card-text.js";
@@ -399,6 +401,11 @@ function readWorksheetEdits(raw, result, resultSettings) {
     if (result.templateVariant === "overview") fail("Ungültige Spielkarten.");
     edits.cards = validateWorksheetCards(raw.cards, result.mechanisms);
   }
+  if (raw.cardTypes !== undefined) {
+    if (result.templateVariant === "overview") fail("Ungültige Kartentypen.");
+    const types = validateCardTypes(raw.cardTypes, result.mechanisms);
+    if (Object.keys(types).length) edits.cardTypes = types;
+  }
   if (raw.notes !== undefined) {
     if (result.templateVariant === "overview") fail("Ungültige freie Notizen.");
     edits.notes = notesForWorksheet(
@@ -590,7 +597,9 @@ export function markdown(d, result) {
       "",
       cardMarkdown(note.text),
     ];
+    const type = cardTypeName(result, id, "");
     return [
+      ...(type ? ["", `**${t("Kartentyp")}:** ${type}`] : []),
       ...notes.filter((note) => !note.after).flatMap(noteLines),
       ...cards
         .filter((card) => card.mechanismId === id)

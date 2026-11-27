@@ -1,15 +1,27 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   CARD_PRINT_FONT,
+  CARD_PRINT_SIZES,
+  cardPrintStyle,
+  defaultBackColor,
+  readCardStyle,
   CARD_PRINT_IMAGE_LIMIT,
   cardFontKey,
 } from "../supabase/functions/_shared/card-print.js";
 import {
   CardPrintFace,
+  cardBackOverflows,
   cardTextOverflows,
   cardTitle,
 } from "./CardPrintFaces.jsx";
 import { printWorksheet } from "./WorksheetCards.jsx";
+
+const CardEditor = React.lazy(() => import("./CardEditor.jsx"));
+const fontLabels = {
+  body: "Textgröße",
+  title: "Titelgröße",
+  type: "Kartentypgröße",
+};
 
 const designLabels = {
   minimal: "Minimalistisch",
@@ -53,15 +65,40 @@ export default function CardPrintEditor({
 }) {
   const dialog = useRef(null);
   const front = useRef(null);
+  const back = useRef(null);
   const pendingImage = useRef(0);
   const [selected, setSelected] = useState(cards[0]?.id);
   const [imageError, setImageError] = useState("");
   const [overflow, setOverflow] = useState(false);
+  const [backOverflow, setBackOverflow] = useState(false);
   const [readingImage, setReadingImage] = useState(false);
+  const [editingBack, setEditingBack] = useState(false);
   const card = cards.find((item) => item.id === selected) || cards[0];
   const fontKey = cardFontKey(worksheetId, card.id);
-  const fontSize = settings.fontSizes[fontKey] ?? CARD_PRINT_FONT;
+  const look = cardPrintStyle(settings, worksheetId, card);
   const set = (value) => onSettings((previous) => ({ ...previous, ...value }));
+  function changeStyle(update) {
+    onSettings((previous) => {
+      const cardStyles = { ...previous.cardStyles };
+      const style = readCardStyle({ ...cardStyles[fontKey], ...update });
+      if (Object.keys(style).length) cardStyles[fontKey] = style;
+      else delete cardStyles[fontKey];
+      return { ...previous, cardStyles };
+    });
+  }
+
+  function changeFont(name, size) {
+    if (name !== "body") {
+      changeStyle({ [name]: size });
+      return;
+    }
+    onSettings((previous) => {
+      const fontSizes = { ...previous.fontSizes };
+      if (size === CARD_PRINT_FONT) delete fontSizes[fontKey];
+      else fontSizes[fontKey] = size;
+      return { ...previous, fontSizes };
+    });
+  }
   function close() {
     dialog.current.close();
     onClose();
@@ -77,14 +114,19 @@ export default function CardPrintEditor({
   }, []);
 
   useLayoutEffect(() => {
-    const measure = () =>
+    const measure = () => {
       setOverflow(
         cardTextOverflows(front.current.querySelector(".deck-card-front")),
       );
+      setBackOverflow(
+        cardBackOverflows(back.current.querySelector(".deck-card-back")),
+      );
+    };
     measure();
     const resize =
       typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
     resize?.observe(front.current);
+    resize?.observe(back.current);
     document.fonts?.addEventListener("loadingdone", measure);
     return () => {
       resize?.disconnect();
@@ -162,30 +204,44 @@ export default function CardPrintEditor({
             <option value="dark">{t("Dunkel")}</option>
           </select>
         </label>
-        <label className="card-font-control">
-          <span>
-            {t("Textgröße")}{" "}
-            <output>
-              {new Intl.NumberFormat(language).format(fontSize)} pt
-            </output>
-          </span>
-          <input
-            type="range"
-            min="8"
-            max="14"
-            step="0.5"
-            value={fontSize}
-            onChange={(e) => {
-              const size = Number(e.target.value);
-              onSettings((previous) => {
-                const fontSizes = { ...previous.fontSizes };
-                if (size === CARD_PRINT_FONT) delete fontSizes[fontKey];
-                else fontSizes[fontKey] = size;
-                return { ...previous, fontSizes };
-              });
-            }}
-          />
-        </label>
+        {Object.entries(fontLabels).map(([name, label]) => (
+          <label className="card-font-control" key={name}>
+            <span>
+              {t(label)}{" "}
+              <output>
+                {new Intl.NumberFormat(language).format(look[name])} pt
+              </output>
+            </span>
+            <input
+              type="range"
+              aria-label={t(label)}
+              min={CARD_PRINT_SIZES[name].min}
+              max={CARD_PRINT_SIZES[name].max}
+              step="0.5"
+              value={look[name]}
+              onChange={(event) => changeFont(name, Number(event.target.value))}
+            />
+          </label>
+        ))}
+        <div className="card-print-colors">
+          <label>
+            {t("Designfarbe vorne")}
+            <input
+              type="color"
+              value={look.color}
+              onChange={(event) => changeStyle({ color: event.target.value })}
+            />
+          </label>
+          {settings.cardStyles?.[fontKey]?.color && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => changeStyle({ color: undefined })}
+            >
+              {t("Kartenfarbe übernehmen")}
+            </button>
+          )}
+        </div>
       </div>
       <div className="card-print-editor-workspace">
         <label className="card-print-compact-list">
@@ -207,7 +263,7 @@ export default function CardPrintEditor({
                 type={cardType(card)}
               />
             </figure>
-            <figure>
+            <figure ref={back}>
               <figcaption>
                 {t("Rückseite")}{" "}
                 <span>
@@ -243,6 +299,13 @@ export default function CardPrintEditor({
               )}
             </p>
           )}
+          {backOverflow && settings.includeBacks && (
+            <p className="card-print-warning" role="status">
+              {t(
+                "Der Rückseitentext passt nicht auf die Karte und wird separat gedruckt. Die Kartenrückseiten zeigen das Logo.",
+              )}
+            </p>
+          )}
         </div>
         <section
           className="card-print-card-list"
@@ -256,7 +319,13 @@ export default function CardPrintEditor({
                   type="button"
                   aria-pressed={item.id === card.id}
                   onClick={() => setSelected(item.id)}
-                  style={{ "--list-card-color": item.color }}
+                  style={{
+                    "--list-card-color": cardPrintStyle(
+                      settings,
+                      worksheetId,
+                      item,
+                    ).color,
+                  }}
                 >
                   <strong>{cardTitle(item, t)}</strong>
                   <small>{cardType(item)}</small>
@@ -266,18 +335,47 @@ export default function CardPrintEditor({
           </ul>
         </section>
       </div>
-      <details className="card-print-back-options">
+      <details
+        className="card-print-back-options"
+        onToggle={(event) => setEditingBack(event.currentTarget.open)}
+      >
         <summary>{t("Rückseite bearbeiten")}</summary>
         <div className="card-print-back-fields">
-          <label>
-            {t("Text auf der Rückseite")}
-            <textarea
-              rows={2}
-              maxLength={240}
-              value={settings.backText}
-              onChange={(e) => set({ backText: e.target.value, back: "text" })}
-            />
-          </label>
+          {editingBack && (
+            <div className="card-print-back-editor">
+              <div className="card-field-label">
+                {t("Text auf der Rückseite")}
+              </div>
+              <React.Suspense fallback={null}>
+                <CardEditor
+                  label={t("Text auf der Rückseite")}
+                  t={t}
+                  autoFocus={false}
+                  value={settings.backText}
+                  onChange={(backText) => set({ backText, back: "text" })}
+                />
+              </React.Suspense>
+            </div>
+          )}
+          <div className="card-print-colors">
+            <label>
+              {t("Designfarbe hinten")}
+              <input
+                type="color"
+                value={settings.backColor || defaultBackColor(settings.paper)}
+                onChange={(event) => set({ backColor: event.target.value })}
+              />
+            </label>
+            {settings.backColor && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => set({ backColor: "" })}
+              >
+                {t("Standardfarbe übernehmen")}
+              </button>
+            )}
+          </div>
           <label>
             {t("Bild auf der Rückseite")}
             <input

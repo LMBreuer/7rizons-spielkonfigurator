@@ -216,3 +216,96 @@
     break-inside: avoid-page;
   }
 }
+
+@media print {
+  html:not([data-print]) main .worksheet {
+    --print-accent: #245789;
+    --print-rule: #c7d1dc;
+    color: #231f20;
+    print-color-adjust: exact;
+    font:
+      10pt/1.48 system-ui,
+      sans-serif;
+  }
+  html:not([data-print]) .worksheet-print-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 3mm;
+    border-bottom: 0.45mm solid var(--print-accent);
+    color: var(--print-accent);
+    font-weight: 650;
+    break-after: avoid-page;
+  }
+  html:not([data-print]) .worksheet-print-logo {
+    width: 30mm;
+    height: auto;
+  }
+  html:not([data-print]) main .worksheet > .eyebrow {
+    display: none;
+  }
+  html:not([data-print]) main .worksheet h1 {
+    margin: 5mm 0 3mm;
+    font-size: 23pt;
+    line-height: 1.13;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+    break-after: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .intro {
+    margin: 0 0 4mm;
+    font-size: 10.5pt;
+    color: #434e5a;
+  }
+  html:not([data-print]) main .worksheet .metadata {
+    gap: 2.5mm 7mm;
+    margin: 4mm 0;
+    padding: 3mm 0;
+    border-block: 0.25mm solid var(--print-rule);
+  }
+  html:not([data-print]) main .worksheet .metadata dt {
+    color: var(--print-accent);
+    font-size: 7.5pt;
+    letter-spacing: 0.04em;
+  }
+  html:not([data-print]) main .worksheet .metadata dd {
+    font-size: 10pt;
+  }
+  html:not([data-print]) main .worksheet h2 {
+    font-size: 14pt;
+    color: var(--print-accent);
+    margin: 5mm 0 2mm;
+  }
+  html:not([data-print]) main .worksheet .worksheet-mechanism {
+    margin-top: 4mm;
+    padding-top: 2.5mm;
+    border-top: 0.25mm solid var(--print-rule);
+  }
+  html:not([data-print]) main .worksheet .mechanism-guide {
+    padding: 2mm 0 2mm 3mm;
+    margin: 3mm 0;
+    border: 0;
+    border-inline-start: 0.5mm solid var(--print-rule);
+    border-radius: 0;
+    background: transparent;
+    break-inside: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .writing-card {
+    margin: 2.5mm 0;
+    padding: 2.5mm 3mm;
+    border: 0.25mm solid var(--print-rule);
+    border-inline-start: 1mm solid var(--card-color);
+    border-radius: 1.25mm;
+  }
+  html:not([data-print]) main .worksheet .worksheet-card-type-label {
+    color: #454e58;
+    font-size: 8.5pt;
+    break-after: avoid-page;
+  }
+  html:not([data-print]) main .worksheet .card-answer :last-child {
+    margin-bottom: 0;
+  }
+  html:not([data-print]) main .worksheet .provenance {
+    border-top: 0.25mm solid var(--print-rule);
+  }
+}
