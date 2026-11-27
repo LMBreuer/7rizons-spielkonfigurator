@@ -114,6 +114,32 @@ export function plainCardText(value) {
     .join(["paragraph", "heading"].includes(value.type) ? "" : "\n");
 }
 
+export function cardTextSections(card) {
+  if (card.instruction !== undefined) {
+    return { introduction: card.text, instruction: card.instruction };
+  }
+  const text = card.text;
+  if (typeof text === "string") {
+    const divider = /^[\t ]*---[\t ]*\r?$/m.exec(text);
+    if (divider)
+      return {
+        introduction: text.slice(0, divider.index).trimEnd(),
+        instruction: text.slice(divider.index + divider[0].length).trimStart(),
+      };
+  } else {
+    const blocks = text.content;
+    const divider = blocks.findIndex((block) => block.type === "horizontal_rule");
+    if (divider !== -1) {
+      const part = (content) => content.length ? { type: "doc", content } : "";
+      return {
+        introduction: part(blocks.slice(0, divider)),
+        instruction: part(blocks.slice(divider + 1)),
+      };
+    }
+  }
+  return { introduction: text, instruction: "" };
+}
+
 export function cardMarkdown(value) {
   if (typeof value === "string") return value.replace(/[<>]/g, "\\$&");
   if (!value) return "";
@@ -204,6 +230,7 @@ export function validateWorksheetCards(cards, mechanisms) {
       typeof card.title !== "string" ||
       card.title.length > 120 ||
       !validCardText(card.text) ||
+      (card.instruction !== undefined && !validCardText(card.instruction)) ||
       !isCardColor(card.color) ||
       (card.group !== undefined && !isCardGroup(card.group)) ||
       !Array.isArray(card.notes) ||
@@ -214,12 +241,14 @@ export function validateWorksheetCards(cards, mechanisms) {
       throw new Error("Ungültige Spielkarten.");
     }
     ids.add(card.id);
-    const { id, mechanismId, title, text, color, notes, group } = card;
+    const { id, mechanismId, title, text, instruction, color, notes, group } =
+      card;
     return {
       id,
       mechanismId,
       title,
       text,
+      ...(instruction !== undefined && { instruction }),
       color,
       notes: [...notes],
       ...(group !== undefined && { group }),

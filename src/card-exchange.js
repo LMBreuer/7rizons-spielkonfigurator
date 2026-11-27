@@ -54,7 +54,7 @@ export function exportCardFile({
     schemaVersion: 1,
     ...(template && {
       instructions: t(
-        "Ersetzen Sie die Beispielkarte in cards durch alle gewünschten Karten. Geben Sie ein einziges gültiges JSON-Objekt zurück und übernehmen Sie kind und schemaVersion. Verwenden Sie pro Karte genau eine mechanismId aus availableTypes. Schreiben Sie den Kartentext als Markdown in textMarkdown. Setzen Sie eine Trennlinie als --- in eine eigene Zeile mit Leerzeilen davor und danach. Lassen Sie id für neue Karten weg. Nutzen Sie für Farben das Format #RRGGBB und für Schriftgrößen die Wertebereiche in format.",
+        "Ersetzen Sie die Beispielkarte in cards durch alle gewünschten Karten. Geben Sie ein gültiges JSON-Objekt zurück und übernehmen Sie kind und schemaVersion. Verwenden Sie pro Karte eine mechanismId aus availableTypes. Schreiben Sie die Einleitung in textMarkdown und die Aufforderung in instructionMarkdown, jeweils als Markdown. Verwenden Sie title für die Überschrift einer Inspirationskarte, sonst lassen Sie title leer. Lassen Sie id für neue Karten weg. Nutzen Sie für Farben #RRGGBB und für Schriftgrößen die Wertebereiche in format.",
       ),
       format: {
         design: CARD_PRINT_DESIGNS,
@@ -88,14 +88,9 @@ export function exportCardFile({
           {
             mechanismId: availableTypes[0].mechanismId,
             group: cardGroup(availableTypes[0]),
-            title: t("Beispielkarte"),
-            textMarkdown: [
-              "## " + t("Situation"),
-              t("Beschreibung"),
-              "---",
-              "## " + t("Anweisung"),
-              t("Arbeitsauftrag"),
-            ].join("\n\n"),
+            title: "",
+            textMarkdown: t("Beschreibung"),
+            instructionMarkdown: t("Arbeitsauftrag"),
             color: DEFAULT_CARD_COLOR,
             notes: [],
             print: cardPrintStyle(CARD_PRINT_DEFAULTS, worksheetId, {
@@ -104,12 +99,24 @@ export function exportCardFile({
           },
         ]
       : worksheetCards(result).map(
-          ({ id, mechanismId, title, text, color, notes, group }) => ({
+          ({
+            id,
+            mechanismId,
+            title,
+            text,
+            instruction,
+            color,
+            notes,
+            group,
+          }) => ({
             id,
             mechanismId,
             ...(group !== undefined && { group }),
             title,
             textMarkdown: markdownFor(text),
+            ...(instruction !== undefined && {
+              instructionMarkdown: markdownFor(instruction),
+            }),
             color,
             notes,
             print: cardPrintStyle(settings, worksheetId, { id, color }),
@@ -150,6 +157,10 @@ function sameCard(a, b) {
     a.title === b.title &&
     a.color.toLowerCase() === b.color.toLowerCase() &&
     markdownFor(a.text) === markdownFor(b.text) &&
+    (a.instruction === undefined
+      ? b.instruction === undefined
+      : b.instruction !== undefined &&
+        markdownFor(a.instruction) === markdownFor(b.instruction)) &&
     JSON.stringify(a.notes) === JSON.stringify(b.notes)
   );
 }
@@ -193,8 +204,11 @@ export function importCardFile(raw, result, worksheetId, currentSettings) {
           id,
           mechanismId,
           group: item.group,
-          title: item.title,
+          title: item.title ?? "",
           text: textFromMarkdown(item.textMarkdown),
+          ...(Object.hasOwn(item, "instructionMarkdown") && {
+            instruction: textFromMarkdown(item.instructionMarkdown),
+          }),
           color: item.color ?? DEFAULT_CARD_COLOR,
           notes: item.notes ?? [],
         },

@@ -8,8 +8,13 @@ import {
   CARD_GROUPS,
   cardGroup,
 } from "../supabase/functions/_shared/card-groups.js";
+import {
+  cardTextSections,
+  plainCardText,
+} from "../supabase/functions/_shared/card-text.js";
 import { effectiveCardPrint, useCardBrandPack } from "./card-brand.js";
-import CardAnswer from "./RichCardText.jsx";
+import CardAnswer, { GameCardText } from "./RichCardText.jsx";
+import CardHeaderIcon from "./CardHeaderIcon.jsx";
 import Logo from "./Logo.jsx";
 
 export function cardTitle(card, t) {
@@ -50,6 +55,46 @@ export function cardTextOverflows(face) {
   return (
     text.scrollHeight > text.clientHeight + 1 ||
     face.scrollHeight > face.clientHeight + 1
+  );
+}
+
+const introductionLabels =
+  /^(Einleitung(?:stext)?|Situation|Introduction|Context):?$/i;
+const instructionLabels =
+  /^(Aufforderung|Anweisung|Arbeitsauftrag|Aufgabe|Instruction|Prompt|Task):?$/i;
+
+function withoutSectionHeading(value, label) {
+  if (typeof value === "string") return value;
+  const [first, ...rest] = value.content;
+  if (first.type !== "heading" || !label.test(plainCardText(first).trim()))
+    return value;
+  return rest.length ? { type: "doc", content: rest } : "";
+}
+
+function BrandedCardText({ card, group }) {
+  const { introduction, instruction } = cardTextSections(card);
+  const intro = withoutSectionHeading(introduction, introductionLabels);
+  const prompt = withoutSectionHeading(instruction, instructionLabels);
+  const opening = intro || (group !== "inspiration" ? card.title.trim() : "");
+  return (
+    <>
+      {opening && (
+        <div className="deck-card-introduction">
+          <CardAnswer
+            plainHeadings={group !== "inspiration"}
+            value={opening}
+          />
+        </div>
+      )}
+      {prompt && (
+        <div className="deck-card-instruction">
+          <CardAnswer
+            plainHeadings={group !== "inspiration"}
+            value={prompt}
+          />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -155,12 +200,21 @@ export function CardPrintFace({
           >
             {type[0]}
           </span>
-          {branded && <div className="deck-card-type">{groupLabel}</div>}
-          {(!branded || card.title.trim()) && (
+          {branded && (
+            <header className="deck-card-type">
+              <CardHeaderIcon group={group} />
+              <span>{groupLabel}</span>
+            </header>
+          )}
+          {(!branded || (group === "inspiration" && card.title.trim())) && (
             <div className="deck-card-title">{cardTitle(card, t)}</div>
           )}
           <div className="deck-card-text">
-            <CardAnswer value={card.text} />
+            {branded ? (
+              <BrandedCardText card={card} group={group} />
+            ) : (
+              <GameCardText card={card} />
+            )}
           </div>
           {!branded && <div className="deck-card-type">{type}</div>}
         </div>
@@ -220,7 +274,10 @@ export function PrintableCards({
       back={back}
       style={{
         gridColumn: back ? columns - (index % columns) : (index % columns) + 1,
-        gridRow: Math.floor(index / columns) + 1,
+        gridRow:
+          back && settings.orientation === "landscape"
+            ? perPage - index
+            : Math.floor(index / columns) + 1,
       }}
     />
   );
@@ -275,7 +332,7 @@ export function PrintableCards({
                 : cardType(card)}
             </div>
             <h2>{cardTitle(card, t)}</h2>
-            <CardAnswer value={card.text} />
+            <GameCardText card={card} />
           </section>
         ))}
       {settings.includeBacks && backTooLong && (

@@ -631,6 +631,7 @@ export function markdown(d, result) {
       `#### ${card.title.trim() || t("Spielkarte")}`,
       "",
       cardMarkdown(card.text),
+      ...(card.instruction ? ["", "---", "", cardMarkdown(card.instruction)] : []),
       ...(notes.length
         ? ["", `**${t("Notizen")}**`, "", ...notes.map((note) => `- ${note}`)]
         : []),

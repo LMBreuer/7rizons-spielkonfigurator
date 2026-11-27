@@ -2,10 +2,11 @@ import React, { useRef, useState } from "react";
 import {
   DEFAULT_CARD_COLOR,
   CARD_TYPE_LIMIT,
+  cardTextSections,
   worksheetCards,
 } from "../supabase/functions/_shared/card-text.js";
 
-import CardAnswer from "./RichCardText.jsx";
+import CardAnswer, { GameCardText } from "./RichCardText.jsx";
 import CardGroupField from "./CardGroupField.jsx";
 
 const cardPalette = [
@@ -90,6 +91,7 @@ export default function WorksheetCards({
         mechanismId: mechanicId,
         title: "",
         text: "",
+        instruction: "",
         color:
           current.findLast((card) => card.mechanismId === mechanicId)?.color ??
           DEFAULT_CARD_COLOR,
@@ -215,6 +217,7 @@ export default function WorksheetCards({
       {renderNotes(undefined)}
       {cards.map((card) => {
         const editing = Boolean(onCards) && openId === card.id;
+        const sections = editing ? cardTextSections(card) : null;
         const title = card.title.trim() || t("Spielkarte");
         const label = t("Karte bearbeiten") + " · " + title;
         return (
@@ -280,20 +283,43 @@ export default function WorksheetCards({
                       onChange={(group) => update(card.id, () => ({ group }))}
                       t={t}
                     />
-                    <div>
-                      <span className="card-field-label">
-                        {t("Kartentext")}
-                      </span>
-                      <React.Suspense fallback={null}>
+                    <React.Suspense fallback={null}>
+                      <div>
+                        <span className="card-field-label">
+                          {t("Einleitungstext")}
+                        </span>
                         <CardEditor
                           t={t}
-                          label={t("Kartentext")}
+                          label={t("Einleitungstext")}
                           autoFocus={false}
-                          value={card.text}
-                          onChange={(text) => update(card.id, () => ({ text }))}
+                          value={sections.introduction}
+                          onChange={(text) =>
+                            update(card.id, (previous) => ({
+                              text,
+                              instruction:
+                                cardTextSections(previous).instruction,
+                            }))
+                          }
                         />
-                      </React.Suspense>
-                    </div>
+                      </div>
+                      <div>
+                        <span className="card-field-label">
+                          {t("Aufforderung")}
+                        </span>
+                        <CardEditor
+                          t={t}
+                          label={t("Aufforderung")}
+                          autoFocus={false}
+                          value={sections.instruction}
+                          onChange={(instruction) =>
+                            update(card.id, (previous) => ({
+                              text: cardTextSections(previous).introduction,
+                              instruction,
+                            }))
+                          }
+                        />
+                      </div>
+                    </React.Suspense>
                     <div className="card-notes-editor" ref={noteEditor}>
                       {card.notes.map((note, index) => (
                         <div key={index} className="card-note">
@@ -387,7 +413,7 @@ export default function WorksheetCards({
                   <div className="print-card-copy">
                     <h4>{title}</h4>
                     <div className="card-answer">
-                      <CardAnswer value={card.text} />
+                      <GameCardText card={card} />
                     </div>
                     <CardNotes notes={card.notes} t={t} />
                   </div>
@@ -412,7 +438,7 @@ export default function WorksheetCards({
                     )}
                   </div>
                   <div className="card-answer">
-                    <CardAnswer value={card.text} />
+                    <GameCardText card={card} />
                   </div>
                   <CardNotes notes={card.notes} t={t} />
                 </>

@@ -7,7 +7,7 @@ const tags = {
   list_item: "li",
 };
 
-function render(node, key) {
+function render(node, key, plainHeadings) {
   if (node.type === "text") {
     let text = node.text;
     for (const mark of node.marks || [])
@@ -17,9 +17,11 @@ function render(node, key) {
   if (node.type === "horizontal_rule") return <hr key={key} />;
   if (node.type === "hard_break") return <br key={key} />;
   const children =
-    node.content?.map(render) ?? (node.type === "paragraph" ? <br /> : []);
+    node.content?.map((child, index) => render(child, index, plainHeadings)) ??
+    (node.type === "paragraph" ? <br /> : []);
   if (node.type === "doc") return children;
   if (node.type === "heading") {
+    if (plainHeadings) return <p key={key}>{children}</p>;
     const large = node.attrs.level <= 2;
     const Tag = large ? "h5" : "h6";
     return (
@@ -38,6 +40,22 @@ function render(node, key) {
   );
 }
 
-export default function RichCardText({ value }) {
-  return typeof value === "string" ? value : render(value);
+export default function RichCardText({ value, plainHeadings = false }) {
+  return typeof value === "string"
+    ? value
+    : render(value, undefined, plainHeadings);
+}
+
+export function GameCardText({ card }) {
+  return (
+    <>
+      <RichCardText value={card.text} />
+      {card.instruction && (
+        <>
+          {card.text && <hr />}
+          <RichCardText value={card.instruction} />
+        </>
+      )}
+    </>
+  );
 }

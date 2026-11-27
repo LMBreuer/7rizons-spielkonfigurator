@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exportCardFile, importCardFile, parseCardFile } from "../src/card-exchange.js";
+import {
+  exportCardFile,
+  importCardFile,
+  parseCardFile,
+} from "../src/card-exchange.js";
 import { parseCardMarkdown } from "../src/card-editor-format.js";
 import { translate } from "../supabase/functions/_shared/translations.js";
+import { cardTextSections } from "../supabase/functions/_shared/card-text.js";
 import {
   cardFontKey,
   readCardPrint,
@@ -91,12 +96,17 @@ test("a card deck round-trips types, Markdown, notes, card colors and print sett
   const template = exportCardFile({ ...ctx, template: true });
   assert.ok(template.availableGroups.some(({ group }) => group === "einstieg"));
   assert.equal(template.cards[0].id, undefined);
-  assert.match(template.cards[0].textMarkdown, /\n\n---\n\n## Instruction/);
+  assert.equal(template.cards[0].textMarkdown, "Description");
+  assert.equal(template.cards[0].instructionMarkdown, "Workshop task");
   assert.equal(template.settings.backTextMarkdown, undefined);
   assert.ok(template.format.design.includes("retro"));
   assert.equal(template.format.fontSizePt.title.max, 26);
   const fromTemplate = importCardFile(template, target, worksheet.id, settings);
   assert.ok(fromTemplate.added[0].id);
+  assert.deepEqual(
+    fromTemplate.added[0].instruction,
+    parseCardMarkdown(template.cards[0].instructionMarkdown).toJSON(),
+  );
   assert.deepEqual(fromTemplate.settings.backText, backText);
   assert.throws(
     () =>
@@ -117,6 +127,59 @@ test("a card deck round-trips types, Markdown, notes, card colors and print sett
   assert.deepEqual(result.cards, [card]);
 });
 
+test("card sections preserve explicit instructions and read legacy dividers", () => {
+  const introduction = parseCardMarkdown(
+    "Einleitung\n\n---\n\nZusatz",
+  ).toJSON();
+  const instruction = parseCardMarkdown(
+    "Wähle **eine andere Person**.",
+  ).toJSON();
+  const card = {
+    id: crypto.randomUUID(),
+    mechanismId: "m72",
+    title: "",
+    text: introduction,
+    instruction,
+    color: "#2a6fb4",
+    notes: [],
+  };
+  const worksheetId = crypto.randomUUID();
+  const result = { mechanisms: [{ mechanismId: "m72" }], cards: [card] };
+  const settings = readCardPrint();
+  const exported = exportCardFile({
+    result,
+    worksheetId,
+    settings,
+    typeName: () => "Rolle",
+  });
+  assert.deepEqual(
+    importCardFile(exported, { ...result, cards: [] }, worksheetId, settings)
+      .added,
+    [card],
+  );
+  assert.equal(
+    importCardFile(exported, result, worksheetId, settings).skipped,
+    1,
+  );
+  assert.deepEqual(cardTextSections(card), { introduction, instruction });
+  assert.deepEqual(
+    cardTextSections({ text: "Erzähl weiter.\n\n---\n\nFrag die Gruppe." }),
+    {
+      introduction: "Erzähl weiter.",
+      instruction: "Frag die Gruppe.",
+    },
+  );
+  assert.deepEqual(
+    cardTextSections({
+      text: parseCardMarkdown("Einleitung\n\n---\n\n*Auftrag*").toJSON(),
+    }),
+    {
+      introduction: parseCardMarkdown("Einleitung").toJSON(),
+      instruction: parseCardMarkdown("*Auftrag*").toJSON(),
+    },
+  );
+});
+
 test("a batch file can contain plain JSON or an AI Markdown fence", () => {
   const cards = Array.from({ length: 24 }, (_, i) => ({
     title: "Card " + (i + 1),
@@ -127,7 +190,11 @@ test("a batch file can contain plain JSON or an AI Markdown fence", () => {
   const result = { mechanisms: [{ mechanismId: "m72" }], cards: [] };
   const id = crypto.randomUUID();
   const settings = readCardPrint({ design: "curve" });
-  const file = JSON.stringify({ kind: "7rizons-cards", schemaVersion: 1, cards });
+  const file = JSON.stringify({
+    kind: "7rizons-cards",
+    schemaVersion: 1,
+    cards,
+  });
   for (const value of [file, "```json\r\n" + file + "\r\n```"]) {
     const batch = importCardFile(parseCardFile(value), result, id, settings);
     assert.equal(batch.added.length, 24);

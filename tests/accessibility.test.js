@@ -617,13 +617,15 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.type(screen.getByLabelText("Notiz 1"), "Notiztext");
     const answerField = (
       await within(screen.getByRole("article")).findAllByRole("textbox", {
-        name: "Kartentext",
+        name: "Einleitungstext",
       })
     )[0];
     answerField.focus();
     await user.paste("Unsere erste Karte");
     await user.keyboard("{Control>}a{/Control}");
     await user.click(screen.getAllByRole("button", { name: "Fett" })[0]);
+    await user.click(screen.getByRole("textbox", { name: "Aufforderung" }));
+    await user.paste("Lade eine andere Person ein.");
     await user.click(
       screen.getByRole("button", { name: "Bearbeitung beenden" }),
     );
@@ -631,6 +633,9 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       within(document.querySelector(".writing-card")).getByText(
         "Unsere erste Karte",
       ),
+    );
+    assert.ok(
+      within(document.querySelector(".writing-card")).getByText("Lade eine andere Person ein."),
     );
     const sheets = JSON.parse(localStorage.getItem(key)).worksheets;
     assert.equal(sheets.length, 1);
@@ -663,7 +668,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .querySelector("button"),
     );
     assert.equal(
-      cardStudio.queryByRole("textbox", { name: "Kartentext" }),
+      cardStudio.queryByRole("textbox", { name: "Einleitungstext" }),
       null,
     );
     await user.selectOptions(
@@ -688,24 +693,27 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.click(cardStudio.getByRole("button", { name: "Schließen" }));
     assert.equal(
       within(screen.getByRole("article")).getAllByRole("textbox", {
-        name: "Kartentext",
+        name: "Einleitungstext",
       })[0].textContent,
       "Unsere erste Karte",
     );
     assert.ok(
       within(screen.getByRole("article"))
-        .getAllByRole("textbox", { name: "Kartentext" })[0]
+        .getAllByRole("textbox", { name: "Einleitungstext" })[0]
         .querySelector("strong"),
     );
-    await user.click(screen.getByRole("button", { name: "Aufzählung" }));
+    const introductionEditor = within(
+      screen.getByRole("textbox", { name: "Einleitungstext" }).closest(".card-editor"),
+    );
+    await user.click(introductionEditor.getByRole("button", { name: "Aufzählung" }));
     assert.ok(
       screen
-        .getByRole("textbox", { name: "Kartentext" })
+        .getByRole("textbox", { name: "Einleitungstext" })
         .querySelector("ul li"),
     );
-    await user.click(screen.getByRole("button", { name: "Rückgängig" }));
+    await user.click(introductionEditor.getByRole("button", { name: "Rückgängig" }));
     assert.equal(
-      screen.getByRole("textbox", { name: "Kartentext" }).querySelector("ul"),
+      screen.getByRole("textbox", { name: "Einleitungstext" }).querySelector("ul"),
       null,
     );
     await user.click(
@@ -825,7 +833,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     const editors = await within(screen.getByRole("article")).findAllByRole(
       "textbox",
-      { name: "Kartentext" },
+      { name: "Einleitungstext" },
     );
     await user.click(editors[0]);
     await user.paste("Workshopkarte");

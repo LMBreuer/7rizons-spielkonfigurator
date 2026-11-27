@@ -94,6 +94,10 @@ export default function CardPrintEditor({
   const [packLoading, setPackLoading] = useState(false);
   const [packError, setPackError] = useState("");
   const card = cards.find((item) => item.id === selected) || cards[0];
+  const fontControls = Object.entries(fontLabels).filter(
+    ([name]) =>
+      name !== "title" || !branded || cardGroup(card) === "inspiration",
+  );
   const fontKey = cardFontKey(worksheetId, card.id);
   const look = cardPrintStyle(settings, worksheetId, card);
   const set = (value) => onSettings((previous) => ({ ...previous, ...value }));
@@ -250,7 +254,7 @@ export default function CardPrintEditor({
             </select>
           </label>
         )}
-        {Object.entries(fontLabels).map(([name, label]) => (
+        {fontControls.map(([name, label]) => (
           <label className="card-font-control" key={name}>
             <span>
               {t(label)}{" "}
@@ -315,11 +319,9 @@ export default function CardPrintEditor({
               <figcaption>
                 {t("Rückseite")}{" "}
                 <span>
-                  {branded
-                    ? `${new Intl.NumberFormat(language).format(97.7)} × ${new Intl.NumberFormat(language).format(71.6)} mm`
-                    : settings.orientation === "portrait"
-                      ? "63 × 88 mm"
-                      : "88 × 63 mm"}
+                  {settings.orientation === "portrait"
+                    ? "63 × 88 mm"
+                    : "88 × 63 mm"}
                 </span>
               </figcaption>
               <CardPrintFace
@@ -510,7 +512,11 @@ export default function CardPrintEditor({
         </label>
         {settings.includeBacks && (
           <small>
-            {t("Beim beidseitigen Druck an der langen Kante wenden.")}
+            {t(
+              settings.orientation === "landscape"
+                ? "Beim beidseitigen Druck an der kurzen Kante wenden."
+                : "Beim beidseitigen Druck an der langen Kante wenden.",
+            )}
           </small>
         )}
         <button

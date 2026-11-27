@@ -1,4 +1,8 @@
 {
+  "Einleitungstext": "Introduction",
+  "Aufforderung": "Prompt",
+  "Beim beidseitigen Druck an der kurzen Kante wenden.": "For duplex printing, flip on the short edge.",
+  "Ersetzen Sie die Beispielkarte in cards durch alle gewünschten Karten. Geben Sie ein gültiges JSON-Objekt zurück und übernehmen Sie kind und schemaVersion. Verwenden Sie pro Karte eine mechanismId aus availableTypes. Schreiben Sie die Einleitung in textMarkdown und die Aufforderung in instructionMarkdown, jeweils als Markdown. Verwenden Sie title für die Überschrift einer Inspirationskarte, sonst lassen Sie title leer. Lassen Sie id für neue Karten weg. Nutzen Sie für Farben #RRGGBB und für Schriftgrößen die Wertebereiche in format.": "Replace the example card in cards with your cards. Return one valid JSON object and keep kind and schemaVersion. Use one mechanismId from availableTypes per card. Write the introduction in textMarkdown and the prompt in instructionMarkdown, both in Markdown. Use title for the heading of an inspiration card and leave it blank for other cards. Omit id for new cards. Use #RRGGBB for colors and the ranges in format for font sizes.",
   "Beim Online-Speichern geben Sie dieses Projekt samt Arbeitsblättern für die Administration frei. Sie kann es einsehen und Workshops zuordnen. Die Workshopmoderation sieht bei einer Zuordnung den Titel und das Änderungsdatum.": "Saving online gives administrators access to this project and its worksheets. They can view the project and link it to workshops. Moderators of a linked workshop can see the title and last modified date.",
   "Projekt online speichern?": "Save this project online?",
   "Projekt und Arbeitsblätter wurden online gespeichert.": "The project and its worksheets have been saved online.",
