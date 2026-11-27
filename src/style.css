@@ -363,6 +363,10 @@ fieldset {
 .wide {
   grid-column: 1/-1;
 }
+.context-grid > .context-edition {
+  grid-column: 1 / -1;
+  max-width: 24rem;
+}
 label {
   display: block;
   font-size: 0.8rem;
@@ -1961,6 +1965,9 @@ html[data-input="pointer"] :focus {
 .edition-row:last-child,
 .member-list li:last-child {
   border: none;
+}
+.edition-visibility {
+  margin: 0 0.4rem 0 0;
 }
 .edition-default {
   display: inline-block;

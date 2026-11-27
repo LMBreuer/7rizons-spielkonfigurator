@@ -38,6 +38,7 @@ import {
   PROVIDERS,
   DEFAULT_SETTINGS,
   newDraft,
+  applyContentEdition,
   settingsOf,
   conflicts,
   requestFor,
@@ -185,6 +186,14 @@ const fileText = async (file) => {
   if (file.size > 2000000) throw new Error(t("Datei zu groß (max. 2 MB)."));
   return file.text();
 };
+const defaultEditionFields = "content,default_edition_id,content_editions(title)";
+function defaultEditionOf(row) {
+  return {
+    id: row.default_edition_id,
+    title: row.content_editions?.title,
+    content: row.content || {},
+  };
+}
 function Button({ children, secondary = false, type = "button", ...props }) {
   return (
     <button
@@ -298,6 +307,7 @@ export default function App() {
     "selbststudium";
   const { LE, MK } = catalogFor(draft);
   const [published, setPublished] = useState(null);
+  const [publicEditions, setPublicEditions] = useState([]);
   const [cardPrint, setCardPrint] = useState(() =>
     readCardPrint(saved.cardPrint),
   );
@@ -612,22 +622,22 @@ export default function App() {
     });
     cloud
       .from("app_settings")
-      .select("value,content,content_revision")
+      .select("value," + defaultEditionFields)
       .eq("id", true)
       .single()
       .then(({ data, error }) => {
         if (alive) {
           if (data) {
             setSettings(settingsOf(data.value));
-            const content = validateContent(data.content || {});
-            setPublished({ content, revision: data.content_revision });
+            const edition = defaultEditionOf(data);
+            setPublished(edition);
             if (saved.fresh)
               setDraft((d) =>
                 d.id === saved.draft.id &&
                 d.edition === saved.draft.edition &&
-                d.revision === 1 &&
+                !d.editionInfo &&
                 !d.learning.length
-                  ? { ...d, edition: content }
+                  ? applyContentEdition(d, edition)
                   : d,
               );
           } else if (error)
@@ -643,6 +653,21 @@ export default function App() {
       subscription.unsubscribe();
     };
   }, []);
+  useEffect(() => {
+    if (!cloud || page !== "app" || step !== 1) return;
+    let alive = true;
+    cloud
+      .from("content_editions")
+      .select("id,title")
+      .eq("is_public", true)
+      .order("title")
+      .then(({ data }) => {
+        if (alive) setPublicEditions(data || []);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [page, step]);
   useEffect(() => {
     let alive = true;
     setAdmin(false);
@@ -762,6 +787,37 @@ export default function App() {
     setPreview(null);
     setError("");
   }
+  const editionInfo = draft.editionInfo;
+  const editionLocked = Boolean(editionInfo?.workshopId);
+  const listedEdition = publicEditions.some((row) => row.id === editionInfo?.id);
+  async function switchEdition(id) {
+    const edition = unwrap(
+      await cloud
+        .from("content_editions")
+        .select("id,title,content")
+        .eq("id", id)
+        .eq("is_public", true)
+        .maybeSingle(),
+    );
+    if (!edition) {
+      setPublicEditions((rows) => rows.filter((row) => row.id !== id));
+      throw new Error(t("Diese Fassung ist nicht mehr öffentlich verfügbar."));
+    }
+    const next = applyContentEdition(draft, edition);
+    const removed =
+      next.learning.length !== draft.learning.length ||
+      next.mechanisms.length !== draft.mechanisms.length;
+    change(() => next);
+    setRequest(null);
+    setMessage(
+      [
+        t("Fassung gewechselt."),
+        removed && t("Auswahlen, die in dieser Fassung fehlen, wurden entfernt."),
+        worksheets.length > 0 &&
+          t("Bisherige Arbeitsblätter behalten ihren Stand."),
+      ].filter(Boolean).join(" "),
+    );
+  }
   function toggleLearning(id) {
     change((d) => ({
       ...d,
@@ -818,13 +874,14 @@ export default function App() {
     );
     await refreshWorkshops();
     setWorkshopId(id);
-    const content = validateContent(
-      unwrap(await cloud.rpc("workshop_content", { p_workshop: id })),
+    const edition = unwrap(
+      await cloud.rpc("workshop_edition", { p_workshop: id }),
     );
+    validateContent(edition.content);
     if (!worksheets.length && !cloudRevision && !exchange)
       setDraft((d) =>
         d.id === draft.id && d.revision === 1 && !d.learning.length
-          ? { ...d, edition: content }
+          ? applyContentEdition(d, edition, id)
           : d,
       );
 
@@ -1164,22 +1221,20 @@ export default function App() {
       importDialog.current.showModal();
   }, [importConflict]);
   async function newConfiguration(forWorkshop = "") {
-    let edition = published?.content || {};
+    let edition = published;
     if (forWorkshop) {
-      edition = validateContent(
-        unwrap(
-          await cloud.rpc("workshop_content", { p_workshop: forWorkshop }),
-        ),
+      edition = unwrap(
+        await cloud.rpc("workshop_edition", { p_workshop: forWorkshop }),
       );
     } else if (cloud) {
       const { data: row } = await cloud
         .from("app_settings")
-        .select("content,content_revision")
+        .select(defaultEditionFields)
         .eq("id", true)
         .single();
       if (row) {
-        edition = validateContent(row.content || {});
-        setPublished({ content: edition, revision: row.content_revision });
+        edition = defaultEditionOf(row);
+        setPublished(edition);
       } else
         setMessage(
           t(
@@ -1187,8 +1242,11 @@ export default function App() {
           ),
         );
     }
+    const next = { ...newDraft({}), language };
     setWorkshopId(forWorkshop);
-    applySnapshot({ draft: { ...newDraft(edition), language } });
+    applySnapshot({
+      draft: edition ? applyContentEdition(next, edition, forWorkshop) : next,
+    });
   }
   async function loadArchive() {
     setEntries(
@@ -2072,6 +2130,37 @@ export default function App() {
                           }
                         />
                       ))}
+                      <label className="context-edition">
+                        {t("Inhaltsfassung")}
+                        <select
+                          value={editionInfo?.id || ""}
+                          disabled={editionLocked || !publicEditions.length}
+                          aria-describedby={
+                            editionLocked ? "edition-workshop-hint" : undefined
+                          }
+                          onChange={(event) => {
+                            const id = event.target.value;
+                            if (id) act(() => switchEdition(id));
+                          }}
+                        >
+                          {(editionLocked || !listedEdition) && (
+                            <option value={editionInfo?.id || ""} disabled>
+                              {editionInfo?.title || t("Gespeicherte Fassung")}
+                            </option>
+                          )}
+                          {!editionLocked &&
+                            publicEditions.map((edition) => (
+                              <option key={edition.id} value={edition.id}>
+                                {edition.title}
+                              </option>
+                            ))}
+                        </select>
+                        {editionLocked && (
+                          <small className="muted" id="edition-workshop-hint">
+                            {t("Diese Fassung ist dem Workshop zugewiesen.")}
+                          </small>
+                        )}
+                      </label>
                     </div>
                   </Card>
                 )}

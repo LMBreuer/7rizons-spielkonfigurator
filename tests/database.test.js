@@ -375,7 +375,28 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     await sql("select public.set_roster_role($1,'owner@example.test','add')", [
       follows,
     ]);
+    await identity("", "anon");
+    assert.deepEqual(await sql("select id from public.content_editions"), [
+      { id: base.id },
+    ]);
+    await assert.rejects(
+      () => sql("select public.workshop_edition($1)", [w]),
+      /permission denied/,
+    );
+    await assert.rejects(
+      () => sql("select public.choose_default_edition($1)", [copy]),
+      /permission denied/,
+    );
+    await identity(other);
+    await assert.rejects(
+      () => sql("select public.workshop_edition($1)", [follows]),
+      /Keine aktive Workshop-Mitgliedschaft/,
+    );
     await identity(owner);
+    assert.deepEqual(
+      (await first("select public.workshop_edition($1) edition", [w])).edition,
+      { id: copy, title: "Seminar B", content },
+    );
     assert.deepEqual(
       (await first("select public.workshop_content($1) content", [w])).content,
       content,
@@ -385,15 +406,15 @@ test("database migration enforces private drafts, admin roles, explicit submissi
         .content,
       base.content,
     );
-    assert.equal(
-      (await sql("select * from public.content_editions")).length,
-      0,
-    );
+    assert.deepEqual(await sql("select id from public.content_editions"), [
+      { id: base.id },
+    ]);
     for (const [query, args] of [
       ["select public.account_directory('',0)", []],
       ["select public.set_account_admin($1,true)", [owner]],
       ["select public.workshop_roster($1)", [w]],
       ["select public.choose_default_edition($1)", [copy]],
+      ["select public.set_edition_visibility($1,true)", [copy]],
       [
         "select public.copy_content_edition($1,$2,'Other')",
         [base.id, base.revision],
@@ -405,16 +426,36 @@ test("database migration enforces private drafts, admin roles, explicit submissi
     ])
       await assert.rejects(() => sql(query, args), /Nur /);
     await identity(admin);
+    await assert.rejects(
+      () => sql("update public.app_settings set default_edition_id=$1", [copy]),
+      /permission denied/,
+    );
+    await sql("select public.set_edition_visibility($1,true)", [copy]);
+    await identity("", "anon");
+    assert.deepEqual(
+      await first("select title,content from public.content_editions where id=$1", [copy]),
+      { title: "Seminar B", content },
+    );
+    await identity(admin);
+    await sql("select public.set_edition_visibility($1,false)", [copy]);
     await sql("select public.choose_default_edition($1)", [copy]);
+    await assert.rejects(
+      () => sql("select public.set_edition_visibility($1,false)", [copy]),
+      /Standardfassung muss öffentlich sein/,
+    );
+    await identity("", "anon");
+    assert.deepEqual(await first("select id from public.content_editions where id=$1", [copy]), { id: copy });
     assert.deepEqual(
       (await first("select content from public.app_settings")).content,
       content,
     );
+    await identity(owner);
     assert.deepEqual(
       (await first("select public.workshop_content($1) content", [follows]))
         .content,
       content,
     );
+    await identity(admin);
     await sql(
       "select public.set_roster_role($1,'moderator@example.test','moderator')",
       [w],

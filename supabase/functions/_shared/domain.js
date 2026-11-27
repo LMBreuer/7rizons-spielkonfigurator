@@ -53,6 +53,51 @@ export function newDraft(edition) {
     mechanisms: MK.filter((m) => m.kern).map((m) => m.id),
   };
 }
+function readEditionInfo(info) {
+  if (
+    typeof info?.id !== "string" ||
+    !/^[a-f0-9-]{36}$/i.test(info.id) ||
+    typeof info.title !== "string" ||
+    !info.title.trim() ||
+    info.title.length > 100
+  )
+    return undefined;
+  return {
+    id: info.id,
+    title: info.title,
+    ...(typeof info.workshopId === "string" &&
+      /^[a-f0-9-]{36}$/i.test(info.workshopId) && {
+        workshopId: info.workshopId,
+      }),
+  };
+}
+
+export function applyContentEdition(draft, row, workshopId) {
+  const edition = validateContent(row.content);
+  const editionInfo = readEditionInfo({
+    id: row.id,
+    title: row.title,
+    workshopId,
+  });
+  const next = { ...draft, edition, editionInfo };
+  const { LE, MK } = catalogFor(next);
+  const learning = new Set(LE.filter((item) => !item.archived).map((item) => item.id));
+  const mechanics = new Set(MK.filter((item) => !item.archived).map((item) => item.id));
+  next.learning = draft.learning.filter((id) => learning.has(id));
+  next.mechanisms = draft.mechanisms.filter((id) => mechanics.has(id));
+  if (next.priority) {
+    next.priority = priorityOf({
+      ...next,
+      priority: {
+        ...next.priority,
+        learningOrder: next.priority.learningOrder.filter(
+          (id) => id === "other" || learning.has(id),
+        ),
+      },
+    });
+  }
+  return next;
+}
 export function settingsOf(s = {}) {
   const integer = (v, d, min, max) =>
     Number.isInteger(v) && v >= min && v <= max ? v : d;
@@ -275,11 +320,13 @@ export function parseResult(raw, r) {
 }
 function readSingleSnapshot(x) {
   validateDraft(x?.draft, { maxInhalt: 4, maxWiss: 5 });
+  const editionInfo = readEditionInfo(x.draft.editionInfo);
   // Whitelist every persisted field. Uploaded files may not add keys, permissions or provider endpoints.
   const draft = {
     schemaVersion: 1,
     catalogVersion: x.draft.catalogVersion,
     ...(x.draft.edition ? { edition: validateContent(x.draft.edition) } : {}),
+    ...(editionInfo && { editionInfo }),
     id: x.draft.id,
     revision: x.draft.revision,
     language: x.draft.language || "de",

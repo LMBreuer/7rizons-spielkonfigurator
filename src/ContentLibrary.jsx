@@ -12,7 +12,10 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
   const [ready, setReady] = useState(false);
   async function refresh() {
     const [editions, settings, uses] = await Promise.all([
-      cloud.from("content_editions").select("id,title,revision").order("title"),
+      cloud
+        .from("content_editions")
+        .select("id,title,revision,is_public")
+        .order("title"),
       cloud.from("app_settings").select("default_edition_id").single(),
       cloud.from("workshops").select("id,title,edition_id").order("title"),
     ]);
@@ -59,7 +62,7 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
             }),
           );
           setCurrent({ ...current, revision, content, title });
-          message(t("Inhalte veröffentlicht."));
+          message(t("Änderungen gespeichert."));
         }}
       />
     );
@@ -146,7 +149,7 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
         <h2>{t("Inhaltsfassungen")}</h2>
         <p className="muted">
           {t(
-            "Neue Projekte übernehmen die aktuelle Fassung. Bereits begonnene Projekte und Arbeitsblätter behalten ihren Stand.",
+            "Öffentliche Fassungen stehen bei Organisatorisches zur Auswahl. Neue Projekte starten mit der Standardfassung. Workshops können eine eigene Fassung verwenden.",
           )}
         </p>
         {!ready && (
@@ -179,6 +182,27 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
                 </small>
               </div>
               <div className="actions">
+                <label className="checkbox edition-visibility">
+                  <input
+                    type="checkbox"
+                    checked={row.is_public}
+                    disabled={busy || isDefault}
+                    aria-label={t("„{0}“ öffentlich auswählbar", { 0: row.title })}
+                    onChange={(event) => {
+                      const isPublic = event.target.checked;
+                      act(async () => {
+                        unwrap(
+                          await cloud.rpc("set_edition_visibility", {
+                            p_id: row.id,
+                            p_public: isPublic,
+                          }),
+                        );
+                        await refresh();
+                      });
+                    }}
+                  />
+                  {t("Öffentlich auswählbar")}
+                </label>
                 {!isDefault && (
                   <button
                     className="text-button"
@@ -188,7 +212,7 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
                         if (
                           !window.confirm(
                             t(
-                              "„{0}“ als Standard für neue Projekte und Workshops ohne eigene Fassung verwenden?",
+                              "„{0}“ öffentlich verfügbar machen und als Standard für neue Projekte und Workshops ohne eigene Fassung setzen?",
                               { 0: row.title },
                             ),
                           )

@@ -199,7 +199,7 @@ export default function ContentEditor({
             act(() => onPublish(validateContent(edition), title.trim()))
           }
         >
-          {t("Inhalte veröffentlichen")}
+          {t("Änderungen speichern")}
         </button>
       </div>
       <nav className="admin-tabs" aria-label={t("Inhaltsbereiche")}>

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   newDraft,
+  applyContentEdition,
   requestFor,
   makePrompt,
   parseResult,
@@ -20,6 +21,7 @@ import {
   providerText,
 } from "../supabase/functions/_shared/providers.js";
 import { seal, unseal } from "../supabase/functions/_shared/crypto.js";
+import { priorityOf } from "../supabase/functions/_shared/priority.js";
 const draft = () => ({
   ...newDraft(),
   learning: ["per"],
@@ -45,6 +47,39 @@ const answer = (r) => ({
     ),
   })),
   nextSteps: ["Erproben."],
+});
+test("switching editions retains the project and earlier worksheets", () => {
+  const previous = {
+    ...draft(),
+    edition: {
+      learning: { "l-local": { label: "Eigene Frage", group: "wiss" } },
+      mechanics: { "m-local": { label: "Eigene Karte", w: { per: "P" } } },
+    },
+    learning: ["per", "l-local"],
+    mechanisms: ["m91", "m72", "m-local"],
+  };
+  previous.priority = priorityOf(previous);
+  const worksheet = createWorksheet({
+    draft: previous,
+    result: templateResult(previous, undefined, "guided"),
+    source: { kind: "template" },
+  });
+  const id = crypto.randomUUID(),
+    workshopId = crypto.randomUUID();
+  const next = applyContentEdition(
+    previous,
+    { id, title: "Fassung für das Seminar", content: {} },
+    workshopId,
+  );
+  next.revision++;
+  assert.deepEqual(next.learning, ["per"]);
+  assert.deepEqual(next.mechanisms, ["m91", "m72"]);
+  assert.deepEqual(next.context, previous.context);
+  const saved = readSnapshot({ draft: next, worksheets: [worksheet] });
+  assert.deepEqual(saved.draft.editionInfo, { id, title: "Fassung für das Seminar", workshopId });
+  assert.equal(saved.draft.id, previous.id);
+  assert.deepEqual(saved.worksheets[0].draft.edition, previous.edition);
+  assert.equal(saved.worksheets[0].draft.revision, previous.revision);
 });
 test("no-AI worksheet contains selected mechanics, safety and real writing fields", () => {
   const d = draft();
