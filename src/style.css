@@ -829,6 +829,15 @@ summary {
   color: var(--ink);
   font-weight: 500;
 }
+.background-credit {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.75rem;
+}
+.background-credit a {
+  color: inherit;
+  text-underline-offset: 0.15em;
+}
 .footer-links {
   display: flex;
   flex-wrap: wrap;

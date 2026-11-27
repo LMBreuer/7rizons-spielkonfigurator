@@ -16,3 +16,12 @@ export function initialLayout(storage) {
     return "modern";
   }
 }
+
+export const BACKGROUND_KEY = "7rizons:background:v1";
+export function initialBackground(storage) {
+  try {
+    if (storage.getItem(BACKGROUND_KEY) === "cosmic-cliffs")
+      return "cosmic-cliffs";
+  } catch {}
+  return "wave-grid";
+}

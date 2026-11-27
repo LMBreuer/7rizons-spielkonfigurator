@@ -11,6 +11,7 @@ import { PNG } from "pngjs";
 import {
   initialAppearance,
   APPEARANCE_KEY,
+  BACKGROUND_KEY,
   initialLayout,
   LAYOUT_KEY,
 } from "../src/appearance.js";
@@ -221,6 +222,16 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .getAttribute("aria-pressed"),
       "true",
     );
+    const background = screen.getByRole("combobox", { name: "Hintergrund" });
+    assert.equal(background.value, "wave-grid");
+    await user.selectOptions(background, "cosmic-cliffs");
+    assert.equal(localStorage.getItem(BACKGROUND_KEY), "cosmic-cliffs");
+    const credit = document.querySelector(".background-credit");
+    assert.match(credit.textContent, /NASA, ESA, CSA, and STScI/);
+    assert.equal(
+      within(credit).getByRole("link", { name: "CC BY 4.0" }).href,
+      "https://creativecommons.org/licenses/by/4.0/",
+    );
     await user.keyboard("{Escape}");
     assert.equal(screen.getByLabelText("Datum").type, "date");
     assert.equal(screen.getByLabelText("Semester").tagName, "SELECT");
@@ -354,6 +365,10 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       );
       assert.equal(document.documentElement.dataset.theme, theme);
       assert.equal(localStorage.getItem(APPEARANCE_KEY), theme);
+      assert.equal(
+        Boolean(document.querySelector(".background-credit")),
+        theme !== "contrast",
+      );
       await audit(`worksheet modes: ${theme}`);
     }
     await user.click(

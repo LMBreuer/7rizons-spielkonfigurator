@@ -44,6 +44,12 @@
     color: var(--muted);
     font-weight: 650;
   }
+  .preferences-menu .background-picker select {
+    width: 100%;
+    min-height: 40px;
+    padding-block: 0.35rem;
+    font-size: 0.85rem;
+  }
   .layout-picker {
     display: flex;
     flex-wrap: wrap;
@@ -304,8 +310,9 @@
   }
 
   :root[data-layout="modern"] {
-    --facet-line: #2a6fb423;
-    --facet-secondary: #7f598b20;
+    --grid-contrast: 0.54;
+    /* ESA/Webb weic2205a, CC BY 4.0. Attribution is displayed in the footer. */
+    --cliffs-image: url("./assets/backgrounds/cosmic-cliffs-light.jpg");
     --navigation-glow: color-mix(in srgb, #61bde4 39%, transparent);
     --page-glow: color-mix(in srgb, #7f598b 25%, transparent);
     --navigation-surface: color-mix(in srgb, var(--surface) 32%, transparent);
@@ -329,8 +336,8 @@
     --muted: #4c586a;
   }
   :root[data-layout="modern"][data-theme="dark"] {
-    --facet-line: #61bde42d;
-    --facet-secondary: #c6a4d32a;
+    --grid-contrast: 0.76;
+    --cliffs-image: url("./assets/backgrounds/cosmic-cliffs-dark.jpg");
     --navigation-glow: color-mix(in srgb, #2a6fb4 56%, transparent);
     --page-glow: color-mix(in srgb, #7f598b 39%, transparent);
     --glass-blue-text: var(--blue);
@@ -340,8 +347,6 @@
     --document-shadow: var(--glass-edge), 4px 8px 24px #0004;
   }
   :root[data-layout="modern"][data-theme="contrast"] {
-    --facet-line: transparent;
-    --facet-secondary: transparent;
     --navigation-glow: transparent;
     --page-glow: transparent;
     --navigation-surface: var(--surface);
@@ -368,28 +373,24 @@
       ),
       var(--bg);
   }
-  :root[data-layout="modern"] body::before {
+  :root[data-layout="modern"]:not([data-theme="contrast"]) body::before {
     content: "";
     position: fixed;
     z-index: -1;
     pointer-events: none;
     inset: 0;
-    background:
-      repeating-linear-gradient(
-          151deg,
-          var(--facet-line) 0 2px,
-          transparent 2px 61px
-        )
-        left / 55% 100% no-repeat,
-      repeating-linear-gradient(
-          29deg,
-          var(--facet-secondary) 0 2px,
-          transparent 2px 68px
-        )
-        right / 53% 100% no-repeat;
-    mask-image:
-      radial-gradient(ellipse 51% 53% at 16% 32%, #000 22%, transparent),
-      radial-gradient(ellipse 57% 54% at 88% 32%, #000 17%, transparent);
+  }
+  :root[data-layout="modern"]:not([data-theme="contrast"]):not([data-background="cosmic-cliffs"]) body::before {
+    inset-block-start: auto;
+    block-size: clamp(min(24rem, 72vh), 59vw, 90vh);
+    background: linear-gradient(102deg, var(--teal), var(--blue) 54%, var(--purple));
+    /* Almeidah, wireframe060320191 (Openclipart, CC0), adapted as a mask. */
+    mask: url("./assets/backgrounds/wave-grid.png") center bottom / cover no-repeat;
+    opacity: calc(0.35 * var(--grid-contrast));
+  }
+  :root[data-layout="modern"]:not([data-theme="contrast"])[data-background="cosmic-cliffs"] body::before {
+    background: var(--cliffs-image) center / cover no-repeat;
+    opacity: 0.66;
   }
   :root[data-layout="modern"] .topbar-shell {
     background: var(--navigation-surface);
@@ -651,6 +652,15 @@
   .topbar .preferences-menu > summary {
     border-color: var(--line);
   }
+  .topbar .header-tools {
+    position: relative;
+  }
+  .topbar .preferences-menu {
+    position: static;
+  }
+  .topbar .preferences-menu .menu-body {
+    max-width: calc(100vw - 2rem);
+  }
   .configurator-intro {
     padding-block-start: 0.2rem;
     margin-bottom: 0.8rem;
@@ -700,6 +710,11 @@
 @media screen and (forced-colors: active) {
   :root[data-layout="modern"] body {
     background: Canvas;
+  }
+  :root[data-layout="modern"] body::before,
+  .background-picker,
+  .background-credit {
+    display: none;
   }
   :root[data-layout="modern"] .configurator-rail {
     box-shadow: none;

@@ -68,8 +68,10 @@ import Logo from "./Logo.jsx";
 import AppearanceSwitch from "./AppearanceSwitch.jsx";
 import {
   APPEARANCE_KEY,
+  BACKGROUND_KEY,
   LAYOUT_KEY,
   initialAppearance,
+  initialBackground,
   initialLayout,
 } from "./appearance.js";
 const API_KEY_GUIDES = {
@@ -516,6 +518,10 @@ export default function App() {
   const [theme, setTheme] = useState(() =>
     initialAppearance({ getItem: (key) => localStorage.getItem(key) }),
   );
+  const [background, setBackground] = useState(() =>
+    initialBackground({ getItem: (key) => localStorage.getItem(key) }),
+  );
+  const showBackground = layout === "modern" && theme !== "contrast";
   const mainRef = useRef(null);
   const lastView = useRef({ page, step, result: null, preview: null });
   const [sortMessage, setSortMessage] = useState("");
@@ -616,6 +622,12 @@ export default function App() {
       localStorage.setItem(LAYOUT_KEY, layout);
     } catch {}
   }, [layout]);
+  useEffect(() => {
+    document.documentElement.dataset.background = background;
+    try {
+      localStorage.setItem(BACKGROUND_KEY, background);
+    } catch {}
+  }, [background]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme =
@@ -2061,6 +2073,18 @@ export default function App() {
                   </button>
                 </div>
               </div>
+              {showBackground && (
+                <label className="preference-section background-picker">
+                  <span>{t("Hintergrund")}</span>
+                  <select
+                    value={background}
+                    onChange={(event) => setBackground(event.target.value)}
+                  >
+                    <option value="wave-grid">{t("Wellengitter")}</option>
+                    <option value="cosmic-cliffs">Cosmic Cliffs</option>
+                  </select>
+                </label>
+              )}
               <div
                 className="language-switch"
                 role="group"
@@ -4438,6 +4462,17 @@ export default function App() {
             </a>
           ))}
         </div>
+        {showBackground && background === "cosmic-cliffs" && (
+          <p className="background-credit">
+            <a href="https://esawebb.org/images/weic2205a/">Cosmic Cliffs</a>
+            {" · NASA, ESA, CSA, and STScI · "}
+            <a href="https://creativecommons.org/licenses/by/4.0/">
+              CC BY 4.0
+            </a>
+            {" · "}
+            {t("Ausschnitt und Farben angepasst")}
+          </p>
+        )}
       </footer>
     </>
   );
