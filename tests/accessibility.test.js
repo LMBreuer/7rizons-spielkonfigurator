@@ -749,10 +749,11 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     });
     await user.click(projectTrigger);
     assert.equal(projectTrigger.parentElement.open, true);
-    const downloadProject = screen.getByRole("button", {
-      name: "Projekt herunterladen JSON-Datei",
-    });
     assert.ok(screen.getByText("Im Browser gespeichert"));
+    await user.click(screen.getByRole("button", { name: "Projekte verwalten" }));
+    const downloadProject = screen.getByRole("button", {
+      name: "Aktuelles Projekt herunterladen",
+    });
     const createUrl = URL.createObjectURL;
     const clickAnchor = dom.window.HTMLAnchorElement.prototype.click;
     let downloaded;
@@ -786,6 +787,15 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         .worksheets.length,
       0,
     );
+    await user.click(document.querySelector(".project-menu summary"));
+    await user.click(screen.getByRole("button", { name: "Projekte verwalten" }));
+    await audit("project management");
+    await user.click(screen.getByRole("button", { name: "„Navigationstest“ löschen" }));
+    assert.equal(localStorage.getItem("7rizons:project:v1:" + firstProject), null);
+    assert.notEqual(localStorage.getItem("7rizons:active-project"), firstProject);
+    assert.ok(localStorage.getItem("7rizons:project:v1:" + secondProject));
+    await user.click(screen.getByRole("button", { name: "„Unbenanntes Projekt“ öffnen" }));
+    assert.equal(localStorage.getItem("7rizons:active-project"), secondProject);
     cleanup();
     localStorage.clear();
     dom.window.history.replaceState(null, "", "/");

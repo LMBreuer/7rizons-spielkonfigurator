@@ -118,7 +118,7 @@ function PrivacyInfo({ online }) {
           <h2>{t("Löschung und Ihre Rechte")}</h2>
           <p>
             {t(
-              "Online-Projekte bleiben bis zur Löschung unter „Projekte → Online-Projekte“ gespeichert. Workshop-Abgaben bleiben bis zum Zurückziehen oder zur administrativen Bereinigung gespeichert. Das Konto und die Generierungszähler bleiben bis zur Kontolöschung oder administrativen Bereinigung bestehen. Für die Löschung Ihres Kontos wenden Sie sich an die oben genannte Adresse.",
+              "Online-Projekte bleiben bis zur Löschung unter „Projekte → Projekte verwalten“ gespeichert. Workshop-Abgaben bleiben bis zum Zurückziehen oder zur administrativen Bereinigung gespeichert. Das Konto und die Generierungszähler bleiben bis zur Kontolöschung oder administrativen Bereinigung bestehen. Für die Löschung Ihres Kontos wenden Sie sich an die oben genannte Adresse.",
             )}
           </p>
         </>
@@ -159,7 +159,7 @@ function HelpInfo() {
       <h2>{t("Online speichern, am Workshop teilnehmen und teilen")}</h2>
       <p>
         {t(
-          "Speichern Sie über „Projekte → Online speichern“. Melden Sie sich auf dem anderen Gerät mit derselben E-Mail-Adresse an. Öffnen Sie das gespeicherte Projekt im Menü „Projekte“.",
+          "Speichern Sie über „Projekte → Online speichern“ und verwenden Sie auf beiden Geräten dieselbe E-Mail-Adresse. Unter „Projekte → Projekte verwalten“ finden Sie alle lokalen und online gespeicherten Projekte.",
         )}
       </p>
       <p>

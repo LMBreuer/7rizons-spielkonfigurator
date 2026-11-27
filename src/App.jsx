@@ -131,19 +131,19 @@ function listProjects() {
   for (const key of Object.keys(localStorage)) {
     if (!key.startsWith(PROJECT_PREFIX)) continue;
     try {
-      const { draft, exchange, importCopy, cloudRevision } = JSON.parse(
-        localStorage.getItem(key),
-      );
+      const { draft, exchange, importCopy, cloudRevision, openedAt } =
+        JSON.parse(localStorage.getItem(key));
       projects.push({
         id: draft.id,
         title: draft.context.thema || draft.context.name,
         projectId: readExchange(exchange)?.projectId || draft.id,
         importCopy: importCopy === true,
         cloudRevision: cloudRevision || 0,
+        openedAt: Number.isFinite(openedAt) ? openedAt : 0,
       });
     } catch {}
   }
-  return projects;
+  return projects.sort((a, b) => b.openedAt - a.openedAt);
 }
 function stored() {
   try {
@@ -156,6 +156,7 @@ function stored() {
       return {
         ...readSnapshot(x),
         cloudRevision: x.cloudRevision || 0,
+        openedAt: x.openedAt,
         step: x.step,
         buildingSheet: x.buildingSheet,
         configStep: x.configStep,
@@ -204,6 +205,34 @@ function Button({ children, secondary = false, type = "button", ...props }) {
     >
       {children}
     </button>
+  );
+}
+function ProjectListRow({ title, detail, busy, onOpen, onDelete }) {
+  return (
+    <div className="project-library-row">
+      <div>
+        <strong>{title}</strong>
+        {detail && <small>{detail}</small>}
+      </div>
+      <div className="project-library-actions">
+        <button
+          className="text-button"
+          disabled={busy}
+          onClick={onOpen}
+          aria-label={t("„{0}“ öffnen", { 0: title })}
+        >
+          {t("Öffnen ")}
+        </button>
+        <button
+          className="text-button project-delete"
+          disabled={busy}
+          onClick={onDelete}
+          aria-label={t("„{0}“ löschen", { 0: title })}
+        >
+          {t("Löschen ")}
+        </button>
+      </div>
+    </div>
   );
 }
 function HeaderPreferences({ children }) {
@@ -332,6 +361,7 @@ export default function App() {
   const resultSettings = activeWorksheet?.resultSettings || DEFAULT_SETTINGS;
   const resultDraft = activeWorksheet?.draft || draft;
   const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
+  const projectOpenedAt = useRef(saved.openedAt || Date.now());
   const [step, setStep] = useState(
     !selfStudy &&
       saved.step === 5 &&
@@ -466,6 +496,22 @@ export default function App() {
   const entries = accountArchive?.entries || [];
   const onlineById = new Map(entries.map((entry) => [entry.id, entry]));
   const localIds = new Set(projects.map((project) => project.id));
+  const recentProjects = [
+    ...projects.map((project) => ({
+      ...project,
+      online: onlineById.get(project.id),
+      local: true,
+    })),
+    ...entries
+      .filter((entry) => !localIds.has(entry.id))
+      .map((entry) => ({
+        ...entry,
+        openedAt: Date.parse(entry.updated_at) || 0,
+      })),
+  ]
+    .filter((project) => project.id !== draft.id)
+    .sort((a, b) => b.openedAt - a.openedAt)
+    .slice(0, 3);
   const archiveStatus = accountArchive?.status || "loading";
   const refreshArchive = () => setArchiveVersion((version) => version + 1);
   const [submissions, setSubmissions] = useState([]);
@@ -583,6 +629,7 @@ export default function App() {
       JSON.stringify({
         ...payload(),
         cloudRevision,
+        openedAt: projectOpenedAt.current,
         step,
         buildingSheet,
         configStep: lastConfigStep.current,
@@ -1137,7 +1184,7 @@ export default function App() {
       ),
     );
   }
-  function applySnapshot(x, revision = 0, resumeStep) {
+  function applySnapshot(x, revision = 0, resumeStep, options = {}) {
     const builderWasOpen = x.buildingSheet === true;
     const previousStep = [1, 2, 3, 4].includes(x.configStep) ? x.configStep : 1;
     const metadata = {
@@ -1150,7 +1197,8 @@ export default function App() {
       copy: x.importCopy === true,
     };
     x = readSnapshot(x);
-    persistProject();
+    if (!options.discardCurrent) persistProject();
+    projectOpenedAt.current = Date.now();
     setExchange(metadata.exchange);
     setExchangeBase(metadata.base);
     setImportCopy(metadata.copy);
@@ -1179,7 +1227,7 @@ export default function App() {
         ? 4
         : resumeStep || (x.worksheets.length ? 5 : 1),
     );
-    setPage("app");
+    setPage(options.page || "app");
     setPreview(null);
   }
   async function exportProject() {
@@ -1306,8 +1354,86 @@ export default function App() {
     });
   }
   function openArchive() {
-    refreshArchive();
+    setProjects(listProjects());
+    if (accountId) refreshArchive();
     setPage("archive");
+  }
+  function openLocalProject(id) {
+    if (id === draft.id) {
+      if (projectMenu.current) projectMenu.current.open = false;
+      setPage("app");
+      return;
+    }
+    const snapshot = JSON.parse(localStorage.getItem(PROJECT_PREFIX + id));
+    if (!snapshot)
+      throw new Error(
+        t("Dieses Projekt ist auf diesem Gerät nicht mehr verfügbar."),
+      );
+    applySnapshot(snapshot, snapshot.cloudRevision, snapshot.step);
+  }
+
+  function removeLocalProject(project) {
+    if (
+      !window.confirm(
+        t("„{0}“ von diesem Gerät löschen?", {
+          0: project.title || t("Unbenanntes Projekt"),
+        }),
+      )
+    )
+      return;
+    localStorage.removeItem(PROJECT_PREFIX + project.id);
+    if (project.id === draft.id) {
+      localStorage.removeItem(ACTIVE_PROJECT);
+      const blank = { ...newDraft({}), language };
+      applySnapshot(
+        { draft: published ? applyContentEdition(blank, published) : blank },
+        0,
+        1,
+        { discardCurrent: true, page: "archive" },
+      );
+    } else setProjects(listProjects());
+  }
+
+  async function removeOnlineProject(project) {
+    if (
+      !accountId ||
+      !window.confirm(
+        t(
+          "Diesen privaten Online-Entwurf löschen? Bestehende Workshop-Abgaben bleiben separat erhalten.",
+        ),
+      )
+    )
+      return;
+    unwrap(
+      await cloud
+        .from("configurations")
+        .delete()
+        .eq("owner_id", accountId)
+        .eq("id", project.id),
+    );
+    setArchive((previous) =>
+      previous?.owner === accountId
+        ? {
+            ...previous,
+            entries: previous.entries.filter(
+              (entry) => entry.id !== project.id,
+            ),
+          }
+        : previous,
+    );
+    refreshArchive();
+    if (draft.id === project.id) setCloudRevision(0);
+    else {
+      const key = PROJECT_PREFIX + project.id;
+      const local = JSON.parse(localStorage.getItem(key));
+      if (local) {
+        localStorage.setItem(
+          key,
+          JSON.stringify({ ...local, cloudRevision: 0 }),
+        );
+        setProjects(listProjects());
+      }
+    }
   }
   async function openOnlineProject(id) {
     if (!accountId) return;
@@ -1893,7 +2019,9 @@ export default function App() {
             </HeaderPreferences>
             <button
               className="account-link"
-              aria-current={page === "account" ? "page" : undefined}
+              aria-current={
+                ["account", "archive"].includes(page) ? "page" : undefined
+              }
               disabled={busy}
               onClick={() => {
                 setPage("account");
@@ -2019,111 +2147,42 @@ export default function App() {
                       </>
                     )}
                     <hr />
-                    {projects.map((p) => {
-                      const online = onlineById.get(p.id);
+                    {recentProjects.map((project) => {
                       const newer =
-                        online &&
-                        online.revision >
-                          (p.id === draft.id ? cloudRevision : p.cloudRevision);
+                        project.local &&
+                        project.online?.revision >
+                          (project.id === draft.id
+                            ? cloudRevision
+                            : project.cloudRevision);
                       return (
                         <button
-                          key={p.id}
+                          key={project.id}
                           disabled={busy}
-                          aria-pressed={p.id === draft.id}
                           onClick={() =>
-                            act(() => {
-                              if (p.id === draft.id) {
-                                projectMenu.current.open = false;
-                                return;
-                              }
-                              const next = JSON.parse(
-                                localStorage.getItem(PROJECT_PREFIX + p.id),
-                              );
-                              applySnapshot(next, next.cloudRevision, next.step);
-                            })
+                            act(() =>
+                              project.local
+                                ? openLocalProject(project.id)
+                                : openOnlineProject(project.id),
+                            )
                           }
                         >
-                          {p.title || t("Unbenanntes Projekt")}
-                          {p.importCopy && " · " + t("Importkopie")}
+                          {project.title || t("Unbenanntes Projekt")}
+                          {project.importCopy && " · " + t("Importkopie")}
                           {newer && <small>{t("Neuer Online-Stand")}</small>}
-                          {projects.some(
-                            (other) =>
-                              other.id !== p.id && p.title === other.title,
-                          ) && " · " + p.id.slice(0, 6)}
+                          {!project.local && <small>{t("Online")}</small>}
                         </button>
                       );
                     })}
-                    {entries
-                      .filter((entry) => !localIds.has(entry.id))
-                      .map((entry) => (
-                        <button
-                          key={entry.id}
-                          disabled={busy}
-                          onClick={() => act(() => openOnlineProject(entry.id))}
-                        >
-                          {entry.title || t("Unbenanntes Projekt")}
-                          <small>{t("Online")}</small>
-                        </button>
-                      ))}
-                    {accountId && (
-                      <button disabled={busy} onClick={openArchive}>
-                        {t("Online-Projekte")}
-                      </button>
-                    )}
                     <button
                       disabled={busy}
                       onClick={() => act(() => newConfiguration())}
                     >
                       + {t("Neues Projekt")}
                     </button>
-                    {workshops
-                      .filter((w) => w.id === workshopId && w.active)
-                      .map((w) => (
-                        <button
-                          key={w.id}
-                          disabled={busy}
-                          onClick={() => act(() => newConfiguration(w.id))}
-                        >
-                          + {t("Neues Projekt für {0}", { 0: w.title })}
-                        </button>
-                      ))}
-                    {session &&
-                      (workshops.some((w) => w.active) ||
-                        workshopLinks.length > 0) && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => {
-                            if (projectMenu.current)
-                              projectMenu.current.open = false;
-                            setPage("project-workshops");
-                          }}
-                        >
-                          {t("Projekt einem Workshop zuordnen")}
-                        </button>
-                      )}
                     <hr />
-                    <button disabled={busy} onClick={() => act(exportProject)}>
-                      {t("Projekt herunterladen")}{" "}
-                      <small>{t("JSON-Datei")}</small>
+                    <button disabled={busy} onClick={openArchive}>
+                      {t("Projekte verwalten")}
                     </button>
-                    <button
-                      disabled={busy}
-                      onClick={() => configImportRef.current?.click()}
-                    >
-                      {t("Projekt importieren")}
-                    </button>
-                    <input
-                      ref={configImportRef}
-                      hidden
-                      type="file"
-                      accept=".json"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        e.target.value = "";
-                        if (file) act(() => importProject(file));
-                      }}
-                    />
                   </div>
                 </details>
                 <nav
@@ -3006,12 +3065,8 @@ export default function App() {
                   {session.user.email}
                 </p>
                 <div className="actions account-actions">
-                  <Button
-                    secondary
-                    disabled={busy}
-                    onClick={openArchive}
-                  >
-                    {t("Online-Projekte")}
+                  <Button secondary disabled={busy} onClick={openArchive}>
+                    {t("Projekte verwalten")}
                   </Button>
                 </div>
                 {admin && (
@@ -3280,88 +3335,149 @@ export default function App() {
           </Card>
         )}
         {page === "archive" && (
-          <Card>
+          <section className="project-library">
             <div className="editor-heading">
-              <h1>{t("Online-Projekte")}</h1>
-              <Button
-                secondary
-                disabled={busy || archiveStatus === "loading"}
-                onClick={refreshArchive}
-              >
-                {t("Aktualisieren")}
-              </Button>
-            </div>
-            <p>{t("Die Superadministration sieht Titel und Änderungsdatum.")}</p>
-            {archiveStatus === "loading" && (
-              <p role="status">{t("Online-Projekte werden geladen …")}</p>
-            )}
-            {archiveStatus === "error" && (
-              <p role="alert">
-                {t("Online-Projekte konnten nicht geladen werden.")}
-              </p>
-            )}
-            {entries.map((e) => (
-              <div className="archive-row" key={e.id}>
-                <span>
-                  <strong>{e.title}</strong>
-                  <small>
-                    {new Date(e.updated_at).toLocaleString(
-                      language === "en" ? "en-GB" : "de-AT",
-                    )}
-                    {t(" · Online-Version ")}
-                    {e.revision}
-                  </small>
-                </span>
-                <Button
-                  secondary
+              <h1>{t("Projekte verwalten")}</h1>
+              <div className="project-library-actions">
+                <button
+                  className="text-button"
                   disabled={busy}
-                  onClick={() => act(() => openOnlineProject(e.id))}
+                  onClick={() => configImportRef.current?.click()}
                 >
-                  {t("Öffnen ")}
-                </Button>
-                <Button
-                  secondary
+                  {t("Projekt importieren")}
+                </button>
+                <button
+                  className="text-button"
                   disabled={busy}
-                  onClick={() =>
-                    act(async () => {
-                      if (
-                        !confirm(
-                          t(
-                            "Diesen privaten Online-Entwurf löschen? Bestehende Workshop-Abgaben bleiben separat erhalten.",
-                          ),
-                        )
-                      )
-                        return;
-                      unwrap(
-                        await cloud
-                          .from("configurations")
-                          .delete()
-                          .eq("owner_id", accountId)
-                          .eq("id", e.id),
-                      );
-                      setArchive((previous) =>
-                        previous?.owner === accountId
-                          ? {
-                              ...previous,
-                              entries: previous.entries.filter(
-                                (entry) => entry.id !== e.id,
-                              ),
-                            }
-                          : previous,
-                      );
-                      refreshArchive();
-                      if (draft.id === e.id) setCloudRevision(0);
-                    })
-                  }
+                  onClick={() => act(exportProject)}
                 >
-                  {t("Löschen ")}
+                  {t("Aktuelles Projekt herunterladen")}
+                </button>
+                <Button
+                  disabled={busy}
+                  onClick={() => act(() => newConfiguration())}
+                >
+                  {t("Neues Projekt")}
                 </Button>
               </div>
-            ))}
-            {archiveStatus === "ready" && !entries.length && (
-              <p>{t("Noch keine Online-Entwürfe gespeichert.")}</p>
+            </div>
+            <input
+              ref={configImportRef}
+              hidden
+              type="file"
+              accept=".json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) act(() => importProject(file));
+              }}
+            />
+            {session &&
+              (workshops.some((w) => w.active) || workshopLinks.length > 0) && (
+                <div className="project-library-actions">
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => setPage("project-workshops")}
+                  >
+                    {t("Projekt einem Workshop zuordnen")}
+                  </button>
+                  {workshops
+                    .filter((w) => w.id === workshopId && w.active)
+                    .map((w) => (
+                      <button
+                        key={w.id}
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() => act(() => newConfiguration(w.id))}
+                      >
+                        {t("Neues Projekt für {0}", { 0: w.title })}
+                      </button>
+                    ))}
+                </div>
+              )}
+            <section
+              className="project-library-section"
+              aria-labelledby="local-projects-heading"
+            >
+              <h2 id="local-projects-heading">{t("Auf diesem Gerät")}</h2>
+              {projects.map((project) => (
+                <ProjectListRow
+                  key={project.id}
+                  title={project.title || t("Unbenanntes Projekt")}
+                  detail={
+                    project.id === draft.id
+                      ? t("Aktuelles Projekt")
+                      : project.importCopy
+                        ? t("Importkopie")
+                        : ""
+                  }
+                  busy={busy}
+                  onOpen={() => act(() => openLocalProject(project.id))}
+                  onDelete={() => act(() => removeLocalProject(project))}
+                />
+              ))}
+              {!projects.length && (
+                <p className="muted">{t("Keine Projekte auf diesem Gerät.")}</p>
+              )}
+            </section>
+            {cloud && (
+              <section
+                className="project-library-section"
+                aria-labelledby="online-projects-heading"
+              >
+                <div className="editor-heading">
+                  <h2 id="online-projects-heading">{t("Online-Projekte")}</h2>
+                  {accountId && (
+                    <button
+                      className="text-button"
+                      disabled={busy || archiveStatus === "loading"}
+                      onClick={refreshArchive}
+                    >
+                      {t("Aktualisieren")}
+                    </button>
+                  )}
+                </div>
+                {!accountId && (
+                  <button
+                    className="text-button"
+                    onClick={() => setPage("account")}
+                  >
+                    {t("Anmelden")}
+                  </button>
+                )}
+                {accountId && archiveStatus === "loading" && (
+                  <p role="status">{t("Online-Projekte werden geladen …")}</p>
+                )}
+                {accountId && archiveStatus === "error" && (
+                  <p role="alert">
+                    {t("Online-Projekte konnten nicht geladen werden.")}
+                  </p>
+                )}
+                {entries.map((project) => (
+                  <ProjectListRow
+                    key={project.id}
+                    title={project.title || t("Unbenanntes Projekt")}
+                    detail={
+                      new Date(project.updated_at).toLocaleString(
+                        language === "en" ? "en-GB" : "de-AT",
+                      ) +
+                      t(" · Online-Version ") +
+                      project.revision
+                    }
+                    busy={busy}
+                    onOpen={() => act(() => openOnlineProject(project.id))}
+                    onDelete={() => act(() => removeOnlineProject(project))}
+                  />
+                ))}
+                {accountId && archiveStatus === "ready" && !entries.length && (
+                  <p className="muted">
+                    {t("Noch keine Online-Entwürfe gespeichert.")}
+                  </p>
+                )}
+              </section>
             )}
-          </Card>
+          </section>
         )}
         {page === "project-save" && session && (
           <Card>

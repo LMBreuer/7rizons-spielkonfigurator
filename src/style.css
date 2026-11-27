@@ -233,8 +233,8 @@ small {
   background: var(--blue-light);
 }
 .topbar .account-link {
-  border: 1px solid var(--line);
-  background: var(--surface);
+  border: 1px solid transparent;
+  min-height: 38px;
 }
 main {
   max-width: 1100px;
@@ -859,6 +859,54 @@ summary {
 .archive-row > span {
   flex: 1;
   min-width: 200px;
+}
+.project-library {
+  display: grid;
+  gap: 1.35rem;
+}
+.project-library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+.project-library-section {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 0.9rem;
+}
+.project-library-section h2 {
+  font-size: 1.06rem;
+  margin-block: 0 0.25rem;
+}
+.project-library-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.15rem 0.8rem;
+  padding: 0.65rem 0;
+}
+.project-library-row + .project-library-row {
+  border-block-start: 1px solid var(--line);
+}
+.project-library-row > div:first-child {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.project-library-row small {
+  display: block;
+  color: var(--muted);
+}
+.project-library :is(.text-button, .project-delete) {
+  min-height: 44px;
+  padding-inline: 0.45rem;
+}
+.project-library .project-delete {
+  color: var(--muted);
+}
+.project-library .project-delete:hover:enabled {
+  color: var(--red);
 }
 .workshop-admin {
   padding: 24px 0;
