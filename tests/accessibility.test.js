@@ -151,7 +151,13 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
   let cleanup;
   try {
     const bundled = await build({
-      entryPoints: ["src/App.jsx"],
+      stdin: {
+        contents: `
+          export { default } from "./src/App.jsx";
+          export { default as ContentEditor } from "./src/ContentEditor.jsx";
+        `,
+        resolveDir: process.cwd(),
+      },
       bundle: true,
       platform: "node",
       format: "esm",
@@ -172,7 +178,9 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       document: dom.window.document,
     });
     const axe = (await import("axe-core")).default;
-    const App = (await import(pathToFileURL(temp).href)).default;
+    const { default: App, ContentEditor } = await import(
+      pathToFileURL(temp).href
+    );
     const legacy = newDraft();
     localStorage.setItem("7rizons:draft:v1", JSON.stringify({ draft: legacy }));
     render(React.createElement(App));
@@ -858,6 +866,30 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
       screen.getByRole("textbox", { name: "Notizen zum Probelauf" }).value,
       "Beobachtung",
     );
+    cleanup();
+    render(
+      React.createElement(
+        "main",
+        null,
+        React.createElement(ContentEditor, {
+          published: { title: "Inhaltsfassung", content: {} },
+          dirtyRef: { current: false },
+        }),
+      ),
+    );
+    const archived = screen.getByRole("checkbox", {
+      name: "In neuen Projekten ausblenden",
+    });
+    assert.equal(getComputedStyle(archived).width, "18px");
+    assert.equal(getComputedStyle(archived.closest("label")).display, "flex");
+    await user.click(archived.closest("label"));
+    assert.equal(archived.checked, true);
+    await user.click(screen.getByRole("button", { name: "Mechaniken" }));
+    const basis = screen.getByRole("checkbox", {
+      name: "Im Basisspiel vorhanden",
+    });
+    assert.equal(getComputedStyle(basis).width, "18px");
+    assert.equal(getComputedStyle(basis.closest("label")).display, "flex");
   } finally {
     cleanup?.();
     await unlink(temp).catch(() => {});

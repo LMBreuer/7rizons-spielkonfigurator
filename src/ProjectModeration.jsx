@@ -47,7 +47,7 @@ function WorkshopAssignment({ project, workshops, act, busy, onChange }) {
       );
     });
   return (
-    <details className="project-assignment">
+    <details className="settings-disclosure project-assignment">
       <summary>
         {t("Workshops zuordnen")} ({assigned.length})
       </summary>
@@ -382,7 +382,7 @@ export function WorkshopInvite({ workshop, act, message }) {
           </a>
         </div>
       )}
-      <details className="workshop-manual-code">
+      <details className="settings-disclosure workshop-manual-code">
         <summary>{t("Zugangscode")}</summary>
         <label>
           <span className="sr-only">{t("Zugangscode")}</span>
@@ -426,6 +426,7 @@ export function WorkshopManagement({ workshop, act }) {
   const [projects, setProjects] = useState(null);
   return (
     <details
+      className="settings-disclosure"
       onToggle={(e) => {
         if (e.currentTarget.open)
           act(async () =>

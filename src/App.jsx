@@ -3098,7 +3098,7 @@ export default function App() {
           </WorkspaceLayout>
         )}
         {(page === "account" || (projectAction && !session)) && (
-          <Card>
+          <Card className={session ? "account-page" : "auth-page"}>
             <h1>
               {projectAction === "save"
                 ? t("Online speichern")
@@ -3125,7 +3125,7 @@ export default function App() {
             )}
             {session ? (
               <>
-                <p>
+                <p className="account-identity">
                   {t("Angemeldet als ")}
                   {session.user.email}
                 </p>
@@ -3135,7 +3135,7 @@ export default function App() {
                   </Button>
                 </div>
                 {admin && (
-                  <details className="account-section">
+                  <details className="account-section settings-disclosure">
                     <summary>
                       {t("Passwort für den Adminzugang setzen oder ändern")}
                     </summary>
@@ -3220,70 +3220,75 @@ export default function App() {
                   </section>
                 )}
                 <ProjectRequests act={act} busy={busy} message={setMessage} />
-                <WorkshopJoin
-                  {...{
-                    workshops,
-                    workshopId,
-                    setWorkshopId,
-                    code,
-                    setCode,
-                    session,
-                  }}
-                  join={() => act(join)}
-                />
-                {workshopId && (
-                  <Button
-                    secondary
-                    disabled={busy}
-                    onClick={() => act(() => newConfiguration(workshopId))}
-                  >
-                    {t("Neues Projekt mit Workshop-Inhalten starten")}
-                  </Button>
-                )}
-                <h2>{t("Meine Abgaben")}</h2>
-                {mySubmissions.length ? (
-                  mySubmissions.map((s) => (
-                    <div className="archive-row" key={s.id}>
-                      <span>
-                        {s.title}
-                        <small>
-                          {new Date(s.created_at).toLocaleString(
-                            language === "en" ? "en-GB" : "de-AT",
-                          )}
-                        </small>
-                      </span>
-                      <Button
-                        secondary
-                        onClick={() =>
-                          act(async () => {
-                            if (
-                              !confirm(
-                                t(
-                                  "Abgabe zurückziehen? Bereits heruntergeladene Kopien können nicht zurückgerufen werden.",
-                                ),
+                <section className="account-section">
+                  <h2>{t("Workshops")}</h2>
+                  <WorkshopJoin
+                    {...{
+                      workshops,
+                      workshopId,
+                      setWorkshopId,
+                      code,
+                      setCode,
+                      session,
+                    }}
+                    join={() => act(join)}
+                  />
+                  {workshopId && (
+                    <Button
+                      secondary
+                      disabled={busy}
+                      onClick={() => act(() => newConfiguration(workshopId))}
+                    >
+                      {t("Neues Projekt mit Workshop-Inhalten starten")}
+                    </Button>
+                  )}
+                </section>
+                <section className="account-section">
+                  <h2>{t("Meine Abgaben")}</h2>
+                  {mySubmissions.length ? (
+                    mySubmissions.map((s) => (
+                      <div className="archive-row" key={s.id}>
+                        <span>
+                          {s.title}
+                          <small>
+                            {new Date(s.created_at).toLocaleString(
+                              language === "en" ? "en-GB" : "de-AT",
+                            )}
+                          </small>
+                        </span>
+                        <Button
+                          secondary
+                          onClick={() =>
+                            act(async () => {
+                              if (
+                                !confirm(
+                                  t(
+                                    "Abgabe zurückziehen? Bereits heruntergeladene Kopien können nicht zurückgerufen werden.",
+                                  ),
+                                )
                               )
-                            )
-                              return;
-                            unwrap(
-                              await cloud
-                                .from("submissions")
-                                .delete()
-                                .eq("id", s.id),
-                            );
-                            setMySubmissions((a) =>
-                              a.filter((x) => x.id !== s.id),
-                            );
-                            setMessage(t("Abgabe zurückgezogen."));
-                          })
-                        }
-                      >
-                        {t("Zurückziehen ")}
-                      </Button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="muted">{t("Noch keine Abgaben.")}</p>
-                )}
+                                return;
+                              unwrap(
+                                await cloud
+                                  .from("submissions")
+                                  .delete()
+                                  .eq("id", s.id),
+                              );
+                              setMySubmissions((a) =>
+                                a.filter((x) => x.id !== s.id),
+                              );
+                              setMessage(t("Abgabe zurückgezogen."));
+                            })
+                          }
+                        >
+                          {t("Zurückziehen ")}
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="muted">{t("Noch keine Abgaben.")}</p>
+                  )}
+                </section>
                 <Button
                   secondary
                   onClick={() =>
@@ -3545,7 +3550,7 @@ export default function App() {
           </section>
         )}
         {page === "project-save" && session && (
-          <Card>
+          <Card className="project-dialog">
             <h1>{t("„{0}“ online speichern", { 0: projectTitle })}</h1>
             <p>{t(onlineAccessNotice)}</p>
             <div className="actions">
@@ -3572,7 +3577,7 @@ export default function App() {
           </Card>
         )}
         {page === "project-share" && session && (
-          <Card>
+          <Card className="project-dialog">
             <h1>{t("„{0}“ teilen", { 0: projectTitle })}</h1>
             <p>
               {t(
@@ -3799,7 +3804,7 @@ export default function App() {
           </>
         )}
         {page === "project-workshops" && session && (
-          <Card>
+          <Card className="project-dialog">
             <h1>{t("Projekt einem Workshop zuordnen")}</h1>
             <p>
               {t(
@@ -3837,7 +3842,7 @@ export default function App() {
         {page === "moderation-home" &&
           session &&
           moderatedWorkshops.length > 0 && (
-            <Card>
+            <Card className="project-dialog">
               <h1>{t("Meine moderierten Workshops")}</h1>
               <div className="actions">
                 {moderatedWorkshops.map((workshop) => (
@@ -3854,7 +3859,7 @@ export default function App() {
             </Card>
           )}
         {page === "moderation" && session && moderation && (
-          <Card>
+          <Card className="account-page">
             <h1>{moderation.workshop.title}</h1>
             {moderation.workshop.active && (
               <WorkshopInvite
@@ -3863,29 +3868,35 @@ export default function App() {
                 message={setMessage}
               />
             )}
-            <h2>{t("Zugeordnete Projekte")}</h2>
-            <WorkshopProjectList projects={moderation.projects} />
-            <h2>{t("Mitglieder")}</h2>
-            <WorkshopRoster
-              key={moderation.workshop.id}
-              workshop={moderation.workshop}
-              act={act}
-              busy={busy}
-            />
-            <h2>{t("Abgaben")}</h2>
-            <SubmissionList
-              submissions={moderation.submissions}
-              workshops={[moderation.workshop]}
-              act={act}
-              onReview={(id) =>
-                setModeration((current) => ({
-                  ...current,
-                  submissions: current.submissions.map((s) =>
-                    s.id === id ? { ...s, status: "gesichtet" } : s,
-                  ),
-                }))
-              }
-            />
+            <section className="account-section">
+              <h2>{t("Zugeordnete Projekte")}</h2>
+              <WorkshopProjectList projects={moderation.projects} />
+            </section>
+            <section className="account-section">
+              <h2>{t("Mitglieder")}</h2>
+              <WorkshopRoster
+                key={moderation.workshop.id}
+                workshop={moderation.workshop}
+                act={act}
+                busy={busy}
+              />
+            </section>
+            <section className="account-section">
+              <h2>{t("Abgaben")}</h2>
+              <SubmissionList
+                submissions={moderation.submissions}
+                workshops={[moderation.workshop]}
+                act={act}
+                onReview={(id) =>
+                  setModeration((current) => ({
+                    ...current,
+                    submissions: current.submissions.map((s) =>
+                      s.id === id ? { ...s, status: "gesichtet" } : s,
+                    ),
+                  }))
+                }
+              />
+            </section>
           </Card>
         )}
         {page === "content" && session && admin && (
@@ -4251,7 +4262,7 @@ export default function App() {
                         message={setMessage}
                       />
                     )}
-                    <details>
+                    <details className="settings-disclosure">
                       <summary>{t("Workshop-Einstellungen")}</summary>
                       <div className="actions">
                         <Button
@@ -4311,7 +4322,7 @@ export default function App() {
                             : t("Workshop-KI einschalten")}
                         </Button>
                       </div>
-                      <label>
+                      <label className="member-scope">
                         {t("Maximale KI-Aufrufe insgesamt ")}
                         <input
                           type="number"
@@ -4367,7 +4378,7 @@ export default function App() {
           </WorkspaceLayout>
         )}
         {page === "about" && (
-          <Card>
+          <Card className="info-page">
             <div className="eyebrow about-kicker">
               {t("Spielerisch Lehre gestalten. Lehre spielerisch gestalten. ")}
             </div>

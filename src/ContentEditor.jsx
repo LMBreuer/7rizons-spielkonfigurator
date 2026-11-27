@@ -132,6 +132,12 @@ export default function ContentEditor({
   const blockKey = Object.hasOwn(blockDefaults, selected)
     ? selected
     : "introduction";
+  const activeKey = section === "blocks" ? blockKey : id;
+  const entryKeys = section === "blocks" ? Object.keys(blockDefaults) : matches;
+  const entryName = (key) =>
+    section === "blocks"
+      ? t(labels[key])
+      : nameOf(key) + (patches[key]?.archived ? " · " + t("Ausgeblendet") : "");
   function textField(key) {
     const props = {
       maxLength: 4000,
@@ -230,28 +236,37 @@ export default function ContentEditor({
               />
             </label>
           )}
+          <label className="editor-entry-picker">
+            {t("Eintrag")}
+            <select
+              value={activeKey}
+              onChange={(e) => setSelected(e.target.value)}
+            >
+              {(entryKeys.includes(activeKey)
+                ? entryKeys
+                : [activeKey, ...entryKeys]
+              ).map((key) => (
+                <option key={key} value={key}>
+                  {entryName(key)}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="editor-items" role="group" aria-label={t("Eintrag")}>
-            {(section === "blocks" ? Object.keys(blockDefaults) : matches).map(
-              (key) => (
-                <button
-                  type="button"
-                  key={key}
-                  aria-current={
-                    key === (section === "blocks" ? blockKey : id)
-                      ? "true"
-                      : undefined
-                  }
-                  onClick={() => setSelected(key)}
-                >
-                  {section === "blocks" ? t(labels[key]) : nameOf(key)}
-                  {patches[key]?.archived && " · " + t("Ausgeblendet")}
-                </button>
-              ),
-            )}
-            {section !== "blocks" && !matches.length && (
-              <p>{t("Keine passenden Einträge.")}</p>
-            )}
+            {entryKeys.map((key) => (
+              <button
+                type="button"
+                key={key}
+                aria-current={key === activeKey ? "true" : undefined}
+                onClick={() => setSelected(key)}
+              >
+                {entryName(key)}
+              </button>
+            ))}
           </div>
+          {section !== "blocks" && !matches.length && (
+            <p className="muted">{t("Keine passenden Einträge.")}</p>
+          )}
           {section !== "blocks" && (
             <button
               className="text-button"
@@ -290,7 +305,7 @@ export default function ContentEditor({
             ).map(textField)}
           </div>
           {section === "learning" && (
-            <label>
+            <label className="editor-field-compact">
               {t("Gruppe")}
               <select
                 value={value.group || "inhalt"}
@@ -303,7 +318,7 @@ export default function ContentEditor({
           )}
           {section === "mechanics" && (
             <>
-              <label>
+              <label className="checkbox">
                 <input
                   type="checkbox"
                   disabled={original.kern}
@@ -314,13 +329,13 @@ export default function ContentEditor({
                 />{" "}
                 {t("Im Basisspiel vorhanden")}
               </label>
-              <details className="edition-options">
+              <details className="settings-disclosure edition-options">
                 <summary>{t("Arbeitsaufträge und Beispiele")}</summary>
                 <div className="editor-fields">
                   {["questions", "frame", "example"].map(textField)}
                 </div>
               </details>
-              <details className="edition-options">
+              <details className="settings-disclosure edition-options">
                 <summary>{t("Zuordnung zu Lernerlebnissen")}</summary>
                 <fieldset>
                   <legend className="sr-only">
@@ -355,7 +370,7 @@ export default function ContentEditor({
             </>
           )}
           {section !== "blocks" && !original.kern && (
-            <label>
+            <label className="checkbox">
               <input
                 type="checkbox"
                 checked={!!patch.archived}

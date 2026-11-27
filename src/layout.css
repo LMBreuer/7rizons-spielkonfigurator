@@ -304,14 +304,14 @@
   }
 
   :root[data-layout="modern"] {
-    --facet-line: #2a6fb44a;
-    --facet-secondary: #7f598b39;
-    --navigation-glow: color-mix(in srgb, #61bde4 48%, transparent);
-    --page-glow: color-mix(in srgb, #7f598b 32%, transparent);
+    --facet-line: #2a6fb423;
+    --facet-secondary: #7f598b20;
+    --navigation-glow: color-mix(in srgb, #61bde4 39%, transparent);
+    --page-glow: color-mix(in srgb, #7f598b 25%, transparent);
     --navigation-surface: color-mix(in srgb, var(--surface) 32%, transparent);
-    --document-surface: color-mix(in srgb, var(--surface) 40%, transparent);
+    --document-surface: color-mix(in srgb, var(--surface) 55%, transparent);
     --tile-surface: color-mix(in srgb, var(--surface) 34%, transparent);
-    --field-surface: color-mix(in srgb, var(--bg) 40%, transparent);
+    --field-surface: color-mix(in srgb, var(--bg) 58%, transparent);
     --blue-selection: color-mix(in srgb, var(--blue) 13%, var(--tile-surface));
     --purple-selection: color-mix(in srgb, var(--purple) 14%, var(--tile-surface));
     --glass-blue-text: color-mix(in srgb, var(--blue) 80%, var(--ink));
@@ -329,8 +329,8 @@
     --muted: #4c586a;
   }
   :root[data-layout="modern"][data-theme="dark"] {
-    --facet-line: #61bde453;
-    --facet-secondary: #c6a4d34f;
+    --facet-line: #61bde42d;
+    --facet-secondary: #c6a4d32a;
     --navigation-glow: color-mix(in srgb, #2a6fb4 56%, transparent);
     --page-glow: color-mix(in srgb, #7f598b 39%, transparent);
     --glass-blue-text: var(--blue);
@@ -347,6 +347,7 @@
     --navigation-surface: var(--surface);
     --document-surface: var(--surface);
     --tile-surface: var(--surface);
+    --field-surface: var(--bg);
     --glass-filter: none;
     --navigation-shadow: none;
     --document-shadow: none;

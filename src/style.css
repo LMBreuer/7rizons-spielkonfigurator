@@ -108,6 +108,7 @@ h3 {
   font-family: Manrope, system-ui, sans-serif;
   line-height: 1.22;
   letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
 h1 {
   font-size: clamp(2rem, 4vw, 3.2rem);
@@ -369,27 +370,43 @@ fieldset {
 }
 label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: 0.85rem;
 }
-input,
-textarea,
-select {
+.field-grid > label {
+  min-width: 0;
+  margin: 0;
+}
+:is(input:not(:where([type="checkbox"], [type="radio"])), textarea, select) {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--bg);
-  padding: 12px 14px;
-  color: var(--ink);
-  margin-top: 7px;
-  min-height: 46px;
+  min-width: 0;
   max-width: 100%;
+  min-height: 44px;
+  margin-block-start: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--muted) 68%, var(--line));
+  border-radius: 9px;
+  background: var(--field-surface, var(--bg));
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 450;
 }
 textarea {
   resize: vertical;
-  font-size: 0.85rem;
   line-height: 1.6;
+}
+input:where([type="checkbox"], [type="radio"]) {
+  inline-size: 18px;
+  block-size: 18px;
+  min-height: 0;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+input:where([type="checkbox"], [type="radio"]):disabled {
+  cursor: not-allowed;
 }
 input::placeholder,
 textarea::placeholder {
@@ -656,10 +673,15 @@ summary {
 }
 .text-button {
   border: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--blue);
-  padding: 12px;
-  font-size: 0.8rem;
+  padding: 0.55rem 0.65rem;
+  min-height: 40px;
+  font-size: 0.85rem;
+}
+.text-button:hover:enabled {
+  background: var(--blue-light);
 }
 .file-button {
   display: inline-flex;
@@ -841,12 +863,15 @@ summary {
 .checkbox {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.checkbox input {
-  width: 20px;
-  min-height: 20px;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding-block: 0.35rem;
   margin: 0;
+  cursor: pointer;
+}
+.checkbox:has(input:disabled) {
+  color: var(--muted);
+  cursor: default;
 }
 .archive-row {
   display: flex;
@@ -857,8 +882,9 @@ summary {
   border-bottom: 1px solid var(--line);
 }
 .archive-row > span {
-  flex: 1;
-  min-width: 200px;
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .admin-project-row {
   border-bottom: 1px solid var(--line);
@@ -866,15 +892,11 @@ summary {
 .admin-project-row > .archive-row {
   border-bottom: 0;
 }
-.project-assignment {
-  padding-block-end: 0.8rem;
-}
 .project-assignment-form {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 0.75rem;
-  padding-block-start: 0.75rem;
 }
 .project-assignment-form > label {
   flex: 1 1 14rem;
@@ -929,12 +951,15 @@ summary {
   color: var(--red);
 }
 .workshop-admin {
-  padding: 24px 0;
+  padding-block: 1rem;
   border-top: 1px solid var(--line);
-  margin-top: 20px;
+  margin-block-start: 1rem;
 }
-form .button {
-  margin: 5px 0 15px;
+form > .button {
+  margin-block-start: 0.25rem;
+}
+:is(.workshop-form, .project-assignment-form) > .button {
+  margin: 0;
 }
 
 .sr-only {
@@ -1014,6 +1039,11 @@ html[data-input="keyboard"] main h2:focus {
   opacity: 1;
   color: #555;
   border-style: dashed;
+}
+:root[data-theme="contrast"] .button:disabled {
+  color: #555;
+  background: var(--surface2);
+  border-color: var(--muted);
 }
 :root[data-theme="contrast"] .option.selected,
 :root[data-theme="contrast"] .mode.selected,
@@ -1191,19 +1221,6 @@ html[data-input="pointer"] :focus {
   font-weight: 400;
   line-height: 1.65;
   margin-bottom: 1rem;
-}
-.priority-panel input[type="checkbox"] {
-  appearance: auto;
-  width: 18px;
-  height: 18px;
-  min-height: 0;
-  max-width: none;
-  padding: 0;
-  margin: 0;
-  border-radius: 3px;
-  accent-color: var(--blue);
-  flex-shrink: 0;
-  cursor: pointer;
 }
 .base-mechanics {
   display: grid;
@@ -1790,10 +1807,6 @@ html[data-input="pointer"] :focus {
   color: var(--blue);
   font-weight: 700;
 }
-.account-actions,
-.account-section {
-  margin-block: 1rem;
-}
 .workshop-qr {
   display: grid;
   gap: 0.4rem;
@@ -1804,7 +1817,7 @@ html[data-input="pointer"] :focus {
   height: auto;
   max-width: 100%;
 }
-@media (max-width: 640px) {
+@media (max-width: 849px) {
   .steps {
     display: none;
   }
@@ -1884,6 +1897,14 @@ html[data-input="pointer"] :focus {
   .brand {
     grid-area: brand;
   }
+  .brand small {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  :root[data-theme="contrast"] .brand small {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
   .brand-logo {
     width: 8rem;
   }
@@ -1945,10 +1966,62 @@ html[data-input="pointer"] :focus {
   margin-bottom: 0;
 }
 .workshop-manual-code {
-  border: 0;
-  padding-block: 0.25rem;
+  max-width: 28rem;
 }
 
+.settings-disclosure {
+  min-width: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.settings-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-height: 44px;
+  padding-block: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 650;
+  list-style: none;
+}
+.settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-disclosure > summary::after {
+  content: "";
+  flex: 0 0 0.42rem;
+  height: 0.42rem;
+  margin-inline-end: 0.2rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+}
+.settings-disclosure[open] > summary::after {
+  transform: translateY(2px) rotate(225deg);
+}
+.settings-disclosure > summary:hover {
+  color: var(--blue);
+}
+.settings-disclosure[open] {
+  padding-block-end: 0.65rem;
+}
+.settings-disclosure .actions {
+  margin-block: 0.4rem 0.85rem;
+}
+.settings-disclosure > :last-child:not(summary) {
+  margin-block-end: 0;
+}
+.settings-disclosure > form {
+  max-width: 30rem;
+  margin-block-start: 0.4rem;
+}
+.project-assignment {
+  margin-block-end: 0.4rem;
+}
+.project-assignment-form {
+  margin-block-start: 0.4rem;
+}
 .info-page {
   max-width: 50rem;
   margin-inline: auto;
@@ -1969,8 +2042,55 @@ html[data-input="pointer"] :focus {
   font-style: normal;
   margin-bottom: 1.15rem;
 }
+.account-page,
+.auth-page,
+.project-dialog {
+  margin-inline: auto;
+}
+.account-page {
+  max-width: 48rem;
+}
+.auth-page {
+  max-width: 31rem;
+}
+.project-dialog {
+  max-width: 42rem;
+}
+:is(.account-page, .auth-page, .project-dialog, .info-page) > :last-child {
+  margin-block-end: 0;
+}
+:is(.account-page, .auth-page, .project-dialog, .info-page) h1,
+:is(.edition-library, .edition-editor) .editor-heading h1,
+.admin-title {
+  font-size: clamp(1.65rem, 3.4vw, 2.65rem);
+}
+.account-identity {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.account-actions {
+  margin-block: 1rem;
+}
+.account-section {
+  margin-block: 1.2rem;
+  border-block-start: 1px solid var(--line);
+}
+section.account-section {
+  padding-block-start: 1rem;
+}
+.account-section h2 {
+  margin-block-end: 0.6rem;
+  font-size: 1.2rem;
+}
+.account-section .actions,
+.account-section .workshop-join {
+  margin-block: 0.6rem;
+}
+.account-section > :last-child {
+  margin-block-end: 0;
+}
 .account-privacy {
-  margin: 0.8rem 0 0;
+  margin: 1rem 0 0.4rem;
 }
 
 .notice-close {
@@ -2004,7 +2124,7 @@ html[data-input="pointer"] :focus {
 .edition-library,
 .edition-editor {
   display: grid;
-  gap: 1.2rem;
+  gap: 1rem;
 }
 .editor-heading,
 .edition-row,
@@ -2037,6 +2157,9 @@ html[data-input="pointer"] :focus {
 .edition-visibility {
   margin: 0 0.4rem 0 0;
 }
+.edition-row > .actions {
+  margin: 0;
+}
 .edition-default {
   display: inline-block;
   font-size: 0.75rem;
@@ -2062,12 +2185,33 @@ html[data-input="pointer"] :focus {
   gap: 1rem;
   min-width: 0;
 }
+.editor-detail {
+  padding: clamp(1.1rem, 3vw, 1.75rem);
+  margin-block-end: 0;
+}
+.editor-detail > .editor-heading {
+  padding-block-end: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+.editor-index {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--navigation-surface, var(--surface));
+}
+.editor-index > .text-button {
+  justify-self: start;
+}
+.editor-index .editor-entry-picker {
+  display: none;
+}
 .editor-items {
   display: grid;
   gap: 0.15rem;
   max-height: 55vh;
   overflow: auto;
-  padding: 0.4rem;
+  padding: 0.45rem;
+  scrollbar-gutter: stable;
 }
 .editor-items button {
   text-align: start;
@@ -2076,6 +2220,7 @@ html[data-input="pointer"] :focus {
   background: transparent;
   border-radius: 0.4rem;
   padding: 0.55rem 0.7rem;
+  overflow-wrap: anywhere;
 }
 .editor-items button:hover {
   background: var(--surface2);
@@ -2093,10 +2238,8 @@ html[data-input="pointer"] :focus {
 .editor-index label {
   margin: 0;
 }
-.edition-options summary {
-  cursor: pointer;
-  color: var(--blue);
-  font-weight: 600;
+.editor-field-compact {
+  width: min(100%, 20rem);
 }
 .edition-options > label,
 .edition-options fieldset {
@@ -2126,14 +2269,54 @@ html[data-input="pointer"] :focus {
   .editor-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
-  .editor-items {
-    max-height: 11rem;
-  }
-  .editor-heading h1 {
-    font-size: 1.75rem;
-  }
   .editor-index {
-    gap: 0.4rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem 0.75rem;
+  }
+  .editor-index .editor-entry-picker {
+    display: block;
+  }
+  .editor-index .editor-items {
+    display: none;
+  }
+  .editor-index > :is(p, button) {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 420px) {
+  .editor-index {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .edition-editor > .editor-heading {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    gap: 0.55rem 0.75rem;
+  }
+  .edition-editor .editor-title {
+    display: contents;
+  }
+  .editor-title :is(h1, label) {
+    grid-column: 1 / -1;
+  }
+  .edition-editor .admin-tabs {
+    gap: 0.2rem;
+    margin-block-end: 0;
+  }
+  .edition-editor .admin-tabs button {
+    min-height: 44px;
+    padding: 0.4rem 0.52rem;
+    font-size: 0.85rem;
+  }
+  :is(.panel, .editor-index)
+    :is(
+      input:not(:where([type="checkbox"], [type="radio"], [type="file"])),
+      textarea,
+      select
+    ) {
+    font-size: 1rem;
   }
 }
 .editor-title {
