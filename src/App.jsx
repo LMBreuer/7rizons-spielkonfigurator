@@ -131,7 +131,7 @@ function listProjects() {
   for (const key of Object.keys(localStorage)) {
     if (!key.startsWith(PROJECT_PREFIX)) continue;
     try {
-      const { draft, exchange, importCopy } = JSON.parse(
+      const { draft, exchange, importCopy, cloudRevision } = JSON.parse(
         localStorage.getItem(key),
       );
       projects.push({
@@ -139,6 +139,7 @@ function listProjects() {
         title: draft.context.thema || draft.context.name,
         projectId: readExchange(exchange)?.projectId || draft.id,
         importCopy: importCopy === true,
+        cloudRevision: cloudRevision || 0,
       });
     } catch {}
   }
@@ -458,7 +459,15 @@ export default function App() {
   const [workshops, setWorkshops] = useState([]);
   const [workshopId, setWorkshopId] = useState("");
   const [code, setCode] = useState(inviteCode);
-  const [entries, setEntries] = useState([]);
+  const accountId = session?.user.id;
+  const [archive, setArchive] = useState(null);
+  const [archiveVersion, setArchiveVersion] = useState(0);
+  const accountArchive = archive?.owner === accountId ? archive : null;
+  const entries = accountArchive?.entries || [];
+  const onlineById = new Map(entries.map((entry) => [entry.id, entry]));
+  const localIds = new Set(projects.map((project) => project.id));
+  const archiveStatus = accountArchive?.status || "loading";
+  const refreshArchive = () => setArchiveVersion((version) => version + 1);
   const [submissions, setSubmissions] = useState([]);
   const [mySubmissions, setMySubmissions] = useState([]);
   const [adminWorkshops, setAdminWorkshops] = useState([]);
@@ -682,7 +691,6 @@ export default function App() {
     );
     setWorkshops([]);
     setWorkshopId("");
-    setEntries([]);
     setMySubmissions([]);
     if (session) {
       cloud.rpc("is_admin").then(({ data }) => {
@@ -710,6 +718,33 @@ export default function App() {
       alive = false;
     };
   }, [session?.user.id]);
+  useEffect(() => {
+    if (!cloud || !accountId) {
+      setArchive(null);
+      return;
+    }
+    const request = new AbortController();
+    setArchive((previous) => ({
+      owner: accountId,
+      entries: previous?.owner === accountId ? previous.entries : [],
+      status: "loading",
+    }));
+    cloud
+      .from("configurations")
+      .select("id,title,revision,updated_at")
+      .eq("owner_id", accountId)
+      .order("updated_at", { ascending: false })
+      .abortSignal(request.signal)
+      .then(({ data, error }) => {
+        if (!request.signal.aborted)
+          setArchive((previous) => ({
+            owner: accountId,
+            entries: error ? previous?.entries || [] : data || [],
+            status: error ? "error" : "ready",
+          }));
+      });
+    return () => request.abort();
+  }, [accountId, archiveVersion]);
   useEffect(() => {
     let alive = true;
     setWorkshopLinks([]);
@@ -906,6 +941,7 @@ export default function App() {
       }),
     );
     setCloudRevision(rev);
+    refreshArchive();
     setMessage(t("Entwurf und Arbeitsblätter sind privat online gespeichert."));
     return rev;
   }
@@ -1269,16 +1305,28 @@ export default function App() {
       draft: edition ? applyContentEdition(next, edition, forWorkshop) : next,
     });
   }
-  async function loadArchive() {
-    setEntries(
-      unwrap(
-        await cloud
-          .from("configurations")
-          .select("id,title,revision,updated_at")
-          .order("updated_at", { ascending: false }),
-      ),
-    );
+  function openArchive() {
+    refreshArchive();
     setPage("archive");
+  }
+  async function openOnlineProject(id) {
+    if (!accountId) return;
+    if (
+      localStorage.getItem(PROJECT_PREFIX + id) &&
+      !window.confirm(
+        t("Den lokalen Stand dieses Projekts durch die Online-Version ersetzen?"),
+      )
+    )
+      return;
+    const row = unwrap(
+      await cloud
+        .from("configurations")
+        .select("payload,revision")
+        .eq("owner_id", accountId)
+        .eq("id", id)
+        .single(),
+    );
+    applySnapshot(row.payload, row.revision);
   }
   async function loadAdmin() {
     setAdminWorkshops(
@@ -1929,7 +1977,10 @@ export default function App() {
                   ref={projectMenu}
                   className="switch-menu project-menu"
                   onToggle={(e) => {
-                    if (e.currentTarget.open) setProjects(listProjects());
+                    if (e.currentTarget.open) {
+                      setProjects(listProjects());
+                      if (accountId) refreshArchive();
+                    }
                   }}
                 >
                   <summary>{t("Projekte")}</summary>
@@ -1968,32 +2019,57 @@ export default function App() {
                       </>
                     )}
                     <hr />
-                    {projects.map((p) => (
-                      <button
-                        key={p.id}
-                        disabled={busy}
-                        aria-pressed={p.id === draft.id}
-                        onClick={() =>
-                          act(() => {
-                            if (p.id === draft.id) {
-                              projectMenu.current.open = false;
-                              return;
-                            }
-                            const next = JSON.parse(
-                              localStorage.getItem(PROJECT_PREFIX + p.id),
-                            );
-                            applySnapshot(next, next.cloudRevision, next.step);
-                          })
-                        }
-                      >
-                        {p.title || t("Unbenanntes Projekt")}
-                        {p.importCopy && " · " + t("Importkopie")}
-                        {projects.some(
-                          (other) =>
-                            other.id !== p.id && p.title === other.title,
-                        ) && " · " + p.id.slice(0, 6)}
+                    {projects.map((p) => {
+                      const online = onlineById.get(p.id);
+                      const newer =
+                        online &&
+                        online.revision >
+                          (p.id === draft.id ? cloudRevision : p.cloudRevision);
+                      return (
+                        <button
+                          key={p.id}
+                          disabled={busy}
+                          aria-pressed={p.id === draft.id}
+                          onClick={() =>
+                            act(() => {
+                              if (p.id === draft.id) {
+                                projectMenu.current.open = false;
+                                return;
+                              }
+                              const next = JSON.parse(
+                                localStorage.getItem(PROJECT_PREFIX + p.id),
+                              );
+                              applySnapshot(next, next.cloudRevision, next.step);
+                            })
+                          }
+                        >
+                          {p.title || t("Unbenanntes Projekt")}
+                          {p.importCopy && " · " + t("Importkopie")}
+                          {newer && <small>{t("Neuer Online-Stand")}</small>}
+                          {projects.some(
+                            (other) =>
+                              other.id !== p.id && p.title === other.title,
+                          ) && " · " + p.id.slice(0, 6)}
+                        </button>
+                      );
+                    })}
+                    {entries
+                      .filter((entry) => !localIds.has(entry.id))
+                      .map((entry) => (
+                        <button
+                          key={entry.id}
+                          disabled={busy}
+                          onClick={() => act(() => openOnlineProject(entry.id))}
+                        >
+                          {entry.title || t("Unbenanntes Projekt")}
+                          <small>{t("Online")}</small>
+                        </button>
+                      ))}
+                    {accountId && (
+                      <button disabled={busy} onClick={openArchive}>
+                        {t("Online-Projekte")}
                       </button>
-                    ))}
+                    )}
                     <button
                       disabled={busy}
                       onClick={() => act(() => newConfiguration())}
@@ -2933,9 +3009,9 @@ export default function App() {
                   <Button
                     secondary
                     disabled={busy}
-                    onClick={() => act(loadArchive)}
+                    onClick={openArchive}
                   >
-                    {t("Meine Entwürfe ")}
+                    {t("Online-Projekte")}
                   </Button>
                 </div>
                 {admin && (
@@ -3093,7 +3169,6 @@ export default function App() {
                   onClick={() =>
                     act(async () => {
                       unwrap(await cloud.auth.signOut());
-                      setCloudRevision(0);
                       setMessage(
                         t(
                           "Abgemeldet. Ihr lokaler Entwurf bleibt in diesem Browser.",
@@ -3206,78 +3281,84 @@ export default function App() {
         )}
         {page === "archive" && (
           <Card>
-            <h1>{t("Meine Entwürfe")}</h1>
-            <p>
-              {t(
-                "Ihre Online-Entwürfe. Die Superadministration sieht Titel und Änderungsdatum. Laden ersetzt den aktuellen lokalen Stand.",
-              )}
-            </p>
-            {entries.length ? (
-              entries.map((e) => (
-                <div className="archive-row" key={e.id}>
-                  <span>
-                    <strong>{e.title}</strong>
-                    <small>
-                      {new Date(e.updated_at).toLocaleString(
-                        language === "en" ? "en-GB" : "de-AT",
-                      )}
-                      {t(" · Online-Version ")}
-                      {e.revision}
-                    </small>
-                  </span>
-                  <Button
-                    secondary
-                    onClick={() =>
-                      act(async () => {
-                        if (
-                          !confirm(
-                            t(
-                              "Aktuellen lokalen Stand durch diesen Online-Entwurf ersetzen?",
-                            ),
-                          )
+            <div className="editor-heading">
+              <h1>{t("Online-Projekte")}</h1>
+              <Button
+                secondary
+                disabled={busy || archiveStatus === "loading"}
+                onClick={refreshArchive}
+              >
+                {t("Aktualisieren")}
+              </Button>
+            </div>
+            <p>{t("Die Superadministration sieht Titel und Änderungsdatum.")}</p>
+            {archiveStatus === "loading" && (
+              <p role="status">{t("Online-Projekte werden geladen …")}</p>
+            )}
+            {archiveStatus === "error" && (
+              <p role="alert">
+                {t("Online-Projekte konnten nicht geladen werden.")}
+              </p>
+            )}
+            {entries.map((e) => (
+              <div className="archive-row" key={e.id}>
+                <span>
+                  <strong>{e.title}</strong>
+                  <small>
+                    {new Date(e.updated_at).toLocaleString(
+                      language === "en" ? "en-GB" : "de-AT",
+                    )}
+                    {t(" · Online-Version ")}
+                    {e.revision}
+                  </small>
+                </span>
+                <Button
+                  secondary
+                  disabled={busy}
+                  onClick={() => act(() => openOnlineProject(e.id))}
+                >
+                  {t("Öffnen ")}
+                </Button>
+                <Button
+                  secondary
+                  disabled={busy}
+                  onClick={() =>
+                    act(async () => {
+                      if (
+                        !confirm(
+                          t(
+                            "Diesen privaten Online-Entwurf löschen? Bestehende Workshop-Abgaben bleiben separat erhalten.",
+                          ),
                         )
-                          return;
-                        const x = unwrap(
-                          await cloud
-                            .from("configurations")
-                            .select("payload,revision")
-                            .eq("id", e.id)
-                            .single(),
-                        );
-                        applySnapshot(x.payload, x.revision);
-                      })
-                    }
-                  >
-                    {t("Öffnen ")}
-                  </Button>
-                  <Button
-                    secondary
-                    onClick={() =>
-                      act(async () => {
-                        if (
-                          !confirm(
-                            t(
-                              "Diesen privaten Online-Entwurf löschen? Bestehende Workshop-Abgaben bleiben separat erhalten.",
-                            ),
-                          )
-                        )
-                          return;
-                        unwrap(
-                          await cloud
-                            .from("configurations")
-                            .delete()
-                            .eq("id", e.id),
-                        );
-                        setEntries((a) => a.filter((x) => x.id !== e.id));
-                        if (draft.id === e.id) setCloudRevision(0);
-                      })
-                    }
-                  >
-                    {t("Löschen ")}
-                  </Button>
-                </div>
-              ))
-            ) : (
+                      )
+                        return;
+                      unwrap(
+                        await cloud
+                          .from("configurations")
+                          .delete()
+                          .eq("owner_id", accountId)
+                          .eq("id", e.id),
+                      );
+                      setArchive((previous) =>
+                        previous?.owner === accountId
+                          ? {
+                              ...previous,
+                              entries: previous.entries.filter(
+                                (entry) => entry.id !== e.id,
+                              ),
+                            }
+                          : previous,
+                      );
+                      refreshArchive();
+                      if (draft.id === e.id) setCloudRevision(0);
+                    })
+                  }
+                >
+                  {t("Löschen ")}
+                </Button>
+              </div>
+            ))}
+            {archiveStatus === "ready" && !entries.length && (
               <p>{t("Noch keine Online-Entwürfe gespeichert.")}</p>
             )}
           </Card>
