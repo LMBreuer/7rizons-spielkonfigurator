@@ -327,6 +327,9 @@
     --glass-purple-text: color-mix(in srgb, var(--purple) 80%, var(--ink));
     --glass-filter: blur(2px) saturate(110%);
     --glass-edge: inset 0 1px 0 #fffd, inset 1px 0 0 #fff5;
+    --control-glass: linear-gradient(160deg, #ffffffb8, #ffffff47);
+    --control-glass-border: #36516e40;
+    --control-glass-shadow: inset 0 1px 0 #ffffffd9, 0 2px 5px #213b5b1c;
     --navigation-shadow:
       var(--glass-edge),
       4px 7px 17px #213b5b18;
@@ -345,6 +348,9 @@
     --glass-blue-text: var(--blue);
     --glass-purple-text: var(--purple);
     --glass-edge: inset 0 1px 0 #ffffff29, inset 1px 0 0 #ffffff13;
+    --control-glass: linear-gradient(160deg, #34495bcf, #19252f73);
+    --control-glass-border: #b8d1ee45;
+    --control-glass-shadow: inset 0 1px 0 #ffffff26, 0 2px 6px #0005;
     --navigation-shadow: var(--glass-edge), 6px 9px 22px #0005;
     --document-shadow: var(--glass-edge), 4px 8px 24px #0004;
   }
@@ -358,6 +364,32 @@
     --glass-filter: none;
     --navigation-shadow: none;
     --document-shadow: none;
+  }
+  :root[data-layout="modern"]:not([data-theme="contrast"]) {
+    & .button:not(.secondary) {
+      background: linear-gradient(155deg, #246098eb, #204c7af0);
+      border-color: #1e4978b8;
+      box-shadow: inset 0 1px 0 #ffffff55, 0 2px 6px #10325935;
+      backdrop-filter: var(--glass-filter);
+    }
+    & :is(.button.secondary, .topbar .account-link, .topbar .preferences-menu > summary, .sheet-tools .switch-menu > summary) {
+      background: var(--control-glass);
+      border: 1px solid var(--control-glass-border);
+      box-shadow: var(--control-glass-shadow);
+      backdrop-filter: var(--glass-filter);
+    }
+    & :is(.button.secondary, .topbar .account-link):hover:not(:disabled),
+    & .topbar .account-link[aria-current="page"],
+    & .switch-menu[open] > summary.button,
+    & :is(.preferences-menu, .sheet-tools .switch-menu) > summary:hover,
+    & :is(.preferences-menu, .sheet-tools .switch-menu)[open] > summary {
+      background: color-mix(in srgb, var(--blue-light) 72%, transparent);
+      color: var(--glass-blue-text);
+    }
+    & .button:active:not(:disabled),
+    & .switch-menu[open] > summary.button {
+      box-shadow: inset 0 1px 4px #1326392b;
+    }
   }
   :root[data-layout="modern"] body {
     min-height: 100vh;

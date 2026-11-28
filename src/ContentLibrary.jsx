@@ -40,6 +40,34 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
     );
     setCopy(null);
   }
+  function runEditionAction(event, action) {
+    const menu = event.currentTarget.closest("details");
+    menu.open = false;
+    menu.querySelector("summary").focus();
+    act(action);
+  }
+  async function toggleVisibility(row) {
+    unwrap(
+      await cloud.rpc("set_edition_visibility", {
+        p_id: row.id,
+        p_public: !row.is_public,
+      }),
+    );
+    await refresh();
+  }
+  async function setDefault(row) {
+    if (
+      !window.confirm(
+        t(
+          "„{0}“ öffentlich verfügbar machen und als Standard für neue Projekte und Workshops ohne eigene Fassung setzen?",
+          { 0: row.title },
+        ),
+      )
+    )
+      return;
+    unwrap(await cloud.rpc("choose_default_edition", { p_id: row.id }));
+    await refresh();
+  }
   if (current)
     return (
       <ContentEditor
@@ -69,14 +97,7 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
   return (
     <section className="edition-library">
       <div className="editor-heading">
-        <div>
-          <h1>{t("Inhalte")}</h1>
-          <p className="muted">
-            {t(
-              "Eine Inhaltsfassung bündelt Lernerlebnisse, Mechaniken und Arbeitsblatttexte für neue Projekte.",
-            )}
-          </p>
-        </div>
+        <h1>{t("Inhalte")}</h1>
         {ready && (
           <button
             className="button"
@@ -145,13 +166,7 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
           </div>
         </form>
       )}
-      <section className="panel edition-list">
-        <h2>{t("Inhaltsfassungen")}</h2>
-        <p className="muted">
-          {t(
-            "Öffentliche Fassungen stehen bei Organisatorisches zur Auswahl. Neue Projekte starten mit der Standardfassung. Workshops können eine eigene Fassung verwenden.",
-          )}
-        </p>
+      <section className="panel edition-list" aria-label={t("Inhaltsfassungen")}>
         {!ready && (
           <button
             className="button secondary"
@@ -161,86 +176,94 @@ export default function ContentLibrary({ act, busy, message, dirtyRef }) {
             {t("Fassungen laden")}
           </button>
         )}
-        <div className="edition-rows">
+        <ul className="edition-rows">
           {rows.map((row) => {
             const isDefault = row.id === defaultId;
             const uses = workshops.filter(
               (w) => (w.edition_id || defaultId) === row.id,
             );
+            const status = isDefault
+              ? "Standard"
+              : row.is_public
+                ? "Öffentlich"
+                : "Nicht öffentlich";
+            const menuLabel = t("Optionen für „{0}“", { 0: row.title });
             return (
-              <div className="edition-row" key={row.id}>
+              <li className="edition-row" key={row.id}>
                 <div className="edition-name">
-                  <h3>
-                    {row.title}{" "}
-                    {isDefault && (
-                      <span className="edition-default">{t("Standard")}</span>
-                    )}
-                  </h3>
+                  <h2>{row.title}</h2>
                   <small className="muted">
-                    {uses.length
-                      ? uses.map((w) => w.title).join(" · ")
-                      : t("Keinem Workshop zugewiesen")}
+                    {t(status)}
+                    {uses.length > 0 &&
+                      " · " +
+                        t(uses.length === 1 ? "{0} Workshop" : "{0} Workshops", {
+                          0: uses.length,
+                        })}
                   </small>
                 </div>
-                <label className="checkbox edition-visibility">
-                  <input
-                    type="checkbox"
-                    checked={row.is_public}
-                    disabled={busy || isDefault}
-                    aria-label={t("„{0}“ öffentlich auswählbar", { 0: row.title })}
-                    onChange={(event) => {
-                      const isPublic = event.target.checked;
-                      act(async () => {
-                        unwrap(
-                          await cloud.rpc("set_edition_visibility", {
-                            p_id: row.id,
-                            p_public: isPublic,
-                          }),
-                        );
-                        await refresh();
-                      });
-                    }}
-                  />
-                  {t("Öffentlich auswählbar")}
-                </label>
-                {!isDefault && (
-                  <button
-                    className="text-button edition-standard-action"
-                    disabled={busy}
-                    onClick={() =>
-                      act(async () => {
-                        if (
-                          !window.confirm(
-                            t(
-                              "„{0}“ öffentlich verfügbar machen und als Standard für neue Projekte und Workshops ohne eigene Fassung setzen?",
-                              { 0: row.title },
-                            ),
-                          )
-                        )
-                          return;
-                        unwrap(
-                          await cloud.rpc("choose_default_edition", {
-                            p_id: row.id,
-                          }),
-                        );
-                        await refresh();
-                      })
-                    }
-                  >
-                    {t("Als Standard setzen")}
-                  </button>
-                )}
                 <button
+                  type="button"
                   className="button secondary edition-edit-action"
                   disabled={busy}
                   onClick={() => act(() => edit(row.id))}
                 >
                   {t("Bearbeiten")}
                 </button>
-              </div>
+                {(!isDefault || uses.length > 0) && (
+                  <details className="switch-menu edition-menu">
+                    <summary
+                      className="button secondary"
+                      aria-label={menuLabel}
+                      title={menuLabel}
+                    >
+                      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                        <circle cx="4" cy="9" r="1.3" />
+                        <circle cx="9" cy="9" r="1.3" />
+                        <circle cx="14" cy="9" r="1.3" />
+                      </svg>
+                    </summary>
+                    <div className="menu-body">
+                      {!isDefault && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={(event) =>
+                              runEditionAction(event, () => toggleVisibility(row))
+                            }
+                          >
+                            {t(
+                              row.is_public
+                                ? "Aus öffentlicher Auswahl nehmen"
+                                : "Öffentlich machen",
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={(event) =>
+                              runEditionAction(event, () => setDefault(row))
+                            }
+                          >
+                            {t("Als Standard setzen")}
+                          </button>
+                        </>
+                      )}
+                      {uses.length > 0 && (
+                        <div className="edition-menu-workshops">
+                          <strong>{t("Workshops")}</strong>
+                          <ul>
+                            {uses.map((w) => <li key={w.id}>{w.title}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
       </section>
     </section>
   );
