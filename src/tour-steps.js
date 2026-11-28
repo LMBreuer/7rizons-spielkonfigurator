@@ -12,7 +12,7 @@ export const projectTour = [
     reveal: true,
     online: true,
     title: "Online speichern",
-    text: "Speichern Sie das Projekt mit Ihrem Konto online. Danach können Sie es auch auf anderen Geräten unter „Online-Projekte“ öffnen.",
+    text: "Speichern Sie das Projekt einmal online. Danach werden Änderungen automatisch synchronisiert. Den Speicherstand sehen Sie unter der Überschrift.",
   },
   {
     target: "project-workshop",

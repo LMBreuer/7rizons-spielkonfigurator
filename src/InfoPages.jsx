@@ -62,12 +62,12 @@ function PrivacyInfo({ online }) {
             <li>
               <strong>{t("Beim Online-Speichern.")}</strong>{" "}
               {t(
-                "Der Online-Stand umfasst Ihre Eingaben, Auswahl, Arbeitsblätter, Karten und Notizen, gegebenenfalls einen vorbereiteten KI-Auftrag sowie Projekt-ID, Version und Änderungszeitpunkt. Beim Online-Speichern geben Sie diesen Stand für die Administration frei. Die Administration kann ihn einsehen, herunterladen und das Projekt Workshops zuordnen.",
+                "Der Online-Stand umfasst Ihre Eingaben, Auswahl, Arbeitsblätter, Karten und Notizen, gegebenenfalls einen vorbereiteten KI-Auftrag sowie Projekt-ID, Version und Änderungszeitpunkt. Das erste Online-Speichern aktiviert die automatische Synchronisierung und gibt der Administration Zugriff auf den jeweils gespeicherten Projektstand. Die Administration kann ihn einsehen, herunterladen und das Projekt Workshops zuordnen.",
               )}
             </li>
             <li>
               {t(
-                "Bei älteren Online-Entwürfen sieht die Superadministration Titel und Änderungsdatum. Sie kann per E-Mail eine Kopie des Stands anfragen. Beim nächsten Online-Speichern entscheiden Sie, ob Sie das Projekt für die Administration freigeben.",
+                "Bei älteren privaten Online-Entwürfen sieht die Superadministration Titel und Änderungsdatum. Sie kann per E-Mail eine Kopie des Stands anfragen. Die automatische Synchronisierung übernimmt die vorhandenen Zugriffsrechte.",
               )}
             </li>
           </>
@@ -164,7 +164,7 @@ function HelpInfo() {
       <h2>{t("Online speichern, am Workshop teilnehmen und teilen")}</h2>
       <p>
         {t(
-          "Speichern Sie über „Projekte → Online speichern“ und verwenden Sie auf beiden Geräten dieselbe E-Mail-Adresse. Unter „Projekte → Projekte verwalten“ finden Sie alle lokalen und online gespeicherten Projekte.",
+          "Mit „Projekte → Online speichern“ aktivieren Sie die automatische Synchronisierung. Melden Sie sich auf beiden Geräten mit derselben E-Mail-Adresse an. Die Speicheranzeige zeigt, wo Ihre Änderungen gesichert sind. Sobald ein neuerer Online-Stand vorliegt, wählen Sie, mit welchem Stand Sie weiterarbeiten. Eigene lokale Änderungen bleiben als Projektkopie erhalten.",
         )}
       </p>
       <p>

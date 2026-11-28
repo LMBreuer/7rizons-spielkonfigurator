@@ -37,8 +37,9 @@ import {
   projectFingerprint,
   importDecision,
 } from "./project-exchange.js";
+import { conflictCopy, syncDecision } from "./project-sync.js";
 import { t, useLanguage, getLanguage } from "./i18n.js";
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { cloud, unwrap, callFunction } from "./cloud.js";
 import {
   PROVIDERS,
@@ -89,7 +90,7 @@ const API_KEY_GUIDES = {
   gemini: "https://ai.google.dev/gemini-api/docs/api-key",
 };
 const onlineAccessNotice =
-  "Beim Online-Speichern geben Sie dieses Projekt samt Arbeitsblättern für die Administration frei. Sie kann es einsehen und Workshops zuordnen. Die Workshopmoderation sieht bei einer Zuordnung den Titel und das Änderungsdatum.";
+  "Beim ersten Online-Speichern werden dieses Projekt und seine späteren Änderungen automatisch synchronisiert. Die Administration kann das Projekt samt Arbeitsblättern einsehen und Workshops zuordnen. Die Workshopmoderation sieht bei einer Zuordnung den Titel und das Änderungsdatum.";
 const projectTourSteps = projectTour.filter((step) =>
   cloud ? !step.offline : !step.online,
 );
@@ -150,19 +151,27 @@ const steps = [
 ];
 const PROJECT_PREFIX = "7rizons:project:v1:";
 const ACTIVE_PROJECT = "7rizons:active-project";
+function readLocalProject(id) {
+  return JSON.parse(localStorage.getItem(PROJECT_PREFIX + id));
+}
+function writeLocalProject(record) {
+  localStorage.setItem(PROJECT_PREFIX + record.draft.id, JSON.stringify(record));
+}
 function listProjects() {
   const projects = [];
   for (const key of Object.keys(localStorage)) {
     if (!key.startsWith(PROJECT_PREFIX)) continue;
     try {
-      const { draft, exchange, importCopy, cloudRevision, openedAt } =
+      const { draft, exchange, importCopy, syncCopy, cloudRevision, cloudOwner, openedAt } =
         JSON.parse(localStorage.getItem(key));
       projects.push({
         id: draft.id,
         title: draft.context.thema || draft.context.name,
         projectId: readExchange(exchange)?.projectId || draft.id,
         importCopy: importCopy === true,
+        syncCopy: syncCopy === true,
         cloudRevision: cloudRevision || 0,
+        cloudOwner,
         openedAt: Number.isFinite(openedAt) ? openedAt : 0,
       });
     } catch {}
@@ -180,6 +189,9 @@ function stored() {
       return {
         ...readSnapshot(x),
         cloudRevision: x.cloudRevision || 0,
+        cloudOwner: x.cloudOwner,
+        cloudFingerprint: x.cloudFingerprint,
+        syncCopy: x.syncCopy === true,
         openedAt: x.openedAt,
         step: x.step,
         buildingSheet: x.buildingSheet,
@@ -297,7 +309,17 @@ function runPrintMenuAction(event, action) {
   menu.querySelector("summary").focus();
   action();
 }
-function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
+const saveLabels = {
+  local: "Auf diesem Gerät gespeichert",
+  pending: "Lokal gespeichert · Synchronisierung läuft",
+  retry: "Lokal gespeichert · Synchronisierung ausstehend",
+  offline: "Offline · Auf diesem Gerät gespeichert",
+  saved: "Lokal und online gespeichert",
+  newer: "Lokal gespeichert · Online-Stand verfügbar",
+  signIn: "Lokal gespeichert · Zur Synchronisierung anmelden",
+};
+
+function ConfiguratorHeading({ step, projectTitle, hasDocument, saveLabel, syncStatus }) {
   const intro = (
     <>
       {t("Gestalten Sie")} <Logo wordmark /> {t("für Ihre Lehre.")}
@@ -326,11 +348,16 @@ function ConfiguratorHeading({ step, projectTitle, hasDocument }) {
           </>
         )}
       </div>
-      <p className="configurator-subtitle">
-        {step === 1
-          ? t("Von der Spielidee zum Seminar")
-          : t("Schritt {0} von {1}", { 0: step, 1: steps.length })}
-      </p>
+      <div className="configurator-meta">
+        <p className="configurator-subtitle">
+          {step === 1
+            ? t("Von der Spielidee zum Seminar")
+            : t("Schritt {0} von {1}", { 0: step, 1: steps.length })}
+        </p>
+        <span className="save-status" data-sync-status={syncStatus} role="status">
+          {saveLabel}
+        </span>
+      </div>
     </header>
   );
 }
@@ -411,7 +438,13 @@ export default function App() {
   const source = activeWorksheet?.source || null;
   const resultSettings = activeWorksheet?.resultSettings || DEFAULT_SETTINGS;
   const resultDraft = activeWorksheet?.draft || draft;
-  const [cloudRevision, setCloudRevision] = useState(saved.cloudRevision || 0);
+  const [cloudMeta, setCloudMeta] = useState({
+    cloudRevision: saved.cloudRevision || 0,
+    cloudOwner: saved.cloudOwner || null,
+    cloudFingerprint: saved.cloudFingerprint || null,
+  });
+  const { cloudRevision } = cloudMeta;
+  const [syncCopy, setSyncCopy] = useState(saved.syncCopy === true);
   const projectOpenedAt = useRef(saved.openedAt || Date.now());
   const [tour, setTour] = useState(null);
   const [offerTour, setOfferTour] = useState(() => !tourIntroSeen());
@@ -689,19 +722,27 @@ export default function App() {
         : "7’rizons · Spielkonfigurator";
   }, [language]);
   const [savedLocally, setSavedLocally] = useState(false);
+  const [syncIndicator, setSyncIndicator] = useState(null);
+  const [syncOffers, setSyncOffers] = useState({});
+  const syncTasks = useRef(new Map());
+  const syncTimers = useRef(new Map());
+  const liveProject = useRef(null);
+  const record = {
+    ...payload(),
+    ...cloudMeta,
+    syncCopy,
+    openedAt: projectOpenedAt.current,
+    step: savedStep,
+    buildingSheet,
+    configStep: lastConfigStep.current,
+  };
+  useLayoutEffect(() => {
+    liveProject.current = { accountId, page, record };
+  });
   function persistProject() {
-    localStorage.setItem(
-      PROJECT_PREFIX + draft.id,
-      JSON.stringify({
-        ...payload(),
-        cloudRevision,
-        openedAt: projectOpenedAt.current,
-        step: savedStep,
-        buildingSheet,
-        configStep: lastConfigStep.current,
-      }),
-    );
-    localStorage.setItem(ACTIVE_PROJECT, draft.id);
+    const current = liveProject.current.record;
+    writeLocalProject(current);
+    localStorage.setItem(ACTIVE_PROJECT, current.draft.id);
     localStorage.removeItem(STORAGE);
   }
   useEffect(() => {
@@ -725,10 +766,47 @@ export default function App() {
     worksheets,
     activeWorksheetId,
     request,
-    cloudRevision,
+    cloudMeta,
+    syncCopy,
     savedStep,
     buildingSheet,
   ]);
+  useEffect(() => {
+    if (!accountId || !canSync(record, accountId)) return;
+    scheduleSync(draft.id, accountId);
+  }, [accountId, draft, worksheets, cardPrint, request, exchange]);
+  useEffect(() => {
+    if (!accountId) return;
+    function reconnect() {
+      if (document.visibilityState === "hidden" || navigator.onLine === false)
+        return;
+      refreshArchive();
+      for (const project of listProjects())
+        if (canSync(project, accountId))
+          scheduleSync(project.id, accountId, { check: true, delay: 0 });
+    }
+    reconnect();
+    function checkActive() {
+      const { record: active } = liveProject.current;
+      if (
+        document.visibilityState !== "hidden" &&
+        navigator.onLine !== false &&
+        canSync(active, accountId)
+      ) scheduleSync(active.draft.id, accountId, { check: true, delay: 0, quiet: true });
+    }
+    const interval = setInterval(checkActive, 45_000);
+    window.addEventListener("focus", reconnect);
+    window.addEventListener("online", reconnect);
+    document.addEventListener("visibilitychange", reconnect);
+    return () => {
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("focus", reconnect);
+      document.removeEventListener("visibilitychange", reconnect);
+      clearInterval(interval);
+      for (const timer of syncTimers.current.values()) clearTimeout(timer.handle);
+      syncTimers.current.clear();
+    };
+  }, [accountId]);
   useEffect(() => {
     if (!cloud) return;
     let alive = true;
@@ -1041,33 +1119,220 @@ export default function App() {
     } catch {}
     setMessage(t("Sie sind dem Workshop beigetreten."));
   }
-  async function saveOnline({ confirmed = false } = {}) {
-    if (!session) throw new Error(t("Bitte zuerst anmelden."));
-    if (
-      !confirmed &&
-      !onlineById.get(draft.id)?.admin_shared_at &&
-      !window.confirm(
-        `${t(onlineAccessNotice)}\n\n${t("Projekt online speichern?")}`,
-      )
-    ) {
-      return null;
-    }
-    const rev = unwrap(
-      await cloud.rpc("save_configuration_for_administration", {
-        p_id: draft.id,
-        p_revision: cloudRevision,
-        p_title: (
-          draft.context.thema ||
-          draft.context.name ||
-          "Seminar-Hack"
-        ).slice(0, 300),
-        p_payload: payload(),
-      }),
+  function localRecord(id) {
+    const current = liveProject.current.record;
+    return current.draft.id === id ? current : readLocalProject(id);
+  }
+
+  function canSync(local, owner) {
+    return (
+      Number.isInteger(local?.cloudRevision) &&
+      local.cloudRevision > 0 &&
+      (!local.cloudOwner || local.cloudOwner === owner)
     );
-    setCloudRevision(rev);
+  }
+
+  function queueSync(id, work) {
+    const tasks = syncTasks.current;
+    const pending = (tasks.get(id) || Promise.resolve()).catch(() => {}).then(work);
+    tasks.set(id, pending);
+    const finish = () => {
+      if (tasks.get(id) === pending) tasks.delete(id);
+    };
+    pending.then(finish, finish);
+    return pending;
+  }
+
+  function markSync(id, owner, status) {
+    const current = liveProject.current;
+    if (current.accountId === owner && current.record.draft.id === id) {
+      setSyncIndicator((old) =>
+        old?.id === id && old.owner === owner && old.status === status
+          ? old
+          : { id, owner, status },
+      );
+    }
+  }
+
+  function scheduleSync(id, owner, { check = false, delay = 900, quiet = false } = {}) {
+    const timers = syncTimers.current;
+    const previous = timers.get(id);
+    clearTimeout(previous?.handle);
+    if (!quiet) markSync(id, owner, navigator.onLine === false ? "offline" : "pending");
+    if (navigator.onLine === false) {
+      timers.delete(id);
+      return;
+    }
+    const verifyRemote = check || previous?.check === true;
+    const handle = setTimeout(() => {
+      timers.delete(id);
+      queueSync(id, () => syncSavedProject(id, owner, verifyRemote)).catch(() => {
+        markSync(id, owner, navigator.onLine === false ? "offline" : "retry");
+      });
+    }, delay);
+    timers.set(id, { handle, check: verifyRemote });
+  }
+
+  async function readOnlineProject(id, owner, fields = "payload,revision") {
+    return unwrap(
+      await cloud
+        .from("configurations")
+        .select(fields)
+        .eq("owner_id", owner)
+        .eq("id", id)
+        .maybeSingle(),
+    );
+  }
+
+  function rememberOnline(id, owner, revision, fingerprint) {
+    if (liveProject.current.accountId !== owner) return;
+    const local = localRecord(id);
+    if (!local) return;
+    const meta = {
+      cloudOwner: revision ? owner : null,
+      cloudRevision: revision,
+      cloudFingerprint: fingerprint,
+    };
+    const updated = { ...local, ...meta };
+    writeLocalProject(updated);
+    if (liveProject.current.record.draft.id === id) {
+      liveProject.current.record = updated;
+      if (
+        local.cloudRevision !== revision ||
+        local.cloudFingerprint !== fingerprint ||
+        local.cloudOwner !== meta.cloudOwner
+      )
+        setCloudMeta(meta);
+    }
+    setSyncOffers((offers) => {
+      if (!offers[id]) return offers;
+      const next = { ...offers };
+      delete next[id];
+      return next;
+    });
+  }
+
+  async function uploadProject(local, owner, revision, create) {
+    const {
+      cloudRevision, cloudOwner, cloudFingerprint, syncCopy, openedAt,
+      step, buildingSheet, configStep, ...snapshot
+    } = local;
+    const id = snapshot.draft.id;
+    const fingerprint = await projectFingerprint(snapshot);
+    if (liveProject.current.accountId !== owner || !localRecord(id)) return null;
+    const next = unwrap(
+      await cloud.rpc(
+        create ? "save_configuration_for_administration" : "save_configuration",
+        {
+          p_id: id,
+          p_revision: revision,
+          p_title: (snapshot.draft.context.thema || snapshot.draft.context.name || "Seminar-Hack").slice(0, 300),
+          p_payload: snapshot,
+        },
+      ),
+    );
+    rememberOnline(id, owner, next, fingerprint);
+    const latest = localRecord(id);
+    const unchanged = latest && (await projectFingerprint(latest)) === fingerprint;
+    markSync(id, owner, unchanged ? "saved" : "pending");
+    if (!unchanged && latest && liveProject.current.accountId === owner)
+      scheduleSync(id, owner);
     refreshArchive();
-    setMessage(t("Projekt und Arbeitsblätter wurden online gespeichert."));
-    return rev;
+    return next;
+  }
+
+  async function compareProject(id, owner, row) {
+    const remoteFingerprint = await projectFingerprint(row.payload);
+    // Compare with edits made while the network request was in flight.
+    let local;
+    let localFingerprint;
+    do {
+      local = localRecord(id);
+      if (!local || liveProject.current.accountId !== owner) return null;
+      localFingerprint = await projectFingerprint(local);
+    } while (JSON.stringify(localRecord(id)) !== JSON.stringify(local));
+
+    const basis = local.cloudOwner && local.cloudOwner !== owner
+      ? { cloudRevision: 0 }
+      : local;
+    const decision = syncDecision(basis, row.revision, remoteFingerprint, localFingerprint);
+    if (decision === "match") {
+      rememberOnline(id, owner, row.revision, remoteFingerprint);
+      markSync(id, owner, "saved");
+    } else if (decision === "load" || decision === "copy") {
+      setSyncOffers((offers) => ({
+        ...offers,
+        [id]: { owner, revision: row.revision, decision },
+      }));
+      markSync(id, owner, "newer");
+    }
+    return { decision, local, remoteFingerprint };
+  }
+
+  async function syncSavedProject(id, owner, check) {
+    const local = localRecord(id);
+    if (liveProject.current.accountId !== owner || !canSync(local, owner)) return;
+    if (local.cloudFingerprint === await projectFingerprint(local)) {
+      if (!check || (await readOnlineProject(id, owner, "revision"))?.revision === local.cloudRevision) {
+        markSync(id, owner, "saved");
+        return;
+      }
+    }
+    const row = await readOnlineProject(id, owner);
+    if (liveProject.current.accountId !== owner) return;
+    if (!row) {
+      if (local.cloudOwner === owner) rememberOnline(id, owner, 0, null);
+      markSync(id, owner, "local");
+      return;
+    }
+    const match = await compareProject(id, owner, row);
+    if (match?.decision !== "save") return;
+    try {
+      await uploadProject(match.local, owner, row.revision, false);
+    } catch (error) {
+      const latest = await readOnlineProject(id, owner);
+      if (!latest || latest.revision === row.revision) throw error;
+      const attemptedFingerprint = await projectFingerprint(match.local);
+      if (await projectFingerprint(latest.payload) === attemptedFingerprint) {
+        rememberOnline(id, owner, latest.revision, attemptedFingerprint);
+        if (liveProject.current.accountId === owner) scheduleSync(id, owner);
+      } else {
+        await compareProject(id, owner, latest);
+      }
+    }
+  }
+
+  async function saveOnline({ confirmed = false } = {}) {
+    if (!accountId) throw new Error(t("Bitte zuerst anmelden."));
+    const id = draft.id;
+    const owner = accountId;
+    return queueSync(id, async () => {
+      if (liveProject.current.accountId !== owner) return null;
+      const row = await readOnlineProject(id, owner);
+      const local = localRecord(id);
+      if (!local || liveProject.current.accountId !== owner) return null;
+      if (row) {
+        const match = await compareProject(id, owner, row);
+        if (!match || (match.decision !== "match" && match.decision !== "save"))
+          return null;
+        // Explicit saves also carry the selected worksheet used for submissions.
+        if (
+          match.decision === "match" &&
+          match.local.activeWorksheetId === row.payload.activeWorksheetId
+        ) return row.revision;
+        const revision = await uploadProject(match.local, owner, row.revision, false);
+        if (revision) setMessage(t("Projekt und Arbeitsblätter wurden online gespeichert."));
+        return revision;
+      }
+      if (local.cloudRevision)
+        throw new Error(t("Der Online-Stand wurde gelöscht. Als neuen Entwurf speichern."));
+      if (!confirmed && !window.confirm(
+        `${t(onlineAccessNotice)}\n\n${t("Projekt online speichern?")}`,
+      )) return null;
+      const revision = await uploadProject(local, owner, 0, true);
+      if (revision) setMessage(t("Projekt und Arbeitsblätter wurden online gespeichert."));
+      return revision;
+    });
   }
   function addWorksheet(
     nextResult,
@@ -1272,6 +1537,9 @@ export default function App() {
           ? x.exchangeBase
           : null,
       copy: x.importCopy === true,
+      syncCopy: x.syncCopy === true,
+      cloudOwner: x.cloudOwner || null,
+      cloudFingerprint: x.cloudFingerprint || null,
     };
     x = readSnapshot(x);
     if (!options.discardCurrent) persistProject();
@@ -1279,6 +1547,7 @@ export default function App() {
     setExchange(metadata.exchange);
     setExchangeBase(metadata.base);
     setImportCopy(metadata.copy);
+    setSyncCopy(metadata.syncCopy);
     setProjects(listProjects());
     setEditingId(null);
     setOriginalId(null);
@@ -1298,7 +1567,11 @@ export default function App() {
     setBuildingSheet(builderWasOpen);
     lastConfigStep.current = previousStep;
     if (projectMenu.current) projectMenu.current.open = false;
-    setCloudRevision(revision);
+    setCloudMeta({
+      cloudRevision: revision,
+      cloudOwner: metadata.cloudOwner,
+      cloudFingerprint: metadata.cloudFingerprint,
+    });
     setStep(
       !selfStudy && !x.worksheets.length && resumeStep === 5 && !builderWasOpen
         ? 4
@@ -1340,6 +1613,9 @@ export default function App() {
         exchange: meta,
         exchangeBase: baseline,
         importCopy: copy || target?.importCopy === true,
+        cloudOwner: target?.cloudOwner,
+        cloudFingerprint: target?.cloudFingerprint,
+        syncCopy: target?.syncCopy,
       },
       target?.cloudRevision || 0,
     );
@@ -1364,7 +1640,8 @@ export default function App() {
       p.id === draft.id
         ? {
             ...payload(),
-            cloudRevision,
+            ...cloudMeta,
+            syncCopy,
             step,
             buildingSheet,
             configStep: lastConfigStep.current,
@@ -1439,14 +1716,16 @@ export default function App() {
     if (id === draft.id) {
       if (projectMenu.current) projectMenu.current.open = false;
       setPage("app");
+      if (accountId && canSync(record, accountId)) scheduleSync(id, accountId, { check: true, delay: 0 });
       return;
     }
-    const snapshot = JSON.parse(localStorage.getItem(PROJECT_PREFIX + id));
+    const snapshot = readLocalProject(id);
     if (!snapshot)
       throw new Error(
         t("Dieses Projekt ist auf diesem Gerät nicht mehr verfügbar."),
       );
     applySnapshot(snapshot, snapshot.cloudRevision, snapshot.step);
+    if (accountId && canSync(snapshot, accountId)) scheduleSync(id, accountId, { check: true, delay: 0 });
   }
 
   function removeLocalProject(project) {
@@ -1481,13 +1760,18 @@ export default function App() {
       )
     )
       return;
-    unwrap(
-      await cloud
-        .from("configurations")
-        .delete()
-        .eq("owner_id", accountId)
-        .eq("id", project.id),
-    );
+    await queueSync(project.id, async () => {
+      if (liveProject.current.accountId !== accountId) return;
+      unwrap(
+        await cloud
+          .from("configurations")
+          .delete()
+          .eq("owner_id", accountId)
+          .eq("id", project.id),
+      );
+      rememberOnline(project.id, accountId, 0, null);
+      markSync(project.id, accountId, "local");
+    });
     setArchive((previous) =>
       previous?.owner === accountId
         ? {
@@ -1499,37 +1783,66 @@ export default function App() {
         : previous,
     );
     refreshArchive();
-    if (draft.id === project.id) setCloudRevision(0);
-    else {
-      const key = PROJECT_PREFIX + project.id;
-      const local = JSON.parse(localStorage.getItem(key));
-      if (local) {
-        localStorage.setItem(
-          key,
-          JSON.stringify({ ...local, cloudRevision: 0 }),
-        );
-        setProjects(listProjects());
-      }
-    }
+    setProjects(listProjects());
   }
+
+  function installOnlineProject(row, owner, fingerprint) {
+    const synced = {
+      ...row.payload,
+      cloudOwner: owner,
+      cloudRevision: row.revision,
+      cloudFingerprint: fingerprint,
+      openedAt: Date.now(),
+    };
+    writeLocalProject(synced);
+    return synced;
+  }
+
   async function openOnlineProject(id) {
     if (!accountId) return;
-    if (
-      localStorage.getItem(PROJECT_PREFIX + id) &&
-      !window.confirm(
-        t("Den lokalen Stand dieses Projekts durch die Online-Version ersetzen?"),
-      )
-    )
-      return;
-    const row = unwrap(
-      await cloud
-        .from("configurations")
-        .select("payload,revision")
-        .eq("owner_id", accountId)
-        .eq("id", id)
-        .single(),
-    );
-    applySnapshot(row.payload, row.revision);
+    const owner = accountId;
+    await queueSync(id, async () => {
+      const local = localRecord(id);
+      if (local) openLocalProject(id);
+      const row = await readOnlineProject(id, owner);
+      if (liveProject.current.accountId !== owner) return;
+      if (!row) throw new Error(t("Dieses Projekt ist online nicht mehr verfügbar."));
+      if (local) {
+        const match = await compareProject(id, owner, row);
+        if (match?.decision === "save") await uploadProject(match.local, owner, row.revision, false);
+        return;
+      }
+      const fingerprint = await projectFingerprint(row.payload);
+      if (liveProject.current.accountId !== owner) return;
+      const synced = installOnlineProject(row, owner, fingerprint);
+      applySnapshot(synced, synced.cloudRevision);
+      markSync(id, owner, "saved");
+    });
+  }
+
+  async function chooseSyncVersion(keepLocal) {
+    const id = draft.id;
+    const owner = accountId;
+    await queueSync(id, async () => {
+      const row = await readOnlineProject(id, owner);
+      if (liveProject.current.accountId !== owner) return;
+      if (!row) throw new Error(t("Dieses Projekt ist online nicht mehr verfügbar."));
+      const match = await compareProject(id, owner, row);
+      if (!match || liveProject.current.record.draft.id !== id) return;
+      if (match.decision === "match") return;
+      const copy = keepLocal || match.decision !== "load" ? conflictCopy(match.local) : null;
+      if (copy) writeLocalProject(copy);
+      const synced = installOnlineProject(row, owner, match.remoteFingerprint);
+      applySnapshot(keepLocal ? copy : synced, keepLocal ? 0 : row.revision, keepLocal ? copy.step : undefined, {
+        discardCurrent: true,
+      });
+      setSyncOffers((offers) => {
+        const next = { ...offers };
+        delete next[id];
+        return next;
+      });
+      if (copy) setMessage(t("Der lokale Stand wurde als eigene Projektkopie behalten."));
+    });
   }
   async function loadAdmin() {
     setAdminWorkshops(
@@ -1719,6 +2032,15 @@ export default function App() {
     if (!tour.admin && page !== tour.origin) setPage(tour.origin);
     setTour(null);
   }
+  const activeOffer = accountId && syncOffers[draft.id]?.owner === accountId
+    ? syncOffers[draft.id]
+    : null;
+  const currentSyncStatus =
+    activeOffer ? "newer"
+    : syncIndicator?.id === draft.id && syncIndicator.owner === accountId
+      ? syncIndicator.status
+      : cloudRevision && !accountId ? "signIn" : "local";
+  const saveLabel = savedLocally ? t(saveLabels[currentSyncStatus]) : "";
   const notices = (
     <>
       {error && (
@@ -2192,6 +2514,32 @@ export default function App() {
           {t(sortMessage)}
         </div>
         <div className="no-print">{notices}</div>
+        {activeOffer && ["app", "project-save", "project-share", "project-workshops"].includes(page) && (
+          <section className="notice sync-offer no-print" aria-labelledby="sync-offer-title">
+            <div>
+              <h2 id="sync-offer-title">
+                {activeOffer.revision > cloudRevision
+                  ? t("Neuere Online-Version verfügbar")
+                  : t("Ein anderer Online-Stand ist verfügbar")}
+              </h2>
+              <p>
+                {t("Online-Version {0}", { 0: activeOffer.revision })}
+                {" · "}
+                {t(activeOffer.decision === "copy"
+                  ? "Ihre lokalen Änderungen bleiben als Projektkopie erhalten."
+                  : "Sie können online weiterarbeiten oder diesen Stand als eigene Kopie behalten.")}
+              </p>
+            </div>
+            <div className="actions">
+              <Button secondary disabled={busy} onClick={() => act(() => chooseSyncVersion(true))}>
+                {t("In lokaler Kopie weiterarbeiten")}
+              </Button>
+              <Button disabled={busy} onClick={() => act(() => chooseSyncVersion(false))}>
+                {t("Online-Version öffnen")}
+              </Button>
+            </div>
+          </section>
+        )}
         {importConflict && (
           <dialog
             ref={importDialog}
@@ -2242,6 +2590,8 @@ export default function App() {
                 step={step}
                 projectTitle={projectTitle}
                 hasDocument={Boolean(hasWorksheet || (step === 5 && preview))}
+                saveLabel={saveLabel}
+                syncStatus={currentSyncStatus}
               />
             }
             rail={
@@ -2263,9 +2613,9 @@ export default function App() {
                   <div className="menu-body">
                     <section className="project-current">
                       <strong>{projectTitle}</strong>
-                      {savedLocally && (
-                        <span className="save-status">
-                          {t("Im Browser gespeichert")}
+                      {saveLabel && (
+                        <span className="save-status" data-sync-status={currentSyncStatus}>
+                          {saveLabel}
                         </span>
                       )}
                     </section>
@@ -2316,6 +2666,7 @@ export default function App() {
                           }
                         >
                           {project.title || t("Unbenanntes Projekt")}
+                          {project.syncCopy && " · " + t("Lokale Kopie")}
                           {project.importCopy && " · " + t("Importkopie")}
                           {newer && <small>{t("Neuer Online-Stand")}</small>}
                           {!project.local && <small>{t("Online")}</small>}
@@ -3576,13 +3927,14 @@ export default function App() {
                   <ProjectListRow
                     key={project.id}
                     title={project.title || t("Unbenanntes Projekt")}
-                    detail={
-                      project.id === draft.id
-                        ? t("Aktuelles Projekt")
-                        : project.importCopy
-                          ? t("Importkopie")
-                          : ""
-                    }
+                      detail={[
+                        project.id === draft.id ? saveLabel : null,
+                        project.id !== draft.id && onlineById.get(project.id)?.revision > project.cloudRevision
+                          ? t("Neuere Online-Version verfügbar")
+                          : null,
+                        project.syncCopy ? t("Lokale Kopie") : null,
+                        project.importCopy ? t("Importkopie") : null,
+                      ].filter(Boolean).join(" · ")}
                     busy={busy}
                     onOpen={() => act(() => openLocalProject(project.id))}
                     onDelete={() => act(() => removeLocalProject(project))}
@@ -3660,7 +4012,7 @@ export default function App() {
                 disabled={busy}
                 onClick={() =>
                   act(async () => {
-                    await saveOnline({ confirmed: true });
+                    if (!(await saveOnline({ confirmed: true }))) return;
                     setPage("app");
                     window.history.replaceState(
                       null,

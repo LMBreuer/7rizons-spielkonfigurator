@@ -335,7 +335,7 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     await user.keyboard("{ArrowDown}");
     await waitFor(() =>
       assert.match(
-        screen.getByRole("status").textContent,
+        screen.getByText(/Zweiteilige Kartenstruktur: Position 2/).textContent,
         /Zweiteilige Kartenstruktur: Position 2/,
       ),
     );
@@ -781,7 +781,9 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     });
     await user.click(projectTrigger);
     assert.equal(projectTrigger.parentElement.open, true);
-    assert.ok(screen.getByText("Im Browser gespeichert"));
+    assert.ok(
+      within(projectTrigger.parentElement).getByText("Auf diesem Gerät gespeichert"),
+    );
     await user.click(screen.getByRole("button", { name: "Projekte verwalten" }));
     const downloadProject = screen.getByRole("button", {
       name: "Aktuelles Projekt exportieren",
