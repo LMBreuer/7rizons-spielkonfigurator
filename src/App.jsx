@@ -37,7 +37,7 @@ import {
   projectFingerprint,
   importDecision,
 } from "./project-exchange.js";
-import { conflictCopy, syncDecision } from "./project-sync.js";
+import { conflictCopy, syncDecision, worksheetMerge } from "./project-sync.js";
 import VersionComparison from "./VersionComparison.jsx";
 import { t, useLanguage, getLanguage } from "./i18n.js";
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
@@ -1241,18 +1241,8 @@ export default function App() {
     } = local;
     const id = snapshot.draft.id;
     const fingerprint = await projectFingerprint(snapshot);
-    if (liveProject.current.accountId !== owner || !localRecord(id)) return null;
-    const next = unwrap(
-      await cloud.rpc(
-        create ? "save_configuration_for_administration" : "save_configuration",
-        {
-          p_id: id,
-          p_revision: revision,
-          p_title: (savedProjectName(snapshot) || snapshot.draft.context.thema || snapshot.draft.context.name || "Seminar-Hack").slice(0, 300),
-          p_payload: snapshot,
-        },
-      ),
-    );
+    const next = await writeOnlineProject(snapshot, owner, revision, create);
+    if (!next) return null;
     rememberOnline(id, owner, next, fingerprint);
     const latest = localRecord(id);
     const unchanged = latest && (await projectFingerprint(latest)) === fingerprint;
@@ -1263,7 +1253,21 @@ export default function App() {
     return next;
   }
 
-  async function compareProject(id, owner, row) {
+  async function writeOnlineProject(snapshot, owner, revision, create = false) {
+    const id = snapshot.draft.id;
+    if (liveProject.current.accountId !== owner || !localRecord(id)) return null;
+    return unwrap(await cloud.rpc(
+      create ? "save_configuration_for_administration" : "save_configuration",
+      {
+        p_id: id,
+        p_revision: revision,
+        p_title: (savedProjectName(snapshot) || snapshot.draft.context.thema || snapshot.draft.context.name || "Seminar-Hack").slice(0, 300),
+        p_payload: snapshot,
+      },
+    ));
+  }
+
+  async function compareProject(id, owner, row, { pullWorksheets = false } = {}) {
     const remoteFingerprint = await projectFingerprint(row.payload);
     // Compare with edits made while the network request was in flight.
     let local;
@@ -1278,18 +1282,27 @@ export default function App() {
       ? { cloudRevision: 0 }
       : local;
     const decision = syncDecision(basis, row.revision, remoteFingerprint, localFingerprint);
+    const merge = decision === "load" || decision === "copy"
+      ? worksheetMerge(local, row.payload)
+      : null;
     if (decision === "match") {
       rememberOnline(id, owner, row.revision, remoteFingerprint);
       markSync(id, owner, "saved");
     } else if (decision === "load" || decision === "copy") {
+      if (pullWorksheets && merge && row.revision > basis.cloudRevision &&
+          (decision === "load" || merge.added === 0)) {
+        installSyncedWorksheets(row, owner, remoteFingerprint, local);
+        return { decision: "pulled" };
+      }
       setSyncOffers((offers) => {
-        if (offers[id]?.owner === owner && offers[id].row.revision === row.revision)
+        if (offers[id]?.owner === owner && offers[id].row.revision === row.revision &&
+            offers[id].worksheetOnly === Boolean(merge))
           return offers;
-        return { ...offers, [id]: { owner, row } };
+        return { ...offers, [id]: { owner, row, worksheetOnly: Boolean(merge) } };
       });
       markSync(id, owner, "newer");
     }
-    return { decision, local, remoteFingerprint };
+    return { decision, local, remoteFingerprint, merge };
   }
 
   async function syncSavedProject(id, owner, check) {
@@ -1308,7 +1321,7 @@ export default function App() {
       markSync(id, owner, "local");
       return;
     }
-    const match = await compareProject(id, owner, row);
+    const match = await compareProject(id, owner, row, { pullWorksheets: true });
     if (match?.decision !== "save") return;
     try {
       await uploadProject(match.local, owner, row.revision, false);
@@ -1834,6 +1847,35 @@ export default function App() {
     return synced;
   }
 
+  function installSyncedWorksheets(row, owner, fingerprint, local, selected = local.activeWorksheetId) {
+    const id = local.draft.id;
+    const next = readSnapshot({
+      ...row.payload,
+      activeWorksheetId: selected || row.payload.activeWorksheetId,
+    });
+    const synced = {
+      ...local,
+      ...next,
+      cardPrint: next.cardPrint,
+      cloudOwner: owner,
+      cloudRevision: row.revision,
+      cloudFingerprint: fingerprint,
+      modifiedAt: row.updated_at,
+    };
+    writeLocalProject(synced);
+    if (liveProject.current.record.draft.id === id) {
+      liveProject.current.record = synced;
+      modifiedAt.current = synced.modifiedAt;
+      restoringProject.current = true;
+      setWorksheets(next.worksheets);
+      setActiveWorksheetId(next.activeWorksheetId);
+      setCardPrint(readCardPrint(next.cardPrint));
+      setCloudMeta({ cloudOwner: owner, cloudRevision: row.revision, cloudFingerprint: fingerprint });
+    }
+    clearSyncOffer(id);
+    markSync(id, owner, "saved");
+  }
+
   async function openOnlineProject(id) {
     if (!accountId) return;
     const owner = accountId;
@@ -1851,7 +1893,7 @@ export default function App() {
           await uploadProject(match.local, owner, row.revision, false);
           return;
         }
-        if (match.decision !== "load") return;
+        if (match.decision !== "load" && match.merge?.added !== 0) return;
         fingerprint = match.remoteFingerprint;
       } else {
         fingerprint = await projectFingerprint(row.payload);
@@ -1883,9 +1925,33 @@ export default function App() {
       if (!match || !isActive() || match.decision === "match") return;
       const changedOnline = "Die Online-Version wurde inzwischen geändert. Bitte vergleichen Sie die Stände erneut.";
       if (viewed.revision !== row.revision) throw new Error(t(changedOnline));
-      if (choice === "keep-local") {
-        if (!window.confirm(t("Die angezeigte Online-Version durch den lokalen Stand ersetzen?"))) return;
+      const keepWorksheets = choice === "keep-both" && match.merge;
+      if (choice === "keep-local" || keepWorksheets) {
+        if (choice === "keep-local" &&
+            !window.confirm(t("Die angezeigte Online-Version durch den lokalen Stand ersetzen?"))) return;
         try {
+          if (keepWorksheets) {
+            const { added, snapshot } = match.merge;
+            if (!added) {
+              installSyncedWorksheets(row, owner, match.remoteFingerprint, match.local);
+            } else {
+              const merged = { ...snapshot, ...readSnapshot(snapshot) };
+              const fingerprint = await projectFingerprint(merged);
+              if (!isActive()) return;
+              const revision = await writeOnlineProject(merged, owner, viewed.revision);
+              if (!revision || liveProject.current.accountId !== owner) return;
+              const next = { ...row, revision, updated_at: new Date().toISOString(), payload: merged };
+              const current = localRecord(id);
+              if (!current) return;
+              if (JSON.stringify(current) === JSON.stringify(match.local))
+                installSyncedWorksheets(next, owner, fingerprint, current, merged.activeWorksheetId);
+              else
+                await compareProject(id, owner, next, { pullWorksheets: true });
+              refreshArchive();
+            }
+            if (isActive()) setMessage(t("Alle Arbeitsblätter sind im selben Projekt online gespeichert."));
+            return;
+          }
           const revision = await uploadProject(match.local, owner, viewed.revision, false);
           if (revision && isActive()) setMessage(t("Der lokale Stand wurde als neue Online-Version gespeichert."));
         } catch (error) {
@@ -2139,6 +2205,7 @@ export default function App() {
       key={draft.id}
       local={{ ...record, modifiedAt: modifiedAt.current }}
       remote={activeOffer.row}
+      worksheetOnly={activeOffer.worksheetOnly}
       language={language}
       busy={busy}
       onChoose={(choice, reportError) =>

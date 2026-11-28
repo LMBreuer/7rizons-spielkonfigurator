@@ -35,6 +35,21 @@ export function nextExchange(draftId, previous) {
   };
 }
 
+export function canonicalJSON(value) {
+  return JSON.stringify(value, (_key, item) =>
+    item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]]))
+      : item,
+  );
+}
+
+export function worksheetFingerprintData(sheet) {
+  if (sheet.source?.kind !== "template") return sheet;
+  // Template restoration creates a transient request ID.
+  const { requestId, ...result } = sheet.result;
+  return { ...sheet, result };
+}
+
 export async function projectFingerprint(payload) {
   const { draft, worksheets, pendingRequest, cardPrint } =
     readSnapshot(payload);
@@ -42,25 +57,12 @@ export async function projectFingerprint(payload) {
   const snapshot = {
     draft: draftContent,
     ...(cardPrint ? { cardPrint } : {}),
-    worksheets: worksheets.map((sheet) => {
-      if (sheet.source?.kind !== "template") return sheet;
-      // Template restore rebuilds the generated result, including a transient request ID.
-      const { requestId, ...result } = sheet.result;
-      return { ...sheet, result };
-    }),
+    worksheets: worksheets.map(worksheetFingerprintData),
     pendingRequest: pendingRequest
       ? { ...pendingRequest, configurationId: undefined }
       : null,
   };
-  const canonical = JSON.stringify(snapshot, (_key, value) =>
-    value && typeof value === "object" && !Array.isArray(value)
-      ? Object.fromEntries(
-          Object.keys(value)
-            .sort()
-            .map((key) => [key, value[key]]),
-        )
-      : value,
-  );
+  const canonical = canonicalJSON(snapshot);
   const digest = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(canonical),

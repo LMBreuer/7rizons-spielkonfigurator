@@ -5,8 +5,16 @@ import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
-import { conflictCopy, syncDecision } from "../src/project-sync.js";
-import { newDraft } from "../supabase/functions/_shared/domain.js";
+import { conflictCopy, syncDecision, worksheetMerge } from "../src/project-sync.js";
+import { createWorksheet, newDraft, templateResult } from "../supabase/functions/_shared/domain.js";
+
+function worksheet(draft, title) {
+  return createWorksheet({
+    draft,
+    source: { kind: "template" },
+    result: { ...templateResult(draft, undefined, "guided"), title },
+  });
+}
 
 test("online and local revisions preserve both divergent projects", () => {
   const based = { cloudRevision: 3, cloudFingerprint: "base" };
@@ -21,6 +29,35 @@ test("online and local revisions preserve both divergent projects", () => {
   assert.deepEqual(copy.worksheets, original.worksheets);
   assert.equal(copy.cloudRevision, 0);
   assert.equal(copy.cloudOwner, null);
+});
+
+test("worksheet-only merges preserve IDs, card styles and both edits of a shared worksheet", () => {
+  const draft = newDraft();
+  draft.context.thema = "Seminar";
+  draft.learning = ["per"];
+  const shared = worksheet(draft, "Gemeinsames Blatt");
+  const laptop = worksheet(draft, "Laptop");
+  const phone = worksheet(draft, "Handy");
+  const laptopKey = laptop.id + ":card";
+  const sharedKey = shared.id + ":card";
+  const device = {
+    draft,
+    worksheets: [shared, laptop],
+    activeWorksheetId: shared.id,
+    cardPrint: { cardStyles: { [laptopKey]: { title: 20 }, [sharedKey]: { title: 22 } } },
+  };
+  const server = { draft, worksheets: [shared, phone], activeWorksheetId: phone.id };
+  const merge = worksheetMerge(device, server);
+  assert.equal(merge.added, 2);
+  assert.deepEqual(merge.snapshot.worksheets.map((sheet) => sheet.id), [
+    shared.id, phone.id, merge.snapshot.activeWorksheetId, laptop.id,
+  ]);
+  assert.equal(merge.snapshot.draft.id, draft.id);
+  assert.notEqual(merge.snapshot.activeWorksheetId, shared.id);
+  assert.equal(merge.snapshot.cardPrint.cardStyles[laptopKey].title, 20);
+  assert.equal(merge.snapshot.cardPrint.cardStyles[merge.snapshot.activeWorksheetId + ":card"].title, 22);
+  assert.equal(worksheetMerge(device, merge.snapshot).added, 0, "retries do not create another copy");
+  assert.equal(worksheetMerge(device, { ...server, draft: { ...draft, context: { thema: "Anderes Thema" } } }), null);
 });
 
 test("autosaves new worksheets after reconnect and lets the owner choose which version to open", async () => {
@@ -263,6 +300,46 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
     assert.equal(created.has(legacyCopy.draft.id), false);
     await click("Kopie online speichern");
     await waitFor(() => assert.equal(created.get(legacyCopy.draft.id)?.revision, 1));
+
+    // Simultaneous additions stay in the original project. The phone is still
+    // on the common saved revision when it next checks for changes.
+    cleanup();
+    const cleanPhone = JSON.parse(localStorage.getItem(key));
+    const desktopSheet = worksheet(cleanPhone.draft, "Vom Laptop");
+    const onlineSheet = worksheet(cleanPhone.draft, "Vom anderen Gerät");
+    const copyCount = created.size;
+    const originalCount = remote.payload.worksheets.length;
+    remote = {
+      ...remote,
+      revision: remote.revision + 1,
+      payload: { ...remote.payload, worksheets: [...remote.payload.worksheets, onlineSheet] },
+    };
+    localStorage.setItem("7rizons:active-project", draft.id);
+    localStorage.setItem(key, JSON.stringify({
+      ...cleanPhone,
+      worksheets: [...cleanPhone.worksheets, desktopSheet],
+      activeWorksheetId: desktopSheet.id,
+    }));
+    dom.window.confirm = () => { throw Error("An existing project needs no new sharing consent"); };
+    render(React.createElement(App));
+    await screen.findByRole("heading", { name: "Neuere Online-Version verfügbar" });
+    await click("Versionen vergleichen");
+    await screen.findByText("Arbeitsblätter zusammenführen und im selben Projekt speichern.");
+    await click("Beide behalten");
+    await waitFor(() => assert.equal(remote.payload.worksheets.length, originalCount + 2));
+    await waitFor(() => assert.equal(JSON.parse(localStorage.getItem(key)).worksheets.length, originalCount + 2));
+    assert.equal(localStorage.getItem("7rizons:active-project"), draft.id);
+    assert.equal(created.size, copyCount);
+
+    cleanup();
+    localStorage.clear();
+    localStorage.setItem("7rizons:tour-intro:v2", "seen");
+    localStorage.setItem("7rizons:active-project", draft.id);
+    localStorage.setItem(key, JSON.stringify(cleanPhone));
+    render(React.createElement(App));
+    await waitFor(() => assert.equal(JSON.parse(localStorage.getItem(key)).worksheets.length, originalCount + 2));
+    assert.equal(screen.queryByRole("heading", { name: "Neuere Online-Version verfügbar" }), null);
+    await screen.findByRole("button", { name: new RegExp(`^5\\s*Arbeitsblätter \\(${originalCount + 2}\\)`) });
   } finally {
     cleanup();
     dom.window.close();

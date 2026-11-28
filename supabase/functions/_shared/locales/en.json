@@ -139,6 +139,8 @@
   "Lokale Änderungen verwerfen": "Discard local changes",
   "Lokalen Stand behalten": "Keep the local version",
   "Die lokale Fassung als eigenes Online-Projekt speichern.": "Save the local version as a separate online project.",
+  "Arbeitsblätter zusammenführen und im selben Projekt speichern.": "Combine worksheets and save them in the same project.",
+  "Alle Arbeitsblätter sind im selben Projekt online gespeichert.": "All worksheets are saved online in the same project.",
   "Die Online-Version auf diesem Gerät öffnen.": "Open the online version on this device.",
   "Die Online-Version durch den lokalen Stand ersetzen.": "Replace the online version with the local version.",
   "Für die Versionswahl ist eine Internetverbindung nötig.": "Connect to the internet to choose a version.",

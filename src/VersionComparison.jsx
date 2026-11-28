@@ -34,7 +34,7 @@ function VersionSummary({ label, version, modifiedAt, language, name }) {
   );
 }
 
-export default function VersionComparison({ local, remote, language, busy, onChoose }) {
+export default function VersionComparison({ local, remote, worksheetOnly, language, busy, onChoose }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -63,7 +63,9 @@ export default function VersionComparison({ local, remote, language, busy, onCho
         </div>
         <div className="sync-choices">
           {[
-            ["keep-both", t("Beide behalten"), t("Die lokale Fassung als eigenes Online-Projekt speichern.")],
+            ["keep-both", t("Beide behalten"), worksheetOnly
+              ? t("Arbeitsblätter zusammenführen und im selben Projekt speichern.")
+              : t("Die lokale Fassung als eigenes Online-Projekt speichern.")],
             ["discard-local", t("Lokale Änderungen verwerfen"), t("Die Online-Version auf diesem Gerät öffnen.")],
             ["keep-local", t("Lokalen Stand behalten"), t("Die Online-Version durch den lokalen Stand ersetzen.")],
           ].map(([choice, label, detail]) => (
