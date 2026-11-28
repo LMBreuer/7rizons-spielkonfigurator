@@ -164,7 +164,7 @@ function HelpInfo() {
       <h2>{t("Online speichern, am Workshop teilnehmen und teilen")}</h2>
       <p>
         {t(
-          "Mit „Projekte → Online speichern“ aktivieren Sie die automatische Synchronisierung. Melden Sie sich auf beiden Geräten mit derselben E-Mail-Adresse an. Die Speicheranzeige zeigt, wo Ihre Änderungen gesichert sind. Sobald ein neuerer Online-Stand vorliegt, wählen Sie, mit welchem Stand Sie weiterarbeiten. Eigene lokale Änderungen bleiben als Projektkopie erhalten.",
+          "Mit „Projekte → Online speichern“ aktivieren Sie die automatische Synchronisierung. Melden Sie sich auf beiden Geräten mit derselben E-Mail-Adresse an. Wenn die Stände auseinanderliegen, können Sie sie vergleichen, beide behalten oder einen Stand durch den anderen ersetzen.",
         )}
       </p>
       <p>

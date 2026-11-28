@@ -68,6 +68,7 @@ test("English no-AI output, Markdown and AI request preserve language and topic"
 test("all explicitly translated literal UI strings have an English entry", async () => {
   for (const file of [
     "src/App.jsx",
+    "src/VersionComparison.jsx",
     "src/InfoPages.jsx",
     "src/ContentEditor.jsx",
     "src/ContentLibrary.jsx",

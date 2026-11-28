@@ -47,7 +47,18 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
   localStorage.setItem("7rizons:active-project", draft.id);
   localStorage.setItem("7rizons:tour-intro:v2", "seen");
   localStorage.setItem(key, JSON.stringify({ draft, worksheets: [], cloudRevision: 1, step: 4 }));
-  let remote = { id: draft.id, revision: 1, payload: { draft, worksheets: [] }, admin_shared_at: null };
+  let remote = { id: draft.id, revision: 1, updated_at: "2026-11-28T09:20:00Z", payload: { draft, worksheets: [] }, admin_shared_at: null };
+  function changeOnline(topic) {
+    remote = {
+      ...remote, revision: remote.revision + 1,
+      payload: { ...remote.payload, draft: {
+        ...remote.payload.draft,
+        revision: remote.payload.draft.revision + 1,
+        context: { ...remote.payload.draft.context, thema: topic },
+      } },
+    };
+  }
+  let changeBeforeWrite = false;
   let online = true;
   Object.defineProperty(navigator, "onLine", { get: () => online });
   const writes = [];
@@ -82,6 +93,11 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
       if (name !== "save_configuration" && name !== "save_configuration_for_administration")
         return ok([]);
       assert.ok(online);
+      if (args.p_id === remote.id && changeBeforeWrite) {
+        changeBeforeWrite = false;
+        changeOnline("Zeitgleich online bearbeitet");
+        return { error: new Error("Stale revision") };
+      }
       const previous = args.p_id === remote.id ? remote : created.get(args.p_id);
       assert.equal(args.p_revision, previous?.revision || 0);
       writes.push(name);
@@ -142,52 +158,78 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
     const topic = screen.getByLabelText(/Thema des Seminars/);
     await person.clear(topic);
     await person.type(topic, "Laptop-Änderung");
-    remote = {
-      ...remote, revision: remote.revision + 1,
-      payload: {
-        ...remote.payload,
-        draft: { ...remote.payload.draft, revision: remote.payload.draft.revision + 1,
-          context: { ...remote.payload.draft.context, thema: "Handy-Änderung" } },
-      },
-    };
+    changeOnline("Handy-Änderung");
     online = true;
     await act(async () => window.dispatchEvent(new window.Event("online")));
     await screen.findByRole("heading", { name: "Neuere Online-Version verfügbar" });
     assert.equal(topic.value, "Laptop-Änderung", "a newer online version never replaces the open editor by itself");
     assert.deepEqual(writes, ["save_configuration"], "it never overwrites the other device");
-    await click("Online-Version öffnen");
-    await waitFor(() => assert.equal(JSON.parse(localStorage.getItem(key)).draft.context.thema, "Handy-Änderung"));
-    const copy = Object.keys(localStorage)
-      .filter((name) => name.startsWith("7rizons:project:v1:") && name !== key)
-      .map((name) => JSON.parse(localStorage.getItem(name)))[0];
-    assert.equal(copy.draft.context.thema, "Laptop-Änderung");
-    assert.equal(copy.worksheets.length, 1);
-    assert.equal(copy.cloudRevision, 0);
-    assert.equal(copy.syncCopy, true);
-    assert.equal(localStorage.getItem("7rizons:active-project"), draft.id);
-
-    remote = {
-      ...remote, revision: remote.revision + 1,
-      payload: { ...remote.payload, draft: {
-        ...remote.payload.draft,
-        revision: remote.payload.draft.revision + 1,
-        context: { ...remote.payload.draft.context, thema: "Neuer Handy-Stand" },
-      } },
-    };
-    await act(async () => window.dispatchEvent(new window.Event("focus")));
-    await screen.findByRole("heading", { name: "Neuere Online-Version verfügbar" });
-    await click("In lokaler Kopie weiterarbeiten");
+    assert.equal(screen.queryByRole("button", { name: "Beide behalten" }), null);
+    await click("Versionen vergleichen");
+    assert.ok(screen.getByRole("heading", { name: "Online-Version 3" }));
+    assert.ok(screen.getByText("Handy-Änderung", { selector: ".sync-version strong" }));
+    assert.equal(document.querySelectorAll(".sync-version time").length, 2);
+    await click("Beide behalten");
     await waitFor(() => assert.notEqual(localStorage.getItem("7rizons:active-project"), draft.id));
     const copyId = localStorage.getItem("7rizons:active-project");
     const workingCopy = JSON.parse(localStorage.getItem("7rizons:project:v1:" + copyId));
-    assert.equal(workingCopy.draft.context.thema, "Handy-Änderung");
-    assert.equal(JSON.parse(localStorage.getItem(key)).draft.context.thema, "Neuer Handy-Stand");
+    assert.equal(workingCopy.draft.context.thema, "Laptop-Änderung");
+    assert.match(workingCopy.projectName, /^Laptop-Änderung · Lokale Fassung vom /);
+    assert.equal(workingCopy.worksheets.length, 1);
+    assert.equal(workingCopy.cloudRevision, 0);
+    assert.equal(workingCopy.syncCopy, true);
+    assert.equal(JSON.parse(localStorage.getItem(key)).draft.context.thema, "Handy-Änderung");
     assert.deepEqual(writes, ["save_configuration"], "the local copy has not been uploaded");
 
     await person.click(document.querySelector(".project-menu summary"));
     await click("Online speichern");
     await waitFor(() => assert.equal(created.get(copyId)?.revision, 1));
+    assert.equal(created.get(copyId).payload.projectName, workingCopy.projectName);
     assert.deepEqual(writes, ["save_configuration", "save_configuration_for_administration"]);
+
+    await person.click(document.querySelector(".project-menu summary"));
+    await click(/Handy-Änderung/);
+    await waitFor(() => assert.equal(localStorage.getItem("7rizons:active-project"), draft.id));
+    changeOnline("Online-Version zum Öffnen");
+    await act(async () => window.dispatchEvent(new window.Event("focus")));
+    await screen.findByRole("heading", { name: "Neuere Online-Version verfügbar" });
+    await click("Versionen vergleichen");
+    dom.window.confirm = () => false;
+    await click("Lokale Änderungen verwerfen");
+    assert.equal(JSON.parse(localStorage.getItem(key)).draft.context.thema, "Handy-Änderung");
+    dom.window.confirm = () => true;
+    await click("Lokale Änderungen verwerfen");
+    await waitFor(() => assert.equal(JSON.parse(localStorage.getItem(key)).draft.context.thema, "Online-Version zum Öffnen"));
+    assert.equal(Object.keys(localStorage).filter((name) => name.startsWith("7rizons:project:v1:")).length, 2);
+
+    await click(/^1\s*Organisatorisches/);
+    online = false;
+    const editedTopic = screen.getByLabelText(/Thema des Seminars/);
+    await person.clear(editedTopic);
+    await person.type(editedTopic, "Mein Offline-Stand");
+    changeOnline("Stärkerer Online-Stand");
+    online = true;
+    await act(async () => window.dispatchEvent(new window.Event("online")));
+    await screen.findByRole("heading", { name: "Neuere Online-Version verfügbar" });
+    await click("Versionen vergleichen");
+
+    changeOnline("Seit Öffnen des Vergleichs bearbeitet");
+    await click("Lokalen Stand behalten");
+    await screen.findByText(/Online-Version wurde inzwischen geändert/);
+    assert.equal(remote.payload.draft.context.thema, "Seit Öffnen des Vergleichs bearbeitet");
+
+    changeBeforeWrite = true;
+    await click("Lokalen Stand behalten");
+    await screen.findByText(/Online-Version wurde inzwischen geändert/);
+    assert.equal(remote.payload.draft.context.thema, "Zeitgleich online bearbeitet");
+    assert.equal(editedTopic.value, "Mein Offline-Stand");
+    assert.equal(writes.length, 2);
+
+    await click("Lokalen Stand behalten");
+    await waitFor(() => assert.equal(remote.payload.draft.context.thema, "Mein Offline-Stand"));
+    await waitFor(() => assert.equal(status(), "Lokal und online gespeichert"));
+    assert.equal(remote.admin_shared_at, null);
+    assert.deepEqual(writes, ["save_configuration", "save_configuration_for_administration", "save_configuration"]);
   } finally {
     cleanup();
     dom.window.close();
