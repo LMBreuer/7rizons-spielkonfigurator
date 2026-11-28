@@ -1574,18 +1574,25 @@ html[data-input="pointer"] :focus {
 
 .language-switch {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.2rem;
   align-items: center;
 }
-.topbar .language-switch button {
-  min-height: 40px;
+.language-switch button {
+  min-height: var(--control-height);
   min-width: 40px;
-  padding: 0.3rem;
-  font-size: 0.75rem;
+  padding: 0.35rem 0.60rem;
+  font-size: 0.85rem;
   border: 1px solid transparent;
-  border-radius: 0.35rem;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--muted);
 }
-.topbar .language-switch button[aria-pressed="true"] {
+.language-switch button:hover:enabled {
+  background: var(--surface2);
+  color: var(--ink);
+}
+.language-switch button[aria-pressed="true"] {
   color: var(--blue);
   background: var(--blue-light);
   font-weight: 700;
@@ -2330,6 +2337,12 @@ section.account-section {
 .editor-detail .editor-heading label {
   width: auto;
   margin: 0;
+}
+.editor-language {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 .editor-detail label,
 .editor-index label {

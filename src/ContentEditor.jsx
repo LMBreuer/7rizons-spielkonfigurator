@@ -9,6 +9,7 @@ import {
   validateContent,
 } from "../supabase/functions/_shared/content.js";
 import { t } from "./i18n.js";
+import LanguageSwitch from "./LanguageSwitch.jsx";
 
 const labels = {
   label: "Bezeichnung",
@@ -288,13 +289,10 @@ export default function ContentEditor({
         <section className="panel editor-detail">
           <div className="editor-heading">
             <h2>{section === "blocks" ? t(labels[blockKey]) : nameOf(id)}</h2>
-            <label>
-              {t("Textsprache")}
-              <select value={lang} onChange={(e) => setLang(e.target.value)}>
-                <option value="de">Deutsch</option>
-                <option value="en">English</option>
-              </select>
-            </label>
+            <div className="editor-language">
+              <span>{t("Textsprache")}</span>
+              <LanguageSwitch label={t("Textsprache")} value={lang} onChange={setLang} />
+            </div>
           </div>
           <div className="editor-fields">
             {(section === "blocks"

@@ -12,6 +12,8 @@ import {
   initialAppearance,
   APPEARANCE_KEY,
   BACKGROUND_KEY,
+  BACKGROUNDS,
+  initialBackground,
   initialLayout,
   LAYOUT_KEY,
 } from "../src/appearance.js";
@@ -43,6 +45,11 @@ test("the new layout is default and the saved classic layout restores", () => {
     }),
     "classic",
   );
+});
+test("only available backgrounds are restored, and the wave grid is the default", () => {
+  assert.equal(initialBackground({ getItem: () => "unknown" }), "wave-grid");
+  for (const [id] of BACKGROUNDS)
+    assert.equal(initialBackground({ getItem: () => id }), id);
 });
 test("original logo has alpha transparency and favicon embeds the unchanged source symbol", async () => {
   const bytes = await readFile(
@@ -234,6 +241,12 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
     );
     const background = screen.getByRole("combobox", { name: "Hintergrund" });
     assert.equal(background.value, "wave-grid");
+    for (const id of ["neutral", "particle-waves"]) {
+      await user.selectOptions(background, id);
+      assert.equal(document.documentElement.dataset.background, id);
+      assert.equal(localStorage.getItem(BACKGROUND_KEY), id);
+      assert.equal(document.querySelector(".background-credit"), null);
+    }
     await user.selectOptions(background, "cosmic-cliffs");
     assert.equal(localStorage.getItem(BACKGROUND_KEY), "cosmic-cliffs");
     const credit = document.querySelector(".background-credit");
@@ -903,6 +916,11 @@ test("semantic audit, keyboard navigation, live sorting feedback and forms acros
         }),
       ),
     );
+    const textLanguages = within(screen.getByRole("group", { name: "Textsprache" }));
+    assert.equal(textLanguages.getByRole("button", { name: "Deutsch" }).getAttribute("aria-pressed"), "true");
+    await user.click(textLanguages.getByRole("button", { name: "English" }));
+    assert.equal(textLanguages.getByRole("button", { name: "English" }).getAttribute("aria-pressed"), "true");
+    await user.click(textLanguages.getByRole("button", { name: "Deutsch" }));
     const archived = screen.getByRole("checkbox", {
       name: "In neuen Projekten ausblenden",
     });

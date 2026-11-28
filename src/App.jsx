@@ -70,6 +70,7 @@ import { download, jsonFilename } from "./downloads.js";
 import WorksheetExport from "./WorksheetExport.jsx";
 import Logo from "./Logo.jsx";
 import AppearanceSwitch from "./AppearanceSwitch.jsx";
+import LanguageSwitch from "./LanguageSwitch.jsx";
 import GuidedTour, {
   rememberTourIntro,
   TourButton,
@@ -79,6 +80,7 @@ import GuidedTour, {
 import { adminTour, projectTour } from "./tour-steps.js";
 import {
   APPEARANCE_KEY,
+  BACKGROUNDS,
   BACKGROUND_KEY,
   LAYOUT_KEY,
   initialAppearance,
@@ -2628,34 +2630,22 @@ export default function App() {
                     value={background}
                     onChange={(event) => setBackground(event.target.value)}
                   >
-                    <option value="wave-grid">{t("Wellengitter")}</option>
-                    <option value="cosmic-cliffs">Cosmic Cliffs</option>
+                    {BACKGROUNDS.map(([id, label]) => (
+                      <option value={id} key={id}>{t(label)}</option>
+                    ))}
                   </select>
                 </label>
               )}
-              <div
-                className="language-switch"
-                role="group"
-                aria-label={t("Sprache")}
-              >
-                {["de", "en"].map((code) => (
-                  <button
-                    key={code}
-                    type="button"
-                    lang={code}
-                    disabled={busy}
-                    aria-label={code === "de" ? "Deutsch" : "English"}
-                    aria-pressed={language === code}
-                    onClick={() => {
-                      setLanguage(code);
-                      if (draft.language !== code)
-                        change((d) => ({ ...d, language: code }));
-                    }}
-                  >
-                    {code.toUpperCase()}
-                  </button>
-                ))}
-              </div>
+              <LanguageSwitch
+                label={t("Sprache")}
+                value={language}
+                compact
+                disabled={busy}
+                onChange={(code) => {
+                  setLanguage(code);
+                  if (draft.language !== code) change((d) => ({ ...d, language: code }));
+                }}
+              />
             </HeaderPreferences>
             <button
               className="account-link"

@@ -18,10 +18,17 @@ export function initialLayout(storage) {
 }
 
 export const BACKGROUND_KEY = "7rizons:background:v1";
+export const BACKGROUNDS = [
+  ["wave-grid", "Wellengitter"],
+  ["neutral", "Farbverlauf"],
+  ["particle-waves", "Partikelwellen"],
+  ["cosmic-cliffs", "Cosmic Cliffs"],
+];
+
 export function initialBackground(storage) {
   try {
-    if (storage.getItem(BACKGROUND_KEY) === "cosmic-cliffs")
-      return "cosmic-cliffs";
+    const value = storage.getItem(BACKGROUND_KEY);
+    if (BACKGROUNDS.some(([id]) => id === value)) return value;
   } catch {}
-  return "wave-grid";
+  return BACKGROUNDS[0][0];
 }
