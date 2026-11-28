@@ -308,7 +308,7 @@ function WorkspaceLayout({ heading, rail, children, className = "" }) {
     </>
   );
 }
-function runPrintMenuAction(event, action) {
+function runMenuAction(event, action) {
   const menu = event.currentTarget.closest("details");
   menu.open = false;
   menu.querySelector("summary").focus();
@@ -1349,13 +1349,20 @@ export default function App() {
       }
       if (local.cloudRevision)
         throw new Error(t("Der Online-Stand wurde gelöscht. Als neuen Entwurf speichern."));
-      if (!confirmed && !window.confirm(
-        `${t(onlineAccessNotice)}\n\n${t("Projekt online speichern?")}`,
-      )) return null;
+      if (!confirmed && !confirmFirstOnlineSave()) return null;
       const revision = await uploadProject(local, owner, 0, true);
       if (revision) setMessage(t("Projekt und Arbeitsblätter wurden online gespeichert."));
       return revision;
     });
+  }
+  function confirmFirstOnlineSave() {
+    return window.confirm(`${t(onlineAccessNotice)}\n\n${t("Projekt online speichern?")}`);
+  }
+  function requestOnlineSave() {
+    if (session) return act(saveOnline);
+    setError("");
+    setMessage("");
+    setPage("project-save");
   }
   function addWorksheet(
     nextResult,
@@ -1836,16 +1843,29 @@ export default function App() {
       const row = await readOnlineProject(id, owner);
       if (liveProject.current.accountId !== owner) return;
       if (!row) throw new Error(t("Dieses Projekt ist online nicht mehr verfügbar."));
+      let fingerprint;
       if (local) {
         const match = await compareProject(id, owner, row);
-        if (match?.decision === "save") await uploadProject(match.local, owner, row.revision, false);
-        return;
+        if (!match) return;
+        if (match.decision === "save") {
+          await uploadProject(match.local, owner, row.revision, false);
+          return;
+        }
+        if (match.decision !== "load") return;
+        fingerprint = match.remoteFingerprint;
+      } else {
+        fingerprint = await projectFingerprint(row.payload);
       }
-      const fingerprint = await projectFingerprint(row.payload);
       if (liveProject.current.accountId !== owner) return;
       const synced = installOnlineProject(row, owner, fingerprint);
-      applySnapshot(synced, synced.cloudRevision, undefined, { modifiedAt: synced.modifiedAt });
-      markSync(id, owner, "saved");
+      clearSyncOffer(id);
+      const current = liveProject.current.record.draft.id === id;
+      if (current) liveProject.current.record = synced;
+      applySnapshot(synced, synced.cloudRevision, undefined, {
+        discardCurrent: current,
+        modifiedAt: synced.modifiedAt,
+      });
+      setSyncIndicator({ id, owner, status: "saved" });
     });
   }
 
@@ -1879,12 +1899,13 @@ export default function App() {
       }
       if (choice === "discard-local" &&
           !window.confirm(t("Lokale Änderungen verwerfen und die Online-Version öffnen?"))) return;
+      if (choice === "keep-both" && !confirmFirstOnlineSave()) return;
       const copy = choice === "keep-both" ? conflictCopy(match.local) : null;
       if (copy) {
         const date = new Date(copy.openedAt).toLocaleString(language === "en" ? "en-GB" : "de-AT", {
           dateStyle: "short", timeStyle: "short",
         });
-        copy.projectName = t("{0} · Lokale Fassung vom {1}", { 0: projectTitle.slice(0, 240), 1: date });
+        copy.projectName = t("{0} · Kopie vom {1}", { 0: projectTitle.slice(0, 240), 1: date });
         writeLocalProject(copy);
       }
       let synced;
@@ -1901,10 +1922,19 @@ export default function App() {
         discardCurrent: true,
         modifiedAt: next.modifiedAt,
       });
-      markSync(id, owner, "saved");
-      setMessage(t(copy
-        ? "Beide Stände wurden behalten. Die lokale Kopie ist geöffnet."
-        : "Die Online-Version ist geöffnet."));
+      if (!copy) {
+        markSync(id, owner, "saved");
+        setMessage(t("Die Online-Version ist geöffnet."));
+        return;
+      }
+      try {
+        markSync(copy.draft.id, owner, "pending");
+        const revision = await uploadProject(copy, owner, 0, true);
+        if (revision) setMessage(t("Beide Fassungen sind online gespeichert. Die Kopie ist geöffnet."));
+      } catch {
+        markSync(copy.draft.id, owner, "local");
+        setError(t("Die Kopie ist auf diesem Gerät gespeichert. Online-Speichern ist fehlgeschlagen. Bitte erneut versuchen."));
+      }
     });
   }
   async function loadAdmin() {
@@ -2352,7 +2382,7 @@ export default function App() {
                   type="button"
                   disabled={busy}
                   onClick={(event) =>
-                    runPrintMenuAction(event, () =>
+                    runMenuAction(event, () =>
                       cardImportField.current?.click(),
                     )
                   }
@@ -2366,7 +2396,7 @@ export default function App() {
                     type="button"
                     disabled={busy}
                     onClick={(event) =>
-                      runPrintMenuAction(event, () =>
+                      runMenuAction(event, () =>
                         act(() => downloadCards(false)),
                       )
                     }
@@ -2377,7 +2407,7 @@ export default function App() {
                     type="button"
                     data-tour="print-cards"
                     onClick={(event) =>
-                      runPrintMenuAction(event, () => setCardPrintOpen(true))
+                      runMenuAction(event, () => setCardPrintOpen(true))
                     }
                   >
                     {t("Karten drucken")}
@@ -2388,7 +2418,7 @@ export default function App() {
                 type="button"
                 disabled={busy}
                 onClick={(event) =>
-                  runPrintMenuAction(event, () =>
+                  runMenuAction(event, () =>
                     act(() => downloadCards(true)),
                   )
                 }
@@ -2645,6 +2675,14 @@ export default function App() {
                   syncStatus={currentSyncStatus}
                 />
                 {versionComparison}
+                {cloud && syncCopy && !cloudRevision && !activeOffer && (
+                  <div className="sync-offer sync-offer-heading no-print">
+                    <p>{t("Diese Kopie ist nur auf diesem Gerät gespeichert.")}</p>
+                    <Button disabled={busy} onClick={requestOnlineSave}>
+                      {t("Kopie online speichern")}
+                    </Button>
+                  </div>
+                )}
               </>
             }
             rail={
@@ -2677,19 +2715,7 @@ export default function App() {
                         <button
                           data-tour="save-online"
                           disabled={busy}
-                          onClick={() => {
-                            projectMenu.current.open = false;
-                            if (session) {
-                              projectMenu.current
-                                .querySelector("summary")
-                                .focus();
-                              act(saveOnline);
-                            } else {
-                              setError("");
-                              setMessage("");
-                              setPage("project-save");
-                            }
-                          }}
+                          onClick={(event) => runMenuAction(event, requestOnlineSave)}
                         >
                           {t("Online speichern")}
                         </button>
@@ -2712,17 +2738,17 @@ export default function App() {
                           disabled={busy}
                           onClick={() =>
                             act(() =>
-                              project.local
+                              project.local && (!project.online || navigator.onLine === false)
                                 ? openLocalProject(project.id)
                                 : openOnlineProject(project.id),
                             )
                           }
                         >
                           {project.title || t("Unbenanntes Projekt")}
-                          {project.syncCopy && " · " + t("Lokale Kopie")}
+                          {project.syncCopy && !project.cloudRevision && " · " + t("Lokale Kopie")}
                           {project.importCopy && " · " + t("Importkopie")}
                           {newer && <small>{t("Neuer Online-Stand")}</small>}
-                          {!project.local && <small>{t("Online")}</small>}
+                          {!newer && (project.online || !project.local) && <small>{t("Online")}</small>}
                         </button>
                       );
                     })}
@@ -3985,7 +4011,7 @@ export default function App() {
                         project.id !== draft.id && onlineById.get(project.id)?.revision > project.cloudRevision
                           ? t("Neuere Online-Version verfügbar")
                           : null,
-                        project.syncCopy ? t("Lokale Kopie") : null,
+                        project.syncCopy && !project.cloudRevision ? t("Lokale Kopie") : null,
                         project.importCopy ? t("Importkopie") : null,
                       ].filter(Boolean).join(" · ")}
                     busy={busy}

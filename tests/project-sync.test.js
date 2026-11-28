@@ -47,10 +47,10 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
   localStorage.setItem("7rizons:active-project", draft.id);
   localStorage.setItem("7rizons:tour-intro:v2", "seen");
   localStorage.setItem(key, JSON.stringify({ draft, worksheets: [], cloudRevision: 1, step: 4 }));
-  let remote = { id: draft.id, revision: 1, updated_at: "2026-11-28T09:20:00Z", payload: { draft, worksheets: [] }, admin_shared_at: null };
+  let remote = { id: draft.id, title: draft.context.thema, revision: 1, updated_at: "2026-11-28T09:20:00Z", payload: { draft, worksheets: [] }, admin_shared_at: null };
   function changeOnline(topic) {
     remote = {
-      ...remote, revision: remote.revision + 1,
+      ...remote, title: topic, revision: remote.revision + 1,
       payload: { ...remote.payload, draft: {
         ...remote.payload.draft,
         revision: remote.payload.draft.revision + 1,
@@ -103,6 +103,7 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
       writes.push(name);
       const updated = {
         ...previous, id: args.p_id, revision: args.p_revision + 1,
+        title: args.p_title, updated_at: new Date().toISOString(),
         payload: structuredClone(args.p_payload),
       };
       if (args.p_id === remote.id) remote = updated;
@@ -130,7 +131,7 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
   });
   await writeFile(temp, bundle.outputFiles[0].text);
   const React = await import("react");
-  const { render, screen, waitFor, cleanup, act } = await import("@testing-library/react");
+  const { render, screen, waitFor, cleanup, act, within } = await import("@testing-library/react");
   const person = (await import("@testing-library/user-event")).default.setup({ document });
   try {
     const { default: App } = await import(pathToFileURL(temp).href);
@@ -152,6 +153,7 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
     assert.equal(remote.admin_shared_at, null);
     assert.equal(Object.hasOwn(remote.payload, "cloudOwner"), false);
     await waitFor(() => assert.equal(status(), "Lokal und online gespeichert"));
+    const secondDeviceCache = localStorage.getItem(key);
 
     online = false;
     await click(/^1\s*Organisatorisches/);
@@ -174,17 +176,14 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
     const copyId = localStorage.getItem("7rizons:active-project");
     const workingCopy = JSON.parse(localStorage.getItem("7rizons:project:v1:" + copyId));
     assert.equal(workingCopy.draft.context.thema, "Laptop-Änderung");
-    assert.match(workingCopy.projectName, /^Laptop-Änderung · Lokale Fassung vom /);
+    assert.match(workingCopy.projectName, /^Laptop-Änderung · Kopie vom /);
     assert.equal(workingCopy.worksheets.length, 1);
-    assert.equal(workingCopy.cloudRevision, 0);
     assert.equal(workingCopy.syncCopy, true);
     assert.equal(JSON.parse(localStorage.getItem(key)).draft.context.thema, "Handy-Änderung");
-    assert.deepEqual(writes, ["save_configuration"], "the local copy has not been uploaded");
-
-    await person.click(document.querySelector(".project-menu summary"));
-    await click("Online speichern");
     await waitFor(() => assert.equal(created.get(copyId)?.revision, 1));
+    await waitFor(() => assert.equal(JSON.parse(localStorage.getItem("7rizons:project:v1:" + copyId)).cloudRevision, 1));
     assert.equal(created.get(copyId).payload.projectName, workingCopy.projectName);
+    assert.equal(created.get(copyId).payload.worksheets.length, 1);
     assert.deepEqual(writes, ["save_configuration", "save_configuration_for_administration"]);
 
     await person.click(document.querySelector(".project-menu summary"));
@@ -230,6 +229,40 @@ test("autosaves new worksheets after reconnect and lets the owner choose which v
     await waitFor(() => assert.equal(status(), "Lokal und online gespeichert"));
     assert.equal(remote.admin_shared_at, null);
     assert.deepEqual(writes, ["save_configuration", "save_configuration_for_administration", "save_configuration"]);
+
+    // A second device can update its clean cache and open the new online copy.
+    cleanup();
+    localStorage.clear();
+    localStorage.setItem("7rizons:tour-intro:v2", "seen");
+    localStorage.setItem("7rizons:active-project", draft.id);
+    localStorage.setItem(key, secondDeviceCache);
+    render(React.createElement(App));
+    const openArchive = async () => {
+      await person.click(document.querySelector(".project-menu summary"));
+      await click("Projekte verwalten");
+      return within(screen.getByRole("region", { name: "Online-Projekte" }));
+    };
+    let onlineProjects = await openArchive();
+    await person.click(await onlineProjects.findByRole("button", { name: "„Mein Offline-Stand“ öffnen" }));
+    await waitFor(() => assert.equal(JSON.parse(localStorage.getItem(key)).draft.context.thema, "Mein Offline-Stand"));
+    assert.equal(screen.queryByRole("heading", { name: "Neuere Online-Version verfügbar" }), null);
+    onlineProjects = await openArchive();
+    await person.click(await onlineProjects.findByRole("button", { name: /Laptop-Änderung · Kopie vom.*öffnen/ }));
+    await waitFor(() => assert.equal(localStorage.getItem("7rizons:active-project"), copyId));
+    assert.equal(JSON.parse(localStorage.getItem("7rizons:project:v1:" + copyId)).worksheets.length, 1);
+    await waitFor(() => assert.equal(status(), "Lokal und online gespeichert"));
+
+    // Copies created before this update still have an explicit upload path.
+    cleanup();
+    const legacyCopy = conflictCopy(workingCopy);
+    legacyCopy.projectName = "Laptop-Änderung · Lokale Fassung vom 28.11.26";
+    localStorage.setItem("7rizons:active-project", legacyCopy.draft.id);
+    localStorage.setItem("7rizons:project:v1:" + legacyCopy.draft.id, JSON.stringify(legacyCopy));
+    render(React.createElement(App));
+    await screen.findByRole("button", { name: "Konto" });
+    assert.equal(created.has(legacyCopy.draft.id), false);
+    await click("Kopie online speichern");
+    await waitFor(() => assert.equal(created.get(legacyCopy.draft.id)?.revision, 1));
   } finally {
     cleanup();
     dom.window.close();

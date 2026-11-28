@@ -137,6 +137,10 @@
     font-size: 1rem;
     margin: 0.35rem 0;
   }
+  .sync-offer-heading > p {
+    margin: 0.35rem 0;
+    font-size: 0.88rem;
+  }
   .sync-compare:not([hidden]) {
     display: grid;
     gap: 1rem;
